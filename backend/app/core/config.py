@@ -15,6 +15,11 @@ class Settings(BaseSettings):
 
     # Cache TTL en segundos
     cache_ttl: int = 300
+    
+    # ... tus otras variables ...
+    confluence_base_url: str
+    confluence_pat: str
+    confluence_page_id: str
 
     @property
     def cors_origins_list(self) -> list[str]:

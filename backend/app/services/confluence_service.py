@@ -8,22 +8,21 @@ from typing import Optional
 from html.parser import HTMLParser
 import httpx
 
-CONFLUENCE_BASE = "https://wiki.gbsj.com.ar"
-CONFLUENCE_PAT  = "NzY4NzYwMjkxOTY1OtFp+4kU3w+vVuv6PDhtnliP2riZ"
-PAGE_ID         = "91262245"
+from app.core.config import get_settings # <-- Agregamos tu configurador
 
+settings = get_settings() # <-- Instanciamos las variables
 
 def _headers():
     return {
-        "Authorization": f"Bearer {CONFLUENCE_PAT}",
+        "Authorization": f"Bearer {settings.confluence_pat}", # <-- Usamos el .env
         "Accept": "application/json",
         "Content-Type": "application/json",
     }
 
-
 async def fetch_page_html() -> str:
     """Obtiene el HTML de la página de Confluence."""
-    url = f"{CONFLUENCE_BASE}/rest/api/content/{PAGE_ID}?expand=body.storage"
+    # Usamos las variables del .env para la URL y el ID
+    url = f"{settings.confluence_base_url}/rest/api/content/{settings.confluence_page_id}?expand=body.storage"
     async with httpx.AsyncClient(timeout=10, verify=False) as client:
         resp = await client.get(url, headers=_headers())
         resp.raise_for_status()
