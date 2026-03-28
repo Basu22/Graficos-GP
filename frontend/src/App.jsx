@@ -4,7 +4,7 @@ import {
   ResponsiveContainer, ReferenceLine, ReferenceArea, ComposedChart, Area, Line, LineChart
 } from "recharts";
 
-const API = "http://localhost:8000/api/v1";
+const API = "https://graficosagiles.site/api/v1";
 const JIRA_BASE = "https://jira.gbsj.com.ar";
 
 // ── Tema dark/light ───────────────────────────────────────────────────────────

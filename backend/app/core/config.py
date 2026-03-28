@@ -1,7 +1,6 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
 
-
 class Settings(BaseSettings):
     # Jira Server / Data Center
     jira_base_url: str
@@ -16,7 +15,7 @@ class Settings(BaseSettings):
     # Cache TTL en segundos
     cache_ttl: int = 300
     
-    # ... tus otras variables ...
+    # Confluence
     confluence_base_url: str
     confluence_pat: str
     confluence_page_id: str
@@ -27,8 +26,8 @@ class Settings(BaseSettings):
 
     class Config:
         env_file = ".env"
+        extra = "ignore"
         env_file_encoding = "utf-8"
-
 
 @lru_cache()
 def get_settings() -> Settings:
