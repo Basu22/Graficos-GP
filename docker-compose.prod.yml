@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  backend:
+    build: 
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env   # <- Aquí está configurado Jira, Confluence y Pat
+    volumes:
+      - ./backend/data:/app/data   # <- IMPORTANTE: hace persistente los JSON
+    environment:
+      # Sobreescribe explícitamente el origen de CORS con '*' al estar proxyado
+      - CORS_ORIGINS=*
+
+  frontend:
+    build: 
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+      args:
+        - VITE_JIRA_BASE_URL=https://jira.gbsj.com.ar  # Reemplazar al construir
+    # NGINX va en el puerto 80 interno
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  tunnel:
+    container_name: cloudflared-tunnel
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    # Apunta directo al Frontend que internamente rutea el /api/ al backend
+    command: tunnel run --token ${CLOUDFLARE_TUNNEL_TOKEN}

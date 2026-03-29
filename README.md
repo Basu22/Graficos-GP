@@ -74,13 +74,18 @@ docker-compose up --build
 
 ## 🔑 Variables de entorno (backend)
 
+> ℹ️ Usamos **Jira Server / Data Center** con Personal Access Token (PAT). No usa usuario/contraseña de Jira Cloud.
+
 | Variable | Descripción | Ejemplo |
 |---|---|---|
-| `JIRA_BASE_URL` | URL de tu instancia Jira | `https://miempresa.atlassian.net` |
-| `JIRA_EMAIL` | Email de la cuenta | `agile@miempresa.com` |
-| `JIRA_API_TOKEN` | Token API de Jira | Generado en id.atlassian.com |
-| `JIRA_PROJECT_KEY` | Clave del proyecto | `BACK`, `FRONT`, etc. |
-| `CACHE_TTL` | Cache en segundos | `300` |
+| `JIRA_BASE_URL` | URL de tu instancia Jira (sin slash final) | `https://jira.tu-empresa.com` |
+| `JIRA_PAT` | Personal Access Token de Jira (generado en tu perfil) | `NjYwN...` |
+| `JIRA_PROJECT_KEY` | Clave del proyecto | `BACK`, `FRONT`, `GP`, etc. |
+| `CONFLUENCE_BASE_URL` | URL base de Confluence | `https://confluence.tu-empresa.com` |
+| `CONFLUENCE_PAT` | Personal Access Token de Confluence | mismo que Jira en Data Center |
+| `CONFLUENCE_PAGE_ID` | ID de la página donde se publica el reporte | `123456789` |
+| `CACHE_TTL` | Cache en memoria, en segundos | `300` |
+| `CORS_ORIGINS` | Orígenes permitidos (separados por coma) | `http://localhost:5173` |
 
 ## 📊 Endpoints disponibles
 
