@@ -2,21 +2,28 @@ import axios from "axios";
 
 const BASE_URL = import.meta.env.VITE_API_URL;
 
-const api = axios.create({ baseURL: BASE_URL });
+// Obligamos al navegador a adjuntar las cookies de Cloudflare SIEMPRE
+const api = axios.create({ 
+  baseURL: BASE_URL,
+  withCredentials: true 
+});
+
+let isReloading = false;
 
 // Interceptor mágico para Cloudflare Access
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     // Si la sesión de Cloudflare vence, hace un Redirect (302) a un dominio cruzado.
-    // El navegador lo bloquea por CORS y llega a Axios como "Network Error".
-    if (error.message === "Network Error" && !error.response) {
-      console.warn("Posible sesión de Cloudflare vencida. Recargando la vista completa...");
-      window.location.reload();
+    if (!isReloading && error.message === "Network Error" && !error.response) {
+      isReloading = true;
+      console.warn("Cloudflare rebotó la petición. Obligando a enviar credenciales con F5...");
+      setTimeout(() => window.location.reload(), 500);
     }
-    // Por las dudas, si llegara a devolver 401 o 403 lo atrapamos también.
-    if (error.response && [401, 403].includes(error.response.status)) {
-      window.location.reload();
+    
+    if (!isReloading && error.response && [401, 403].includes(error.response.status)) {
+      isReloading = true;
+      setTimeout(() => window.location.reload(), 500);
     }
     return Promise.reject(error);
   }
