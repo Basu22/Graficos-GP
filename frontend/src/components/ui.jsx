@@ -3,8 +3,8 @@ import { THEMES } from "../constants";
 export function KPICard({ value, label, sub, color, T }) {
   const theme = T || THEMES.light;
   return (
-    <div style={{
-      background: theme.card, borderRadius: 12, padding: "18px 22px",
+    <div className="card-padding" style={{
+      background: theme.card, borderRadius: 12,
       boxShadow: "0 1px 4px rgba(0,0,0,0.08)", flex: "1 1 130px", minWidth: 0,
       border: `1px solid ${theme.cardBorder}`,
     }}>
@@ -18,8 +18,8 @@ export function KPICard({ value, label, sub, color, T }) {
 export function ChartCard({ title, children, height = 280, badge, T }) {
   const theme = T || THEMES.light;
   return (
-    <div style={{
-      background: theme.card, borderRadius: 12, padding: "20px 24px",
+    <div className="card-padding" style={{
+      background: theme.card, borderRadius: 12,
       boxShadow: "0 1px 4px rgba(0,0,0,0.08)", minWidth: 0,
       border: `1px solid ${theme.cardBorder}`,
     }}>

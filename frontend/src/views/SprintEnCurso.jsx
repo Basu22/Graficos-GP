@@ -110,7 +110,7 @@ function KanbanBoard({ tickets, T }) {
   tickets.forEach((t) => columns[getColumn(t)].push(t));
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 16, alignItems: "start" }}>
+    <div className="responsive-grid-5">
       {KANBAN_COLUMNS.map((col) => (
         <div key={col.key}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, padding: "8px 12px", borderRadius: 8, background: col.bg, border: `1px solid ${col.border}` }}>
@@ -185,7 +185,7 @@ export function SprintEnCurso({ team, T }) {
       </div>
 
       {/* Salud + Burndown */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+      <div className="responsive-grid-2">
         {health && (
           <div style={{ background: theme?.card || "#fff", borderRadius: 12, padding: "20px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", border: `1px solid ${theme?.cardBorder || "#e2e8f0"}` }}>
             <div style={{ marginBottom: 16 }}>

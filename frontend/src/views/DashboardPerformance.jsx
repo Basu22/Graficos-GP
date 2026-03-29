@@ -15,7 +15,7 @@ export function DashboardPerformance({ team, filter, T }) {
   const { data: carry } = useFetch(`${API}/metrics/carry-over${q}`);
 
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+    <div className="responsive-grid-2">
       <ChartCard T={T} title="Velocidad (Story Points)"
         badge={vel ? { text: `Velocidad Promedio ${vel.average_delivered ?? vel.average_committed} pts`, color: "#EF4444" } : null}>
         {!vel ? <Spinner /> : (vel.data || []).length === 0 ? <EmptyState /> : (
