@@ -66,16 +66,24 @@ export function ReporteEjecutivo({ team, filter, T }) {
         </ResponsiveContainer>
       </ChartCard>
 
-      <div style={{ background: theme.healthMuted, borderRadius: 12, padding: "20px 24px", borderLeft: "4px solid #3B82F6" }}>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: theme.textMuted, textTransform: "uppercase", marginBottom: 12 }}>
-          Síntesis Estratégica
+      <div style={{ background: theme.healthMuted, borderRadius: 12, padding: "20px 24px", borderLeft: `6px solid ${theme.cardBorder || "#e2e8f0"}` }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, color: theme.textMuted, textTransform: "uppercase", marginBottom: 16 }}>
+          Síntesis Estratégica (Análisis IA)
         </div>
-        {strategic_synthesis.map((line, i) => (
-          <div key={i} style={{ display: "flex", gap: 10, marginBottom: 8, fontSize: 13, lineHeight: 1.6 }}>
-            <span style={{ color: i === strategic_synthesis.length - 1 ? "#F97316" : "#3B82F6", fontWeight: 700, flexShrink: 0 }}>•</span>
-            <span style={{ color: i === strategic_synthesis.length - 1 ? "#F97316" : (theme?.textMuted || "#475569") }}>{line}</span>
-          </div>
-        ))}
+        {strategic_synthesis.map((point, i) => {
+          const pointColor = point.type === "green" ? "#22C55E" : point.type === "yellow" ? "#F59E0B" : "#EF4444";
+          const pointEmoji = point.type === "green" ? "🟢" : point.type === "yellow" ? "🟡" : "🔴";
+          
+          return (
+            <div key={i} style={{ display: "flex", gap: 12, marginBottom: 12, fontSize: 13, lineHeight: 1.5, alignItems: "flex-start" }}>
+              <span style={{ fontSize: 14, marginTop: 2 }}>{pointEmoji}</span>
+              <span style={{ color: theme.text }}>
+                <strong style={{ color: pointColor, marginRight: 4 }}>{point.type.toUpperCase()}:</strong>
+                {point.text}
+              </span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

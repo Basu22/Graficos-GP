@@ -9,34 +9,33 @@ from app.services.carry_over_service import get_carry_over
 from app.services.gemini_service import generate_synthesis_ai
 
 
-def _build_synthesis(kpis: ExecutiveKPIs, lt_improvement: float | None) -> list[str]:
-    lines = []
+def _build_synthesis(kpis: ExecutiveKPIs, lt_improvement: float | None) -> list[dict]:
+    points = []
 
     if lt_improvement and lt_improvement > 0:
-        lines.append(
-            f"Eficiencia: El Lead Time se redujo {lt_improvement}%, indicando un flujo de trabajo más ágil."
-        )
+        points.append({
+            "text": f"Eficiencia: El Lead Time se redujo {lt_improvement}%, indicando un flujo de trabajo más ágil.",
+            "type": "green"
+        })
 
     if kpis.scope_creep_total > 0:
-        lines.append(
-            f"Alcance: Se gestionaron {kpis.scope_creep_total} pts de cambio de alcance "
-            f"con una predictibilidad media del {kpis.predictability_avg}%."
-        )
+        points.append({
+            "text": f"Alcance: Se gestionaron {kpis.scope_creep_total} pts de cambio de alcance con una predictibilidad del {kpis.predictability_avg}%.",
+            "type": "yellow"
+        })
 
     if kpis.predictability_avg >= 80:
-        lines.append(
-            f"Predictibilidad: El equipo cumple con el ~{kpis.predictability_avg}% de lo prometido (Meta: 80%)."
-        )
+        points.append({
+            "text": f"Predictibilidad: El equipo cumple con el {kpis.predictability_avg}% de lo prometido (Meta: 80%).",
+            "type": "green"
+        })
     else:
-        lines.append(
-            f"Alerta: La predictibilidad de {kpis.predictability_avg}% está por debajo del objetivo del 80%."
-        )
+        points.append({
+            "text": f"Alerta: La predictibilidad de {kpis.predictability_avg}% está por debajo del objetivo del 80%.",
+            "type": "red"
+        })
 
-    lines.append(
-        "Recomendación: Fragmentar tareas complejas para reducir el Lead Time."
-    )
-
-    return lines
+    return points
 
 
 async def get_executive_report(client: JiraClient, board_id: int, sprint_ids: list[int], sprints_info: list, team: str = "Equipo") -> ExecutiveReport:

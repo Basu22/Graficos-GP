@@ -97,6 +97,11 @@ class ExecutiveKPIs(BaseModel):
     efficiency_improvement_pct: Optional[float] = None
 
 
+class StrategicSynthesisPoint(BaseModel):
+    text: str
+    type: str  # "green" | "yellow" | "red"
+
+
 # ── Reporte Ejecutivo completo ───────────────────────────────────────────────
 
 class ExecutiveReport(BaseModel):
@@ -106,4 +111,4 @@ class ExecutiveReport(BaseModel):
     lead_time: LeadTimeResponse
     scope_change: ScopeChangeResponse
     carry_over: CarryOverResponse
-    strategic_synthesis: list[str]
+    strategic_synthesis: list[StrategicSynthesisPoint]
