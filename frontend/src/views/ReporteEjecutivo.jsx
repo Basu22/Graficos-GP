@@ -77,10 +77,7 @@ export function ReporteEjecutivo({ team, filter, T }) {
           return (
             <div key={i} style={{ display: "flex", gap: 12, marginBottom: 12, fontSize: 13, lineHeight: 1.5, alignItems: "flex-start" }}>
               <span style={{ fontSize: 14, marginTop: 2 }}>{pointEmoji}</span>
-              <span style={{ color: theme.text }}>
-                <strong style={{ color: pointColor, marginRight: 4 }}>{point.type.toUpperCase()}:</strong>
-                {point.text}
-              </span>
+              <span style={{ color: theme.text }}>{point.text}</span>
             </div>
           );
         })}

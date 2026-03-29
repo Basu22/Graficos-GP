@@ -60,13 +60,13 @@ async def generate_synthesis_ai(kpis: ExecutiveKPIs, team_name: str) -> list[dic
         - Scope Creep (puntos agregados): {kpis.scope_creep_total}
         - Mejora de Eficiencia: {kpis.efficiency_improvement_pct}%
         
-        IMPORTANTE: 
-        1. Clasifica cada punto empezando con [VERDE], [AMARILLO] o [ROJO].
-        2. [VERDE]: Logros, mejoras notables o métricas saludables.
-        3. [AMARILLO]: Áreas de atención, alertas leves o estabilidad sin mejora.
-        4. [ROJO]: Riesgos críticos, bloqueos o degradación de métricas.
-        5. Sé breve, profesional y directo (formato ejecutivo).
-        6. No uses negritas (**). Solo texto plano.
+        REGLAS CRÍTICAS: 
+        1. NO escribas introducciones ni saludos (ej: 'Aquí tienes...', 'Basado en...').
+        2. Empieza CADA línea directamente con uno de estos tags: [VERDE], [AMARILLO] o [ROJO].
+        3. [VERDE]: Logros o métricas saludables.
+        4. [AMARILLO]: Alertas o estabilidad sin mejora.
+        5. [ROJO]: Riesgos o degradación.
+        6. NO uses negritas (**). Solo texto plano.
         """
 
         response = await model.generate_content_async(prompt)
@@ -75,22 +75,35 @@ async def generate_synthesis_ai(kpis: ExecutiveKPIs, team_name: str) -> list[dic
         raw_lines = [line.strip() for line in text.split('\n') if line.strip()]
         processed_points = []
         
+        # Palabras comunes en intros que queremos filtrar si Gemini desobedece
+        intro_keywords = ["AQUÍ TIENES", "ESTE ES EL ANÁLISIS", "ANÁLISIS DE LAS MÉTRICAS", "SÍNTESIS PARA EL EQUIPO"]
+        
         for line in raw_lines:
-            # Limpiar prefijos comunes de bullets
+            # Si la línea parece una intro, ignorarla
+            if any(key in line.upper() for key in intro_keywords) and "[" not in line:
+                continue
+                
             line = line.lstrip('-*•').strip()
             if not line: continue
             
-            # Determinar tipo
             p_type = "green"
-            if "[ROJO]" in line.upper(): p_type = "red"
-            elif "[AMARILLO]" in line.upper(): p_type = "yellow"
+            if "[ROJO]" in line.upper() or "RED" in line.upper(): p_type = "red"
+            elif "[AMARILLO]" in line.upper() or "YELLOW" in line.upper(): p_type = "yellow"
             
-            # Limpiar tags
-            clean_text = line.replace("[VERDE]", "").replace("[AMARILLO]", "").replace("[ROJO]", "").strip()
-            if clean_text:
+            # Limpieza profunda de tags en cualquier idioma/formato
+            clean_text = line
+            for tag in ["[VERDE]", "[AMARILLO]", "[ROJO]", "GREEN:", "YELLOW:", "RED:", "[GREEN]", "[YELLOW]", "[RED]"]:
+                clean_text = clean_text.replace(tag, "").replace(tag.lower(), "").replace(tag.upper(), "")
+            
+            clean_text = clean_text.strip().lstrip(':').strip()
+            
+            if clean_text and len(clean_text) > 5:
                 processed_points.append({"text": clean_text, "type": p_type})
 
-        # Cache before returning
+        # Si aún queda una intro (a veces no traen tags), la sacamos
+        if processed_points and ("Aquí tiene" in processed_points[0]['text'] or "Este es" in processed_points[0]['text']):
+            processed_points.pop(0)
+
         final_points = processed_points[:4]
         if not final_points and text:
             final_points = [{"text": text[:500], "type": "green"}]
