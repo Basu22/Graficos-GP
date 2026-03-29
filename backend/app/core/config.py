@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     app_env: str = "development"
     app_port: int = 8000
     cors_origins: str = "http://localhost:5173"
+    gemini_api_key: str | None = None
 
     # Cache TTL en segundos
     cache_ttl: int = 300

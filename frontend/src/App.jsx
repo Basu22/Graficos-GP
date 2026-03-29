@@ -98,8 +98,8 @@ export default function App() {
       {/* Header */}
       <div className="header-wrapper">
         <div className="header-content">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
               <div style={{ width: 30, height: 30, borderRadius: 8, background: "#3B82F6", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <span style={{ color: "#fff", fontSize: 15 }}>⚡</span>
               </div>
@@ -126,7 +126,7 @@ export default function App() {
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "flex-start", flexWrap: "wrap" }}>
             <select value={team} onChange={(e) => setTeam(e.target.value)} style={{ ...selectStyle, flex: 1, maxWidth: 180 }}>
               {teams.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
@@ -138,8 +138,8 @@ export default function App() {
             )}
             
             <button
-              className="show-mobile" /* Solo para mobile si hace falta */
-              style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 600, display: window.innerWidth < 768 ? "block" : "none" }}
+              className="show-mobile" 
+              style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 600 }}
               onClick={handleExportPDF}
               disabled={pdfLoading}
             >
@@ -147,7 +147,7 @@ export default function App() {
             </button>
           </div>
 
-          <div className="nav-scroll">
+          <div className="nav-scroll" style={{ flexShrink: 0, marginLeft: "auto" }}>
             <div className="nav-container">
               <button style={btnStyle(view === "dashboard")} onClick={() => setView("dashboard")}>Performance</button>
               <button style={btnStyle(view === "executive")} onClick={() => setView("executive")}>Ejecutivo</button>
@@ -162,7 +162,7 @@ export default function App() {
       {/* Contenido */}
       <div ref={contentRef} className="main-content">
         <div style={{ marginBottom: 20 }}>
-          <h1 style={{ fontSize: window.innerWidth < 768 ? 16 : 18, fontWeight: 700, color: T.text, margin: 0 }}>{titles[view]}</h1>
+          <h1 style={{ fontSize: 18, fontWeight: 700, color: T.text, margin: 0 }}>{titles[view]}</h1>
           <p style={{ fontSize: 11, color: T.textFaint, margin: "4px 0 0" }}>
             {view === "sprint" ? "Datos en vivo · 5m" : `Jira · ${filterLabel}`}
           </p>

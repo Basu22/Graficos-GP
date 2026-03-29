@@ -133,4 +133,4 @@ async def executive_report(
     client: JiraClient = Depends(get_jira_client),
 ):
     board_id, ids, sprints = await _resolve_sprints(client, sprint_ids, last_n, team, quarter, year)
-    return await get_executive_report(client, board_id, ids, sprints)
+    return await get_executive_report(client, board_id, ids, sprints, team=team)

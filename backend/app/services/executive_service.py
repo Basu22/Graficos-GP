@@ -6,38 +6,40 @@ from app.services.lead_time_service import get_lead_time
 from app.services.scope_service import get_scope_change
 from app.services.carry_over_service import get_carry_over
 
+from app.services.gemini_service import generate_synthesis_ai
+
 
 def _build_synthesis(kpis: ExecutiveKPIs, lt_improvement: float | None) -> list[str]:
     lines = []
 
     if lt_improvement and lt_improvement > 0:
         lines.append(
-            f"Mejora en la Eficiencia: El Lead Time se redujo {lt_improvement}%, indicando un flujo de trabajo más ágil."
+            f"Eficiencia: El Lead Time se redujo {lt_improvement}%, indicando un flujo de trabajo más ágil."
         )
 
     if kpis.scope_creep_total > 0:
         lines.append(
-            f"Visibilidad de Alcance: Se gestionaron {kpis.scope_creep_total} pts de cambio de alcance "
-            f"manteniendo la predictibilidad media en {kpis.predictability_avg}%."
+            f"Alcance: Se gestionaron {kpis.scope_creep_total} pts de cambio de alcance "
+            f"con una predictibilidad media del {kpis.predictability_avg}%."
         )
 
     if kpis.predictability_avg >= 80:
         lines.append(
-            f"Estabilidad Say/Do: El equipo cumple consistentemente con el ~{kpis.predictability_avg}% de lo prometido."
+            f"Predictibilidad: El equipo cumple con el ~{kpis.predictability_avg}% de lo prometido (Meta: 80%)."
         )
     else:
         lines.append(
-            f"Atención Say/Do: La predictibilidad de {kpis.predictability_avg}% está por debajo del umbral aceptable (80%)."
+            f"Alerta: La predictibilidad de {kpis.predictability_avg}% está por debajo del objetivo del 80%."
         )
 
     lines.append(
-        "Recomendación: Continuar fragmentando tareas complejas para mantener la tendencia de reducción del Lead Time."
+        "Recomendación: Fragmentar tareas complejas para reducir el Lead Time."
     )
 
     return lines
 
 
-async def get_executive_report(client: JiraClient, board_id: int, sprint_ids: list[int], sprints_info: list) -> ExecutiveReport:
+async def get_executive_report(client: JiraClient, board_id: int, sprint_ids: list[int], sprints_info: list, team: str = "Equipo") -> ExecutiveReport:
     velocity = await get_velocity(client, board_id, sprint_ids, sprints_info)
     predictability = await get_predictability(client, board_id, sprint_ids, sprints_info)
     lead_time = await get_lead_time(client, board_id, sprint_ids, sprints_info)
@@ -56,7 +58,11 @@ async def get_executive_report(client: JiraClient, board_id: int, sprint_ids: li
         efficiency_improvement_pct=lead_time.improvement_pct,
     )
 
-    synthesis = _build_synthesis(kpis, lead_time.improvement_pct)
+    # Intentar síntesis con IA, si no hay key devuelve []
+    synthesis = await generate_synthesis_ai(kpis, team)
+    
+    if not synthesis:
+        synthesis = _build_synthesis(kpis, lead_time.improvement_pct)
 
     return ExecutiveReport(
         kpis=kpis,

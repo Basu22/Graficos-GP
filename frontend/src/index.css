@@ -121,3 +121,13 @@ body {
     padding: 20px 24px;
   }
 }
+
+.show-mobile {
+  display: block;
+}
+
+@media (min-width: 768px) {
+  .show-mobile {
+    display: none;
+  }
+}
