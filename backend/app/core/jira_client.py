@@ -6,6 +6,21 @@ settings = get_settings()
 
 # Cache simple en memoria: {key: (timestamp, value)}
 _cache: dict = {}
+_locks: dict = {}
+_http_client: httpx.AsyncClient | None = None
+
+def get_http_client():
+    global _http_client
+    if _http_client is None:
+        limits = httpx.Limits(max_keepalive_connections=20, max_connections=50)
+        _http_client = httpx.AsyncClient(verify=False, timeout=45.0, limits=limits)
+    return _http_client
+
+def get_lock(key: str):
+    import asyncio
+    if key not in _locks:
+        _locks[key] = asyncio.Lock()
+    return _locks[key]
 
 
 def _cache_get(key: str):
@@ -32,17 +47,18 @@ class JiraClient:
 
     async def _get(self, url: str, params: dict = None):
         cache_key = f"{url}|{sorted((params or {}).items())}"
-        cached = _cache_get(cache_key)
-        if cached is not None:
-            return cached
+        async with get_lock(cache_key):
+            cached = _cache_get(cache_key)
+            if cached is not None:
+                return cached
 
-        async with httpx.AsyncClient(verify=False, timeout=30) as client:
+            client = get_http_client()
             r = await client.get(url, headers=self.headers, params=params)
             r.raise_for_status()
             data = r.json()
 
-        _cache_set(cache_key, data)
-        return data
+            _cache_set(cache_key, data)
+            return data
 
     async def get_board_id(self) -> int:
         if self._board_id:
@@ -55,13 +71,14 @@ class JiraClient:
 
     async def get_sprints(self, board_id: int, state: str = "closed,active", team: str = None) -> list:
         cache_key = f"sprints|{board_id}|{state}|{team}"
-        cached = _cache_get(cache_key)
-        if cached is not None:
-            return cached
+        async with get_lock(cache_key):
+            cached = _cache_get(cache_key)
+            if cached is not None:
+                return cached
 
-        url = f"{self.base_url}/rest/agile/1.0/board/{board_id}/sprint"
-        all_sprints, start = [], 0
-        async with httpx.AsyncClient(verify=False, timeout=30) as client:
+            url = f"{self.base_url}/rest/agile/1.0/board/{board_id}/sprint"
+            all_sprints, start = [], 0
+            client = get_http_client()
             while True:
                 r = await client.get(url, headers=self.headers,
                                      params={"state": state, "startAt": start, "maxResults": 50})
@@ -72,26 +89,27 @@ class JiraClient:
                     break
                 start += 50
 
-        if team:
-            all_sprints = [s for s in all_sprints if team.lower() in s.get("name", "").lower()]
+            if team:
+                all_sprints = [s for s in all_sprints if team.lower() in s.get("name", "").lower()]
 
-        _cache_set(cache_key, all_sprints)
-        return all_sprints
+            _cache_set(cache_key, all_sprints)
+            return all_sprints
 
     async def get_issues_for_sprint(self, sprint_id: int, fields: list[str] = None) -> list:
         cache_key = f"issues|{sprint_id}|{fields}"
-        cached = _cache_get(cache_key)
-        if cached is not None:
-            return cached
+        async with get_lock(cache_key):
+            cached = _cache_get(cache_key)
+            if cached is not None:
+                return cached
 
-        default_fields = ["summary", "status", "assignee", "customfield_10006",
-                          "issuetype", "created", "resolutiondate", "sprint"]
-        use_fields = fields or default_fields
+            default_fields = ["summary", "status", "assignee", "customfield_10006",
+                              "issuetype", "created", "resolutiondate", "sprint"]
+            use_fields = fields or default_fields
 
-        url = f"{self.base_url}/rest/api/2/search"
-        jql = f"sprint = {sprint_id} ORDER BY created ASC"
-        all_issues, start = [], 0
-        async with httpx.AsyncClient(verify=False, timeout=30) as client:
+            url = f"{self.base_url}/rest/api/2/search"
+            jql = f"sprint = {sprint_id} ORDER BY created ASC"
+            all_issues, start = [], 0
+            client = get_http_client()
             while True:
                 r = await client.get(url, headers=self.headers, params={
                     "jql": jql, "startAt": start, "maxResults": 100,
@@ -104,8 +122,8 @@ class JiraClient:
                     break
                 start += 100
 
-        _cache_set(cache_key, all_issues)
-        return all_issues
+            _cache_set(cache_key, all_issues)
+            return all_issues
 
 
     async def get_teams(self, board_id: int) -> list[str]:
