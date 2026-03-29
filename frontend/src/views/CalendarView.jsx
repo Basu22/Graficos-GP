@@ -30,7 +30,7 @@ export function CalendarView({ T, team }) {
   const allEvents = [
     ...events.filter((e) => filterTypes.has(e.type)),
     ...holidays.filter(() => filterTypes.has("holiday")),
-    ...sprintEvents.filter(() => filterTypes.has("sprint")),
+    ...Array.from(new Map(sprintEvents.filter((e) => filterTypes.has("sprint")).map(s => [s.title, s])).values()),
   ];
 
   const cardBg = theme.card || "#fff";
@@ -59,6 +59,7 @@ export function CalendarView({ T, team }) {
   useEffect(() => { loadAllCorrect(); }, [year, team]);
 
   function eventsForDay(dateStr) {
+    if (!dateStr) return [];
     return allEvents.filter((e) => dateInRange(dateStr, e.start_date, e.end_date || e.start_date));
   }
 
@@ -79,6 +80,23 @@ export function CalendarView({ T, team }) {
     }
     return { color: `rgb(${r},${g},${b})`, progress, sprint };
   }
+
+  const sprintsMetasMap = {};
+  sprintEvents.forEach(s => {
+    let businessDays = 0;
+    let sprintHolidays = 0;
+    let cur = new Date(s.start_date + "T12:00:00");
+    const end = new Date(s.end_date + "T12:00:00");
+    while (cur <= end) {
+      const dStr = cur.toISOString().slice(0, 10);
+      const isWeekend = [0, 6].includes(cur.getDay());
+      const isHoliday = holidays.some(h => dateInRange(dStr, h.start_date, h.end_date || h.start_date));
+      if (!isWeekend && !isHoliday) businessDays++;
+      if (isHoliday) sprintHolidays++;
+      cur.setDate(cur.getDate() + 1);
+    }
+    sprintsMetasMap[s.start_date] = { businessDays, holidays: sprintHolidays };
+  });
 
   async function handleSave() {
     if (!form.title || !form.start_date) return;
@@ -116,7 +134,7 @@ export function CalendarView({ T, team }) {
   function handleDayClick(dateStr) {
     if (!dateStr) return;
     setSelectedDay(dateStr);
-    if (isMobile) {
+    if (isMobile || viewMode === "annual") {
       setShowDayDetail(true);
     } else {
       openNewEvent(dateStr);
@@ -132,10 +150,90 @@ export function CalendarView({ T, team }) {
     return sd ? sd.color : "#3B82F6";
   }
 
+  function DayCell({ m, cell, isMini = false }) {
+    const todayStr = today.toISOString().slice(0, 10);
+    const dateStr = cell.cur ? isoDate(year, m, cell.day) : "";
+    const dayEvs = dateStr ? eventsForDay(dateStr) : [];
+    const isToday = dateStr === todayStr;
+    const isWeekend = dateStr ? [0, 6].includes(new Date(dateStr + "T12:00:00").getDay()) : false;
+    const hasHoliday = dayEvs.some((e) => e.type === "holiday");
+    const cellBg = !cell.cur ? "transparent" : isToday ? c("#EFF6FF", "#1E3A5F") : hasHoliday ? c("#FFF7ED", "#431407") : isWeekend ? c("#F8FAFC", "#131F35") : theme.bg === "#0F172A" ? "#0F172A" : "#F8FAFC";
+    const meta = cell.cur && sprintsMetasMap[dateStr];
+
+    return (
+      <div onClick={() => handleDayClick(dateStr)}
+        style={{ minHeight: isMini ? 32 : isMobile ? 44 : 80, padding: isMini ? "1px" : isMobile ? "2px" : "6px 8px", borderRadius: 6, background: cellBg, border: `1px solid ${isToday ? "#3B82F6" : cell.cur ? (isMobile || isMini ? "transparent" : borderColor) : "transparent"}`, opacity: cell.cur ? 1 : 0, cursor: cell.cur ? "pointer" : "default", display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
+        
+        {meta && !isMini && (
+          <div style={{ position: "absolute", top: 4, right: 6, display: "flex", gap: 3, alignItems: "center", pointerEvents: "none" }}>
+            <span style={{ fontSize: 9, fontWeight: 800, color: "#3B82F6" }}>⚡{meta.businessDays}</span>
+            {meta.holidays > 0 && <span style={{ fontSize: 9, fontWeight: 800, color: "#F97316" }}>🇦🇷{meta.holidays}</span>}
+          </div>
+        )}
+
+        <span style={{ fontSize: isMini ? 9 : isMobile ? 11 : 13, fontWeight: isToday ? 800 : 500, background: isToday ? "#3B82F6" : "transparent", color: isToday ? "#fff" : isWeekend ? "#F97316" : textColor, width: isMini ? 16 : isMobile ? 20 : 22, height: isMini ? 16 : isMobile ? 20 : 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          {cell.cur ? cell.day : ""}
+        </span>
+        
+        {cell.cur && (
+          <div style={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center", marginTop: 2 }}>
+            {isMobile || isMini ? (
+              Array.from(new Set(dayEvs.map(e => e.type))).map(type => {
+                const info = EVENT_TYPES[type] || EVENT_TYPES.custom;
+                return <div key={type} style={{ width: isMini ? 3 : 4, height: isMini ? 3 : 4, borderRadius: "50%", background: info.color }} />;
+              })
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 2, width: "100%" }}>
+                {(() => {
+                  const holidayEv = dayEvs.find((e) => e.type === "holiday");
+                  const sprintEvs = dayEvs.filter((e) => e.type === "sprint" && !isWeekend && !holidayEv);
+                  const nonHolidayEvs = dayEvs.filter((e) => e.type !== "holiday" && !(e.type === "sprint" && (isWeekend || !!holidayEv)));
+                  const visibleEvs = [...sprintEvs, ...nonHolidayEvs];
+                  return (
+                    <>
+                      {holidayEv && <div style={{ fontSize: 9, padding: "2px 5px", borderRadius: 3, background: "#F97316", color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis" }} title={holidayEv.title}>🇦🇷 {holidayEv.title}</div>}
+                      {visibleEvs.slice(0, holidayEv ? 2 : 3).map((ev, ei) => {
+                        const info = EVENT_TYPES[ev.type] || EVENT_TYPES.custom;
+                        const pillColor = sprintPillColor(ev, dateStr) || (ev.color || info.color);
+                        return (
+                          <div key={ei} onClick={(e) => { e.stopPropagation(); openEditEvent(ev); }} title={ev.title}
+                            style={{ fontSize: 9, padding: "2px 5px", borderRadius: 3, cursor: "pointer", background: ev.type === "sprint" ? pillColor : (ev.color || info.color) + "25", borderLeft: ev.type !== "sprint" ? `2px solid ${ev.color || info.color}` : "none", color: ev.type === "sprint" ? "#fff" : (ev.color || info.color), fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                            {info.icon} {ev.title}
+                          </div>
+                        );
+                      })}
+                      {visibleEvs.length > (holidayEv ? 2 : 3) && <div style={{ fontSize: 9, color: mutedColor }}>+{visibleEvs.length - (holidayEv ? 2 : 3)}</div>}
+                    </>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  function MonthGrid({ m, isMini = false }) {
+    const daysInM = getDaysInMonth(year, m);
+    const firstDay = getFirstDayOfMonth(year, m);
+    const cells = [];
+    const prevDays = getDaysInMonth(year, m - 1 < 0 ? 11 : m - 1);
+    for (let i = firstDay - 1; i >= 0; i--) cells.push({ day: prevDays - i, cur: false });
+    for (let d = 1; d <= daysInM; d++) cells.push({ day: d, cur: true });
+    const maxCells = cells.length > 35 ? 42 : 35;
+    while (cells.length < maxCells) cells.push({ day: cells.length - daysInM - firstDay + 2, cur: false });
+
+    return (
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: isMini ? 1 : isMobile ? 1 : 3 }}>
+        {cells.map((cell, ci) => <DayCell key={ci} m={m} cell={cell} isMini={isMini} />)}
+      </div>
+    );
+  }
+
   function QuarterView() {
     const qStart = selectedQuarter * 3;
     const months = [qStart, qStart + 1, qStart + 2];
-    const todayStr = today.toISOString().slice(0, 10);
 
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 10 : 16 }}>
@@ -158,87 +256,44 @@ export function CalendarView({ T, team }) {
 
         <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 12 : 16 }}>
           {months.map((m) => {
-            const daysInM = getDaysInMonth(year, m);
-            const firstDay = getFirstDayOfMonth(year, m);
-            const cells = [];
-            const prevDays = getDaysInMonth(year, m - 1 < 0 ? 11 : m - 1);
-            for (let i = firstDay - 1; i >= 0; i--) cells.push({ day: prevDays - i, cur: false });
-            for (let d = 1; d <= daysInM; d++) cells.push({ day: d, cur: true });
-            while (cells.length < (cells.length > 35 ? 42 : 35)) cells.push({ day: cells.length - daysInM - firstDay + 2, cur: false });
             const isCurMonth = m === today.getMonth() && year === today.getFullYear();
-
             return (
               <div key={m} style={{ background: cardBg, borderRadius: 12, padding: isMobile ? "12px 14px" : "16px 20px", border: `1px solid ${isCurMonth ? "#3B82F6" : borderColor}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
                   <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 800, color: textColor }}>{MONTHS[m]}</div>
                   {isCurMonth && <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 10, background: "#DBEAFE", color: "#1D4ED8", fontWeight: 700 }}>Hoy</span>}
                 </div>
-
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
                   {DAYS_SHORT.map((d) => (
                     <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: d === "Dom" || d === "Sáb" ? "#F97316" : mutedColor, padding: "4px 0" }}>{d}</div>
                   ))}
                 </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: isMobile ? 1 : 3 }}>
-                  {cells.map((cell, ci) => {
-                    const dateStr = cell.cur ? isoDate(year, m, cell.day) : "";
-                    const dayEvs = dateStr ? eventsForDay(dateStr) : [];
-                    const isToday = dateStr === todayStr;
-                    const isWeekend = dateStr ? [0, 6].includes(new Date(dateStr + "T12:00:00").getDay()) : false;
-                    const hasHoliday = dayEvs.some((e) => e.type === "holiday");
-                    const cellBg = !cell.cur ? "transparent" : isToday ? c("#EFF6FF", "#1E3A5F") : hasHoliday ? c("#FFF7ED", "#431407") : isWeekend ? c("#F8FAFC", "#131F35") : theme.bg === "#0F172A" ? "#0F172A" : "#F8FAFC";
-
-                    return (
-                      <div key={ci} onClick={() => handleDayClick(dateStr)}
-                        style={{ minHeight: isMobile ? 44 : 80, padding: isMobile ? "2px" : "6px 8px", borderRadius: 6, background: cellBg, border: `1px solid ${isToday ? "#3B82F6" : cell.cur ? (isMobile ? "transparent" : borderColor) : "transparent"}`, opacity: cell.cur ? 1 : 0, cursor: cell.cur ? "pointer" : "default", display: "flex", flexDirection: "column", alignItems: "center" }}>
-                        <span style={{ fontSize: isMobile ? 11 : 13, fontWeight: isToday ? 800 : 500, background: isToday ? "#3B82F6" : "transparent", color: isToday ? "#fff" : isWeekend ? "#F97316" : textColor, width: isMobile ? 20 : 22, height: isMobile ? 20 : 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          {cell.cur ? cell.day : ""}
-                        </span>
-                        
-                        {cell.cur && (
-                          <div style={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center", marginTop: 2 }}>
-                            {isMobile ? (
-                              Array.from(new Set(dayEvs.map(e => e.type))).map(type => {
-                                const info = EVENT_TYPES[type] || EVENT_TYPES.custom;
-                                return <div key={type} style={{ width: 4, height: 4, borderRadius: "50%", background: info.color }} />;
-                              })
-                            ) : (
-                              <div style={{ display: "flex", flexDirection: "column", gap: 2, width: "100%" }}>
-                                {(() => {
-                                  const holidayEv = dayEvs.find((e) => e.type === "holiday");
-                                  const sprintEvs = dayEvs.filter((e) => e.type === "sprint" && !isWeekend && !holidayEv);
-                                  const nonHolidayEvs = dayEvs.filter((e) => e.type !== "holiday" && !(e.type === "sprint" && (isWeekend || !!holidayEv)));
-                                  const visibleEvs = [...sprintEvs, ...nonHolidayEvs];
-                                  return (
-                                    <>
-                                      {holidayEv && <div style={{ fontSize: 9, padding: "2px 5px", borderRadius: 3, background: "#F97316", color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis" }} title={holidayEv.title}>🇦🇷 {holidayEv.title}</div>}
-                                      {visibleEvs.slice(0, holidayEv ? 2 : 3).map((ev, ei) => {
-                                        const info = EVENT_TYPES[ev.type] || EVENT_TYPES.custom;
-                                        const pillColor = sprintPillColor(ev, dateStr) || (ev.color || info.color);
-                                        return (
-                                          <div key={ei} onClick={(e) => { e.stopPropagation(); openEditEvent(ev); }} title={ev.title}
-                                            style={{ fontSize: 9, padding: "2px 5px", borderRadius: 3, cursor: "pointer", background: ev.type === "sprint" ? pillColor : (ev.color || info.color) + "25", borderLeft: ev.type !== "sprint" ? `2px solid ${ev.color || info.color}` : "none", color: ev.type === "sprint" ? "#fff" : (ev.color || info.color), fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                            {info.icon} {ev.title}
-                                          </div>
-                                        );
-                                      })}
-                                      {visibleEvs.length > (holidayEv ? 2 : 3) && <div style={{ fontSize: 9, color: mutedColor }}>+{visibleEvs.length - (holidayEv ? 2 : 3)}</div>}
-                                    </>
-                                  );
-                                })()}
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
+                <MonthGrid m={m} />
               </div>
             );
           })}
         </div>
+      </div>
+    );
+  }
+
+  function AnnualView() {
+    return (
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "repeat(3, 1fr)", gap: 20 }}>
+        {MONTHS.map((name, m) => {
+          const isCurMonth = m === today.getMonth() && year === today.getFullYear();
+          return (
+            <div key={m} style={{ background: cardBg, borderRadius: 10, padding: 12, border: `1px solid ${isCurMonth ? "#3B82F6" : borderColor}` }}>
+              <div style={{ fontSize: 12, fontWeight: 800, color: textColor, marginBottom: 8, textAlign: "center", textTransform: "uppercase", letterSpacing: 1 }}>{name}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 2 }}>
+                {DAYS_SHORT.map((d) => (
+                  <div key={d} style={{ textAlign: "center", fontSize: 8, fontWeight: 700, color: d === "Dom" || d === "Sáb" ? "#F97316" : mutedColor }}>{d[0]}</div>
+                ))}
+              </div>
+              <MonthGrid m={m} isMini={true} />
+            </div>
+          );
+        })}
       </div>
     );
   }
@@ -251,11 +306,12 @@ export function CalendarView({ T, team }) {
             <button onClick={() => setYear((y) => y - 1)} style={navBtn}>◀</button>
             <span style={{ fontSize: 16, fontWeight: 800, color: textColor, minWidth: 60, textAlign: "center" }}>{year}</span>
             <button onClick={() => setYear((y) => y + 1)} style={navBtn}>▶</button>
-            {!isMobile && <button onClick={() => { setYear(today.getFullYear()); setSelectedQuarter(Math.floor(today.getMonth() / 3)); }} style={{ ...navBtn, color: "#3B82F6", fontWeight: 600 }}>Hoy</button>}
+            {!isMobile && <button onClick={() => { setYear(today.getFullYear()); setSelectedQuarter(Math.floor(today.getMonth() / 3)); setViewMode("quarter"); }} style={{ ...navBtn, color: "#3B82F6", fontWeight: 600 }}>Hoy</button>}
           </div>
 
           <div style={{ display: "flex", background: bgColor, borderRadius: 8, padding: 3 }}>
             <button onClick={() => setViewMode("quarter")} style={{ padding: "6px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: viewMode === "quarter" ? "#3B82F6" : "transparent", color: viewMode === "quarter" ? "#fff" : mutedColor }}>📊 Quarter</button>
+            <button onClick={() => setViewMode("annual")} style={{ padding: "6px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: viewMode === "annual" ? "#3B82F6" : "transparent", color: viewMode === "annual" ? "#fff" : mutedColor }}>📅 Anual</button>
           </div>
 
           <button onClick={() => openNewEvent(today.toISOString().slice(0, 10))} style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{isMobile ? "+" : "+ Nuevo"}</button>
@@ -276,8 +332,8 @@ export function CalendarView({ T, team }) {
         )}
       </div>
 
-      <div style={{ background: cardBg, borderRadius: 12, padding: isMobile ? "0px" : "16px 20px", boxShadow: isMobile ? "none" : "0 1px 4px rgba(0,0,0,0.08)", border: isMobile ? "none" : `1px solid ${borderColor}` }}>
-        <QuarterView />
+      <div style={{ background: cardBg, borderRadius: 12, padding: isMobile || viewMode === "annual" ? "0px" : "16px 20px", boxShadow: isMobile || viewMode === "annual" ? "none" : "0 1px 4px rgba(0,0,0,0.08)", border: isMobile || viewMode === "annual" ? "none" : `1px solid ${borderColor}` }}>
+        {viewMode === "annual" ? <AnnualView /> : <QuarterView />}
       </div>
 
       {showDayDetail && (
@@ -311,6 +367,7 @@ export function CalendarView({ T, team }) {
                   );
                 });
               })()}
+              <button onClick={() => { setShowDayDetail(false); openNewEvent(selectedDay); }} style={{ padding: 16, borderRadius: 12, border: `2px dashed ${borderColor}`, background: "transparent", color: mutedColor, fontWeight: 600, cursor: "pointer" }}>+ Agregar nuevo evento aquí</button>
             </div>
             <button onClick={() => setShowDayDetail(false)} style={{ width: "100%", padding: 14, marginTop: 24, borderRadius: 12, border: "none", background: theme.bg === "#0F172A" ? "#1E293B" : "#F1F5F9", color: textColor, fontWeight: 700 }}>Cerrar</button>
           </div>
