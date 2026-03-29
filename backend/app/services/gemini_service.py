@@ -12,8 +12,11 @@ async def generate_synthesis_ai(kpis: ExecutiveKPIs, team_name: str) -> list[str
 
     try:
         genai.configure(api_key=settings.gemini_api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
         
+        # Con la versión >=0.7.2 del SDK, 'gemini-1.5-flash' es el estándar.
+        # Si falla, el catch de abajo lo atrapará y mostrará el error real.
+        model = genai.GenerativeModel('gemini-1.5-flash')
+
         prompt = f"""
         Actúa como un experto en Agile y Delivery Manager. 
         Analiza las siguientes métricas del equipo '{team_name}' y genera una síntesis estratégica formal y ejecutiva.

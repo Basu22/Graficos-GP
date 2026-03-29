@@ -45,8 +45,8 @@ export function ReporteEjecutivo({ team, filter, T }) {
             <Bar yAxisId="left" dataKey="delivered" name="Pts Entregados (Do)" fill={COLORS.delivered} radius={[3, 3, 0, 0]}
               label={{ position: "top", fontSize: 10, fill: T?.textMuted || "#475569" }} />
             <Line yAxisId="right" type="monotone" dataKey="predictability" name="Predictibilidad %"
-              stroke="#1e293b" strokeWidth={2.5} dot={{ r: 5, fill: "#1e293b" }}
-              label={{ fontSize: 10, fill: T?.textMuted || "#475569", position: "top" }} />
+              stroke="#F59E0B" strokeWidth={3} dot={{ r: 5, fill: "#F59E0B", strokeWidth: 2, stroke: T?.card || "#fff" }}
+              label={{ fontSize: 10, fill: "#F59E0B", position: "top", fontWeight: 700 }} />
           </ComposedChart>
         </ResponsiveContainer>
       </ChartCard>
