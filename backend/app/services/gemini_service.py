@@ -61,12 +61,13 @@ async def generate_synthesis_ai(kpis: ExecutiveKPIs, team_name: str) -> list[dic
         - Mejora de Eficiencia: {kpis.efficiency_improvement_pct}%
         
         REGLAS CRÍTICAS: 
-        1. NO escribas introducciones ni saludos (ej: 'Aquí tienes...', 'Basado en...').
-        2. Empieza CADA línea directamente con uno de estos tags: [VERDE], [AMARILLO] o [ROJO].
-        3. [VERDE]: Logros o métricas saludables.
-        4. [AMARILLO]: Alertas o estabilidad sin mejora.
-        5. [ROJO]: Riesgos o degradación.
-        6. NO uses negritas (**). Solo texto plano.
+        1. NO escribas introducciones ni saludos.
+        2. Empieza CADA línea con [VERDE], [AMARILLO] o [ROJO].
+        3. CRITERIOS DE COLOR (Sé objetivo):
+           - [VERDE]: Predictibilidad >= 85%, Mejora Lead Time > 0 (si es <10 días), Cierre total > 90%.
+           - [AMARILLO]: Predictibilidad 75-84%, Lead Time estable, Scope Creep moderado.
+           - [ROJO]: Predictibilidad < 75%, Scope Creep > 20% del total, Lead Time > 15 días.
+        4. Sé breve, profesional y directo (formato ejecutivo).
         """
 
         response = await model.generate_content_async(prompt)

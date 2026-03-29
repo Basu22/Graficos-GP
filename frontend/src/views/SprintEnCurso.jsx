@@ -102,12 +102,61 @@ function TicketCard({ ticket, T }) {
   );
 }
 
+import { useState, useEffect } from "react";
+
 // ── KanbanBoard ───────────────────────────────────────────────────────────────
 function KanbanBoard({ tickets, T }) {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [expanded, setExpanded] = useState({}); // { [colKey]: boolean }
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
+  const toggle = (key) => setExpanded(prev => ({ ...prev, [key]: !prev[key] }));
+
   const getColumn = (ticket) => STATUS_COLUMN[ticket.status.toLowerCase().trim()] || "todo";
   const columns = {};
   KANBAN_COLUMNS.forEach((c) => (columns[c.key] = []));
   tickets.forEach((t) => columns[getColumn(t)].push(t));
+
+  if (isMobile) {
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {KANBAN_COLUMNS.map((col) => {
+          const isExp = expanded[col.key] || false;
+          const colTickets = columns[col.key];
+          return (
+            <div key={col.key} style={{ border: `1px solid ${col.border}`, borderRadius: 10, overflow: "hidden", background: T.card }}>
+              {/* Header Acordeón */}
+              <div 
+                onClick={() => toggle(col.key)}
+                style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 16px", cursor: "pointer", background: isExp ? col.bg : T.card, transition: "background 0.2s" }}
+              >
+                <div style={{ width: 10, height: 10, borderRadius: "50%", background: col.color }} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: isExp ? col.color : T.text }}>{col.label}</span>
+                <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: T.textMuted }}>{colTickets.length}</span>
+                  <span style={{ fontSize: 14, color: T.textMuted, transform: isExp ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▼</span>
+                </div>
+              </div>
+
+              {/* Contenido */}
+              {isExp && (
+                <div style={{ padding: "8px 12px", background: T.bg === "#0F172A" ? "#1E293B" : "#F8FAFC", borderTop: `1px solid ${col.border}` }}>
+                  {colTickets.length === 0
+                    ? <div style={{ textAlign: "center", padding: "20px 0", color: "#94A3B8", fontSize: 12 }}>Sin tickets</div>
+                    : colTickets.map((t) => <TicketCard key={t.key} ticket={t} T={T} />)}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className="responsive-grid-5">

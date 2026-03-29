@@ -18,6 +18,15 @@ export function CalendarView({ T, team }) {
   const [filterTypes, setFilterTypes] = useState(new Set(Object.keys(EVENT_TYPES)));
   const [form, setForm] = useState({ title: "", type: "vacation", person: "", start_date: "", end_date: "", notes: "", color: "" });
 
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [showDayDetail, setShowDayDetail] = useState(false);
+
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const allEvents = [
     ...events.filter((e) => filterTypes.has(e.type)),
     ...holidays.filter(() => filterTypes.has("holiday")),
@@ -34,24 +43,6 @@ export function CalendarView({ T, team }) {
   const navBtn = { padding: "5px 10px", borderRadius: 6, border: `1px solid ${borderColor}`, background: cardBg, color: mutedColor, cursor: "pointer", fontSize: 11 };
   const inputStyle = { width: "100%", padding: "8px 10px", borderRadius: 6, border: `1px solid ${borderColor}`, background: theme.input || "#fff", color: textColor, fontSize: 12, boxSizing: "border-box", outline: "none" };
 
-  useEffect(() => { loadAll(); }, [year, team]);
-
-  async function loadAll() {
-    try {
-      const [evRes, holRes, sprRes] = await Promise.all([
-        fetch(`${API}/calendar/events?year=${year}${team ? `&team=${team}` : ""}`),
-        fetch(`${API}/calendar/holidays/${year}`),
-        fetch(`${API}/calendar/sprints-for-calendar?year=${year}${team ? `&team=${team}` : ""}`),
-      ]);
-      setEvents(Array.isArray(await evRes.json()) ? await evRes.clone().json() : []);
-      setHolidays(Array.isArray(await holRes.json()) ? await holRes.clone().json() : []);
-      setSprintEvents(Array.isArray(await sprRes.json()) ? await sprRes.clone().json() : []);
-    } catch (e) {
-      console.error("loadAll error:", e);
-    }
-  }
-
-  // Re-fetch de manera correcta sin clonar
   async function loadAllCorrect() {
     try {
       const [evData, holData, sprData] = await Promise.all([
@@ -122,6 +113,16 @@ export function CalendarView({ T, team }) {
     setShowModal(true);
   }
 
+  function handleDayClick(dateStr) {
+    if (!dateStr) return;
+    setSelectedDay(dateStr);
+    if (isMobile) {
+      setShowDayDetail(true);
+    } else {
+      openNewEvent(dateStr);
+    }
+  }
+
   function sprintPillColor(ev, dateStr) {
     if (ev.type !== "sprint") return null;
     if (dateStr === ev.start_date && dateStr === (ev.end_date || ev.start_date)) return "#3B82F6";
@@ -137,23 +138,25 @@ export function CalendarView({ T, team }) {
     const todayStr = today.toISOString().slice(0, 10);
 
     return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        <div style={{ display: "flex", gap: 8 }}>
-          {[0, 1, 2, 3].map((q) => {
-            const qMonths = ["Ene–Mar", "Abr–Jun", "Jul–Sep", "Oct–Dic"];
-            const isActive = q === selectedQuarter;
-            const isCurrent = q === Math.floor(today.getMonth() / 3) && year === today.getFullYear();
-            return (
-              <button key={q} onClick={() => setSelectedQuarter(q)} style={{ padding: "6px 18px", borderRadius: 8, border: `2px solid ${isActive ? "#3B82F6" : borderColor}`, background: isActive ? "#3B82F6" : cardBg, color: isActive ? "#fff" : isCurrent ? "#3B82F6" : mutedColor, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
-                Q{q + 1} <span style={{ fontSize: 10, opacity: 0.8 }}>{qMonths[q]}</span>
-                {isCurrent && !isActive && <span style={{ fontSize: 8, marginLeft: 4, color: "#3B82F6" }}>●</span>}
-              </button>
-            );
-          })}
-          <span style={{ marginLeft: "auto", fontSize: 12, color: mutedColor, alignSelf: "center" }}>{year}</span>
-        </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 10 : 16 }}>
+        {!isMobile && (
+          <div style={{ display: "flex", gap: 8 }}>
+            {[0, 1, 2, 3].map((q) => {
+              const qMonths = ["Ene–Mar", "Abr–Jun", "Jul–Sep", "Oct–Dic"];
+              const isActive = q === selectedQuarter;
+              const isCurrent = q === Math.floor(today.getMonth() / 3) && year === today.getFullYear();
+              return (
+                <button key={q} onClick={() => setSelectedQuarter(q)} style={{ padding: "6px 18px", borderRadius: 8, border: `2px solid ${isActive ? "#3B82F6" : borderColor}`, background: isActive ? "#3B82F6" : cardBg, color: isActive ? "#fff" : isCurrent ? "#3B82F6" : mutedColor, fontWeight: 700, fontSize: 12, cursor: "pointer" }}>
+                  Q{q + 1} <span style={{ fontSize: 10, opacity: 0.8 }}>{qMonths[q]}</span>
+                  {isCurrent && !isActive && <span style={{ fontSize: 8, marginLeft: 4, color: "#3B82F6" }}>●</span>}
+                </button>
+              );
+            })}
+            <span style={{ marginLeft: "auto", fontSize: 12, color: mutedColor, alignSelf: "center" }}>{year}</span>
+          </div>
+        )}
 
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: isMobile ? 12 : 16 }}>
           {months.map((m) => {
             const daysInM = getDaysInMonth(year, m);
             const firstDay = getFirstDayOfMonth(year, m);
@@ -161,70 +164,73 @@ export function CalendarView({ T, team }) {
             const prevDays = getDaysInMonth(year, m - 1 < 0 ? 11 : m - 1);
             for (let i = firstDay - 1; i >= 0; i--) cells.push({ day: prevDays - i, cur: false });
             for (let d = 1; d <= daysInM; d++) cells.push({ day: d, cur: true });
-            while (cells.length < 35) cells.push({ day: cells.length - daysInM - firstDay + 2, cur: false });
+            while (cells.length < (cells.length > 35 ? 42 : 35)) cells.push({ day: cells.length - daysInM - firstDay + 2, cur: false });
             const isCurMonth = m === today.getMonth() && year === today.getFullYear();
 
             return (
-              <div key={m} style={{ background: cardBg, borderRadius: 12, padding: "16px 20px", border: `1px solid ${isCurMonth ? "#3B82F6" : borderColor}` }}>
+              <div key={m} style={{ background: cardBg, borderRadius: 12, padding: isMobile ? "12px 14px" : "16px 20px", border: `1px solid ${isCurMonth ? "#3B82F6" : borderColor}` }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                  <div style={{ fontSize: 15, fontWeight: 800, color: textColor }}>{MONTHS[m]}</div>
-                  {isCurMonth && <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: "#DBEAFE", color: "#1D4ED8", fontWeight: 700 }}>Mes actual</span>}
-                  <div style={{ marginLeft: "auto", display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {Object.entries(EVENT_TYPES).map(([key, info]) => {
-                      const count = cells.filter((cell) => cell.cur && eventsForDay(isoDate(year, m, cell.day)).some((e) => e.type === key)).length;
-                      return count === 0 ? null : <span key={key} style={{ fontSize: 10, color: info.color, fontWeight: 700 }}>{info.icon} {count}</span>;
-                    })}
-                  </div>
+                  <div style={{ fontSize: isMobile ? 14 : 15, fontWeight: 800, color: textColor }}>{MONTHS[m]}</div>
+                  {isCurMonth && <span style={{ fontSize: 9, padding: "2px 6px", borderRadius: 10, background: "#DBEAFE", color: "#1D4ED8", fontWeight: 700 }}>Hoy</span>}
                 </div>
 
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", marginBottom: 4 }}>
                   {DAYS_SHORT.map((d) => (
-                    <div key={d} style={{ textAlign: "center", fontSize: 11, fontWeight: 700, color: d === "Dom" || d === "Sáb" ? "#F97316" : mutedColor, padding: "4px 0" }}>{d}</div>
+                    <div key={d} style={{ textAlign: "center", fontSize: 10, fontWeight: 700, color: d === "Dom" || d === "Sáb" ? "#F97316" : mutedColor, padding: "4px 0" }}>{d}</div>
                   ))}
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 3 }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: isMobile ? 1 : 3 }}>
                   {cells.map((cell, ci) => {
                     const dateStr = cell.cur ? isoDate(year, m, cell.day) : "";
                     const dayEvs = dateStr ? eventsForDay(dateStr) : [];
                     const isToday = dateStr === todayStr;
-                    const isWeekend = [0, 6].includes(new Date((dateStr || isoDate(year, m, 1)) + "T12:00:00").getDay());
+                    const isWeekend = dateStr ? [0, 6].includes(new Date(dateStr + "T12:00:00").getDay()) : false;
                     const hasHoliday = dayEvs.some((e) => e.type === "holiday");
                     const cellBg = !cell.cur ? "transparent" : isToday ? c("#EFF6FF", "#1E3A5F") : hasHoliday ? c("#FFF7ED", "#431407") : isWeekend ? c("#F8FAFC", "#131F35") : theme.bg === "#0F172A" ? "#0F172A" : "#F8FAFC";
 
                     return (
-                      <div key={ci} onClick={() => cell.cur && openNewEvent(dateStr)}
-                        style={{ minHeight: 80, padding: "6px 8px", borderRadius: 6, background: cellBg, border: `1px solid ${isToday ? "#3B82F6" : cell.cur ? borderColor : "transparent"}`, opacity: cell.cur ? 1 : 0, cursor: cell.cur ? "pointer" : "default" }}
-                        onMouseEnter={(e) => cell.cur && (e.currentTarget.style.background = c("#EAF2FF", "#1a2f50"))}
-                        onMouseLeave={(e) => cell.cur && (e.currentTarget.style.background = cellBg)}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                          <span style={{ fontSize: 13, fontWeight: isToday ? 800 : 500, background: isToday ? "#3B82F6" : "transparent", color: isToday ? "#fff" : isWeekend ? "#F97316" : textColor, width: 22, height: 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                            {cell.cur ? cell.day : ""}
-                          </span>
-                        </div>
-                        {(() => {
-                          const holidayEv = dayEvs.find((e) => e.type === "holiday");
-                          const sprintEvs = dayEvs.filter((e) => e.type === "sprint" && !isWeekend && !holidayEv);
-                          const nonHolidayEvs = dayEvs.filter((e) => e.type !== "holiday" && !(e.type === "sprint" && (isWeekend || !!holidayEv)));
-                          const visibleEvs = [...sprintEvs, ...nonHolidayEvs];
-                          return (
-                            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                              {holidayEv && <div style={{ fontSize: 9, padding: "2px 5px", borderRadius: 3, background: "#F97316", color: "#fff", fontWeight: 700 }} title={holidayEv.title}>🇦🇷 {holidayEv.title}</div>}
-                              {visibleEvs.slice(0, holidayEv ? 2 : 3).map((ev, ei) => {
-                                const info = EVENT_TYPES[ev.type] || EVENT_TYPES.custom;
-                                const pillColor = sprintPillColor(ev, dateStr) || (ev.color || info.color);
-                                const isSprint = ev.type === "sprint";
-                                return (
-                                  <div key={ei} onClick={(e) => { e.stopPropagation(); openEditEvent(ev); }} title={ev.title}
-                                    style={{ fontSize: 9, padding: "2px 5px", borderRadius: 3, cursor: "pointer", background: isSprint ? pillColor : (ev.color || info.color) + "25", borderLeft: !isSprint ? `2px solid ${ev.color || info.color}` : "none", color: isSprint ? "#fff" : (ev.color || info.color), fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                    {info.icon} {ev.title}
-                                  </div>
-                                );
-                              })}
-                              {visibleEvs.length > (holidayEv ? 2 : 3) && <div style={{ fontSize: 9, color: mutedColor }}>+{visibleEvs.length - (holidayEv ? 2 : 3)} más</div>}
-                            </div>
-                          );
-                        })()}
+                      <div key={ci} onClick={() => handleDayClick(dateStr)}
+                        style={{ minHeight: isMobile ? 44 : 80, padding: isMobile ? "2px" : "6px 8px", borderRadius: 6, background: cellBg, border: `1px solid ${isToday ? "#3B82F6" : cell.cur ? (isMobile ? "transparent" : borderColor) : "transparent"}`, opacity: cell.cur ? 1 : 0, cursor: cell.cur ? "pointer" : "default", display: "flex", flexDirection: "column", alignItems: "center" }}>
+                        <span style={{ fontSize: isMobile ? 11 : 13, fontWeight: isToday ? 800 : 500, background: isToday ? "#3B82F6" : "transparent", color: isToday ? "#fff" : isWeekend ? "#F97316" : textColor, width: isMobile ? 20 : 22, height: isMobile ? 20 : 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                          {cell.cur ? cell.day : ""}
+                        </span>
+                        
+                        {cell.cur && (
+                          <div style={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center", marginTop: 2 }}>
+                            {isMobile ? (
+                              Array.from(new Set(dayEvs.map(e => e.type))).map(type => {
+                                const info = EVENT_TYPES[type] || EVENT_TYPES.custom;
+                                return <div key={type} style={{ width: 4, height: 4, borderRadius: "50%", background: info.color }} />;
+                              })
+                            ) : (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 2, width: "100%" }}>
+                                {(() => {
+                                  const holidayEv = dayEvs.find((e) => e.type === "holiday");
+                                  const sprintEvs = dayEvs.filter((e) => e.type === "sprint" && !isWeekend && !holidayEv);
+                                  const nonHolidayEvs = dayEvs.filter((e) => e.type !== "holiday" && !(e.type === "sprint" && (isWeekend || !!holidayEv)));
+                                  const visibleEvs = [...sprintEvs, ...nonHolidayEvs];
+                                  return (
+                                    <>
+                                      {holidayEv && <div style={{ fontSize: 9, padding: "2px 5px", borderRadius: 3, background: "#F97316", color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis" }} title={holidayEv.title}>🇦🇷 {holidayEv.title}</div>}
+                                      {visibleEvs.slice(0, holidayEv ? 2 : 3).map((ev, ei) => {
+                                        const info = EVENT_TYPES[ev.type] || EVENT_TYPES.custom;
+                                        const pillColor = sprintPillColor(ev, dateStr) || (ev.color || info.color);
+                                        return (
+                                          <div key={ei} onClick={(e) => { e.stopPropagation(); openEditEvent(ev); }} title={ev.title}
+                                            style={{ fontSize: 9, padding: "2px 5px", borderRadius: 3, cursor: "pointer", background: ev.type === "sprint" ? pillColor : (ev.color || info.color) + "25", borderLeft: ev.type !== "sprint" ? `2px solid ${ev.color || info.color}` : "none", color: ev.type === "sprint" ? "#fff" : (ev.color || info.color), fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                            {info.icon} {ev.title}
+                                          </div>
+                                        );
+                                      })}
+                                      {visibleEvs.length > (holidayEv ? 2 : 3) && <div style={{ fontSize: 9, color: mutedColor }}>+{visibleEvs.length - (holidayEv ? 2 : 3)}</div>}
+                                    </>
+                                  );
+                                })()}
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     );
                   })}
@@ -239,45 +245,82 @@ export function CalendarView({ T, team }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* Header */}
-      <div style={{ background: cardBg, borderRadius: 12, padding: "16px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", border: `1px solid ${borderColor}` }}>
+      <div style={{ background: cardBg, borderRadius: 12, padding: isMobile ? "12px 16px" : "16px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", border: `1px solid ${borderColor}` }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <button onClick={() => setYear((y) => y - 1)} style={navBtn}>◀</button>
             <span style={{ fontSize: 16, fontWeight: 800, color: textColor, minWidth: 60, textAlign: "center" }}>{year}</span>
             <button onClick={() => setYear((y) => y + 1)} style={navBtn}>▶</button>
-            <button onClick={() => { setYear(today.getFullYear()); setSelectedQuarter(Math.floor(today.getMonth() / 3)); }} style={{ ...navBtn, color: "#3B82F6", fontWeight: 600 }}>Hoy</button>
+            {!isMobile && <button onClick={() => { setYear(today.getFullYear()); setSelectedQuarter(Math.floor(today.getMonth() / 3)); }} style={{ ...navBtn, color: "#3B82F6", fontWeight: 600 }}>Hoy</button>}
           </div>
 
           <div style={{ display: "flex", background: bgColor, borderRadius: 8, padding: 3 }}>
             <button onClick={() => setViewMode("quarter")} style={{ padding: "6px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: viewMode === "quarter" ? "#3B82F6" : "transparent", color: viewMode === "quarter" ? "#fff" : mutedColor }}>📊 Quarter</button>
           </div>
 
-          <button onClick={() => openNewEvent(today.toISOString().slice(0, 10))} style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>+ Nuevo evento</button>
+          <button onClick={() => openNewEvent(today.toISOString().slice(0, 10))} style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{isMobile ? "+" : "+ Nuevo"}</button>
         </div>
 
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
-          {Object.entries(EVENT_TYPES).map(([key, info]) => {
-            const active = filterTypes.has(key);
-            return (
-              <button key={key} onClick={() => setFilterTypes((prev) => { const next = new Set(prev); active ? next.delete(key) : next.add(key); return next; })}
-                style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${active ? info.color : borderColor}`, background: active ? info.color + "20" : "transparent", color: active ? info.color : mutedColor, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
-                {info.icon} {info.label}
-              </button>
-            );
-          })}
-        </div>
+        {!isMobile && (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>
+            {Object.entries(EVENT_TYPES).map(([key, info]) => {
+              const active = filterTypes.has(key);
+              return (
+                <button key={key} onClick={() => setFilterTypes((prev) => { const next = new Set(prev); active ? next.delete(key) : next.add(key); return next; })}
+                  style={{ padding: "3px 10px", borderRadius: 20, border: `1px solid ${active ? info.color : borderColor}`, background: active ? info.color + "20" : "transparent", color: active ? info.color : mutedColor, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>
+                  {info.icon} {info.label}
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
-      <div style={{ background: cardBg, borderRadius: 12, padding: "16px 20px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", border: `1px solid ${borderColor}` }}>
+      <div style={{ background: cardBg, borderRadius: 12, padding: isMobile ? "0px" : "16px 20px", boxShadow: isMobile ? "none" : "0 1px 4px rgba(0,0,0,0.08)", border: isMobile ? "none" : `1px solid ${borderColor}` }}>
         <QuarterView />
       </div>
 
-      {/* Modal */}
+      {showDayDetail && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 1100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}
+          onClick={() => setShowDayDetail(false)}>
+          <div style={{ background: cardBg, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, width: "100%", maxWidth: 500, maxHeight: "80vh", overflowY: "auto", boxShadow: "0 -4px 20px rgba(0,0,0,0.3)" }}
+            onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: textColor }}>{selectedDay?.split("-").reverse().join("/")}</div>
+              <button onClick={() => { setShowDayDetail(false); openNewEvent(selectedDay); }} style={{ padding: "6px 14px", borderRadius: 8, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 700 }}>+ Añadir</button>
+            </div>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {(() => {
+                const dayEvs = eventsForDay(selectedDay);
+                if (dayEvs.length === 0) return <div style={{ textAlign: "center", padding: 40, color: mutedColor, fontSize: 13 }}>No hay eventos para este día</div>;
+                return dayEvs.map((ev, i) => {
+                  const info = EVENT_TYPES[ev.type] || EVENT_TYPES.custom;
+                  const isSprint = ev.type === "sprint";
+                  const pColor = isSprint ? sprintPillColor(ev, selectedDay) : (ev.color || info.color);
+                  return (
+                    <div key={i} onClick={() => { setShowDayDetail(false); openEditEvent(ev); }}
+                      style={{ padding: 16, borderRadius: 12, background: isSprint ? pColor : theme.healthMuted || "#F8FAFC", borderLeft: `5px solid ${pColor}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
+                      <span style={{ fontSize: 20 }}>{info.icon}</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: isSprint ? "#fff" : textColor }}>{ev.title}</div>
+                        <div style={{ fontSize: 11, color: isSprint ? "rgba(255,255,255,0.8)" : mutedColor }}>{ev.person || info.label}</div>
+                      </div>
+                      <span style={{ color: isSprint ? "#fff" : mutedColor }}>›</span>
+                    </div>
+                  );
+                });
+              })()}
+            </div>
+            <button onClick={() => setShowDayDetail(false)} style={{ width: "100%", padding: 14, marginTop: 24, borderRadius: 12, border: "none", background: theme.bg === "#0F172A" ? "#1E293B" : "#F1F5F9", color: textColor, fontWeight: 700 }}>Cerrar</button>
+          </div>
+        </div>
+      )}
+
       {showModal && (
-        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center" }}
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 1200, display: "flex", alignItems: isMobile ? "flex-start" : "center", justifyContent: "center", padding: isMobile ? 12 : 0 }}
           onClick={(e) => e.target === e.currentTarget && setShowModal(false)}>
-          <div style={{ background: cardBg, borderRadius: 16, padding: 28, width: 460, boxShadow: "0 20px 60px rgba(0,0,0,0.3)", border: `1px solid ${borderColor}` }}>
+          <div style={{ background: cardBg, borderRadius: 16, padding: isMobile ? 20 : 28, width: isMobile ? "100%" : 460, boxShadow: "0 20px 60px rgba(0,0,0,0.3)", border: `1px solid ${borderColor}`, marginTop: isMobile ? 40 : 0 }}>
             <div style={{ fontSize: 15, fontWeight: 700, color: textColor, marginBottom: 20 }}>
               {selectedEvent && !selectedEvent.id?.startsWith("holiday-") && !selectedEvent.id?.startsWith("sprint-") ? "✏️ Editar evento" : "➕ Nuevo evento"}
             </div>
@@ -286,7 +329,7 @@ export function CalendarView({ T, team }) {
                 <label style={{ fontSize: 11, color: mutedColor, fontWeight: 600 }}>Título *</label>
                 <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} style={inputStyle} placeholder="Ej: Vacaciones Juan" />
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
                 <div>
                   <label style={{ fontSize: 11, color: mutedColor, fontWeight: 600 }}>Tipo</label>
                   <select value={form.type} onChange={(e) => setForm((f) => ({ ...f, type: e.target.value }))} style={inputStyle}>
@@ -300,7 +343,7 @@ export function CalendarView({ T, team }) {
                   <input value={form.person} onChange={(e) => setForm((f) => ({ ...f, person: e.target.value }))} style={inputStyle} placeholder="Nombre" />
                 </div>
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 10 }}>
                 <div>
                   <label style={{ fontSize: 11, color: mutedColor, fontWeight: 600 }}>Fecha inicio *</label>
                   <input type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} style={inputStyle} />
