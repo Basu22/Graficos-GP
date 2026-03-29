@@ -13,9 +13,31 @@ async def generate_synthesis_ai(kpis: ExecutiveKPIs, team_name: str) -> list[str
     try:
         genai.configure(api_key=settings.gemini_api_key)
         
-        # Con la versión >=0.7.2 del SDK, 'gemini-1.5-flash' es el estándar.
-        # Si falla, el catch de abajo lo atrapará y mostrará el error real.
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        # Intentar con varios nombres por si el SDK o la región tienen restricciones
+        model_names = [
+            'gemini-1.5-flash',        # Estándar actual
+            'gemini-1.5-flash-latest', # Alias común
+            'gemini-pro',              # Fallback 1.0 Pro
+            'gemini-1.0-pro'           # Fallback legacy
+        ]
+        
+        model = None
+        last_error = ""
+        
+        for name in model_names:
+            try:
+                # El SDK a veces no tira el 404 hasta que intentás generar
+                # pero vamos a intentar inicializarlo
+                model = genai.GenerativeModel(name)
+                # No hacemos una prueba de generación aquí para no gastar cuota 
+                # pero si falla la inicializción, saltamos al siguiente
+                break
+            except Exception as e:
+                last_error = str(e)
+                continue
+
+        if not model:
+            raise Exception(f"No se encontró un modelo disponible. Error: {last_error}")
 
         prompt = f"""
         Actúa como un experto en Agile y Delivery Manager. 
