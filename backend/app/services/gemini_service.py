@@ -13,31 +13,28 @@ async def generate_synthesis_ai(kpis: ExecutiveKPIs, team_name: str) -> list[str
     try:
         genai.configure(api_key=settings.gemini_api_key)
         
-        # Intentar con varios nombres por si el SDK o la región tienen restricciones
-        model_names = [
-            'gemini-1.5-flash',        # Estándar actual
-            'gemini-1.5-flash-latest', # Alias común
-            'gemini-pro',              # Fallback 1.0 Pro
-            'gemini-1.0-pro'           # Fallback legacy
-        ]
+        # DESCUBRIMIENTO DINÁMICO: En lugar de adivinar el nombre, 
+        # le preguntamos a la API qué modelos tiene permitidos esta Key.
+        available_models = []
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                available_models.append(m.name)
         
-        model = None
-        last_error = ""
+        if not available_models:
+            raise Exception("Tu API Key no tiene acceso a ningún modelo de generación de contenido (Generative Language API).")
         
-        for name in model_names:
-            try:
-                # El SDK a veces no tira el 404 hasta que intentás generar
-                # pero vamos a intentar inicializarlo
-                model = genai.GenerativeModel(name)
-                # No hacemos una prueba de generación aquí para no gastar cuota 
-                # pero si falla la inicializción, saltamos al siguiente
+        # Prioridad: Flash 1.5 > Flash latest > Pro > El primero que encuentre
+        selected_model_name = None
+        for preferred in ['models/gemini-1.5-flash', 'models/gemini-1.5-flash-latest', 'models/gemini-pro']:
+            if preferred in available_models:
+                selected_model_name = preferred
                 break
-            except Exception as e:
-                last_error = str(e)
-                continue
-
-        if not model:
-            raise Exception(f"No se encontró un modelo disponible. Error: {last_error}")
+        
+        if not selected_model_name:
+            selected_model_name = available_models[0]
+            
+        logger.info(f"Usando modelo Gemini: {selected_model_name}")
+        model = genai.GenerativeModel(selected_model_name)
 
         prompt = f"""
         Actúa como un experto en Agile y Delivery Manager. 
