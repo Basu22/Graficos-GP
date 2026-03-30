@@ -30,7 +30,7 @@ export function CalendarView({ T, team }) {
   const allEvents = [
     ...events.filter((e) => filterTypes.has(e.type)),
     ...holidays.filter(() => filterTypes.has("holiday")),
-    ...Array.from(new Map(sprintEvents.filter((e) => filterTypes.has("sprint")).map(s => [s.title, s])).values()),
+    ...Array.from(new Map(sprintEvents.filter((e) => filterTypes.has("sprint")).map(s => [s.title.trim(), s])).values()),
   ];
 
   const cardBg = theme.card || "#fff";
@@ -194,11 +194,28 @@ export function CalendarView({ T, team }) {
                       {holidayEv && <div style={{ fontSize: 9, padding: "2px 5px", borderRadius: 3, background: "#F97316", color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis" }} title={holidayEv.title}>🇦🇷 {holidayEv.title}</div>}
                       {visibleEvs.slice(0, holidayEv ? 2 : 3).map((ev, ei) => {
                         const info = EVENT_TYPES[ev.type] || EVENT_TYPES.custom;
+                        const isSprint = ev.type === "sprint";
                         const pillColor = sprintPillColor(ev, dateStr) || (ev.color || info.color);
                         return (
                           <div key={ei} onClick={(e) => { e.stopPropagation(); openEditEvent(ev); }} title={ev.title}
-                            style={{ fontSize: 9, padding: "2px 5px", borderRadius: 3, cursor: "pointer", background: ev.type === "sprint" ? pillColor : (ev.color || info.color) + "25", borderLeft: ev.type !== "sprint" ? `2px solid ${ev.color || info.color}` : "none", color: ev.type === "sprint" ? "#fff" : (ev.color || info.color), fontWeight: 700, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                            {info.icon} {ev.title}
+                            style={{ 
+                              fontSize: 9, 
+                              padding: "1px 4px", 
+                              borderRadius: 3, 
+                              cursor: "pointer", 
+                              background: isSprint ? (isMobile ? pillColor : "transparent") : (ev.color || info.color) + "20", 
+                              borderLeft: `3px solid ${isSprint ? pillColor : (ev.color || info.color)}`, 
+                              color: isSprint ? (isMobile ? "#fff" : textColor) : (ev.color || info.color), 
+                              fontWeight: 700, 
+                              whiteSpace: "nowrap", 
+                              overflow: "hidden", 
+                              textOverflow: "ellipsis",
+                              marginBottom: 1,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 3
+                            }}>
+                            {isSprint ? <span style={{ color: pillColor, fontSize: 10 }}>●</span> : info.icon} {ev.title}
                           </div>
                         );
                       })}
@@ -301,20 +318,20 @@ export function CalendarView({ T, team }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
       <div style={{ background: cardBg, borderRadius: 12, padding: isMobile ? "12px 16px" : "16px 24px", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", border: `1px solid ${borderColor}` }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: isMobile ? "wrap" : "nowrap", gap: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
             <button onClick={() => setYear((y) => y - 1)} style={navBtn}>◀</button>
             <span style={{ fontSize: 16, fontWeight: 800, color: textColor, minWidth: 60, textAlign: "center" }}>{year}</span>
             <button onClick={() => setYear((y) => y + 1)} style={navBtn}>▶</button>
-            {!isMobile && <button onClick={() => { setYear(today.getFullYear()); setSelectedQuarter(Math.floor(today.getMonth() / 3)); setViewMode("quarter"); }} style={{ ...navBtn, color: "#3B82F6", fontWeight: 600 }}>Hoy</button>}
+            {!isMobile && <button onClick={() => { setYear(today.getFullYear()); setSelectedQuarter(Math.floor(today.getMonth() / 3)); setViewMode("quarter"); }} style={{ ...navBtn, color: "#3B82F6", fontWeight: 700, border: `1px solid #3B82F620`, background: "#3B82F610" }}>Hoy</button>}
           </div>
 
-          <div style={{ display: "flex", background: bgColor, borderRadius: 8, padding: 3 }}>
-            <button onClick={() => setViewMode("quarter")} style={{ padding: "6px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: viewMode === "quarter" ? "#3B82F6" : "transparent", color: viewMode === "quarter" ? "#fff" : mutedColor }}>📊 Quarter</button>
-            <button onClick={() => setViewMode("annual")} style={{ padding: "6px 14px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: viewMode === "annual" ? "#3B82F6" : "transparent", color: viewMode === "annual" ? "#fff" : mutedColor }}>📅 Anual</button>
+          <div style={{ display: "flex", background: bgColor, borderRadius: 10, padding: 3, flexShrink: 0 }}>
+            <button onClick={() => setViewMode("quarter")} style={{ padding: "6px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: viewMode === "quarter" ? "#3B82F6" : "transparent", color: viewMode === "quarter" ? "#fff" : mutedColor, transition: "0.2s" }}>📊 Quarter</button>
+            <button onClick={() => setViewMode("annual")} style={{ padding: "6px 16px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 700, background: viewMode === "annual" ? "#3B82F6" : "transparent", color: viewMode === "annual" ? "#fff" : mutedColor, transition: "0.2s" }}>📅 Anual</button>
           </div>
 
-          <button onClick={() => openNewEvent(today.toISOString().slice(0, 10))} style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>{isMobile ? "+" : "+ Nuevo"}</button>
+          <button onClick={() => openNewEvent(today.toISOString().slice(0, 10))} style={{ padding: "8px 20px", borderRadius: 10, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 700, cursor: "pointer", boxShadow: "0 4px 12px rgba(59,130,246,0.3)", flexShrink: 0 }}>{isMobile ? "+" : "+ Nuevo"}</button>
         </div>
 
         {!isMobile && (
