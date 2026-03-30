@@ -35,7 +35,11 @@ export function CalendarView({ T, team }) {
     ];
     const seen = new Set();
     return raw.filter(e => {
-      const key = `${e.type}-${(e.title || "").trim()}-${e.start_date}-${e.end_date || ""}`;
+      // Normalización estricta: título minúscula + fechas YYYY-MM-DD
+      const t = (e.title || "").trim().toLowerCase();
+      const s = (e.start_date || "").slice(0, 10);
+      const en = (e.end_date || e.start_date || "").slice(0, 10);
+      const key = `${e.type}-${t}-${s}-${en}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -69,7 +73,18 @@ export function CalendarView({ T, team }) {
 
   function eventsForDay(dateStr) {
     if (!dateStr) return [];
-    return allEvents.filter((e) => dateInRange(dateStr, e.start_date, e.end_date || e.start_date));
+    const evs = allEvents.filter((e) => dateInRange(dateStr, e.start_date, e.end_date || e.start_date));
+    // Última limpieza: si hay dos con el mismo nombre en el mismo día, mostramos uno solo
+    const unique = [];
+    const titles = new Set();
+    evs.forEach(e => {
+      const t = (e.title || "").trim().toLowerCase();
+      if (!titles.has(t)) {
+        titles.add(t);
+        unique.push(e);
+      }
+    });
+    return unique;
   }
 
   function getSprintDayColor(dateStr) {
