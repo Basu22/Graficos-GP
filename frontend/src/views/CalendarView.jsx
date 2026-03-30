@@ -27,11 +27,20 @@ export function CalendarView({ T, team }) {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
-  const allEvents = [
-    ...events.filter((e) => filterTypes.has(e.type)),
-    ...holidays.filter(() => filterTypes.has("holiday")),
-    ...Array.from(new Map(sprintEvents.filter((e) => filterTypes.has("sprint")).map(s => [s.title.trim(), s])).values()),
-  ];
+  const allEvents = (() => {
+    const raw = [
+      ...events.filter((e) => filterTypes.has(e.type)),
+      ...holidays.filter(() => filterTypes.has("holiday")),
+      ...sprintEvents.filter((e) => filterTypes.has("sprint")),
+    ];
+    const seen = new Set();
+    return raw.filter(e => {
+      const key = `${e.type}-${(e.title || "").trim()}-${e.start_date}-${e.end_date || ""}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  })();
 
   const cardBg = theme.card || "#fff";
   const textColor = theme.text || "#1e293b";
