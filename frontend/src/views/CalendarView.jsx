@@ -211,8 +211,8 @@ export function CalendarView({ T, team }) {
                 {(() => {
                   const holidayEv = dayEvs.find((e) => e.type === "holiday");
                   const sprintEvs = dayEvs.filter((e) => e.type === "sprint" && !isWeekend && !holidayEv);
-                  const nonHolidayEvs = dayEvs.filter((e) => e.type !== "holiday" && !(e.type === "sprint" && (isWeekend || !!holidayEv)));
-                  const visibleEvs = [...sprintEvs, ...nonHolidayEvs];
+                  const otherEvs = dayEvs.filter((e) => e.type !== "holiday" && e.type !== "sprint");
+                  const visibleEvs = [...sprintEvs, ...otherEvs];
                   return (
                     <>
                       {holidayEv && <div style={{ fontSize: 9, padding: "2px 5px", borderRadius: 3, background: "#F97316", color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis" }} title={holidayEv.title}>🇦🇷 {holidayEv.title}</div>}
