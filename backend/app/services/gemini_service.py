@@ -43,7 +43,7 @@ async def generate_synthesis_ai(kpis: ExecutiveKPIs, team_name: str) -> list[dic
         if not available_models:
             raise Exception("Tu API Key no tiene acceso a modelos de generación.")
         
-        selected_model_name = next((m for m in ['models/gemini-1.5-flash', 'models/gemini-pro'] 
+        selected_model_name = next((m for m in ['models/gemini-2.5-flash', 'models/gemini-2.0-flash', 'models/gemini-2.0-flash-lite'] 
                                    if m in available_models), available_models[0])
             
         logger.info(f"Usando modelo Gemini: {selected_model_name}")
@@ -123,3 +123,84 @@ async def generate_synthesis_ai(kpis: ExecutiveKPIs, team_name: str) -> list[dic
             }]
         
         return [{"text": f"Error en análisis IA: {error_str[:50]}...", "type": "red"}]
+
+async def generate_weekly_plan(mails_data: list[dict]) -> list[dict]:
+    settings = get_settings()
+    if not settings.gemini_api_key:
+        return []
+
+    try:
+        genai.configure(api_key=settings.gemini_api_key)
+        # Mismo mecanismo dinámico que el reporte ejecutivo
+        available_models = [m.name for m in genai.list_models() 
+                            if 'generateContent' in m.supported_generation_methods]
+        if not available_models:
+            logger.error("No hay modelos de Gemini disponibles")
+            return []
+        
+        model_name = available_models[0]
+        logger.info(f"Generando plan semanal con modelo: {model_name}")
+        model = genai.GenerativeModel(
+            model_name=model_name,
+            generation_config={"response_mime_type": "application/json"}
+        )
+
+        mails_summary = [
+            f"DE: {m.get('from', 'Desconocido')} | ASUNTO: {m.get('subject', 'Sin asunto')} | SNIPPET: {m.get('snippet', '')}"
+            for m in mails_data[:20]
+        ]
+        
+        prompt = f"""
+        Eres un asistente de productividad experto. 
+        Lee los siguientes correos electrónicos recibidos esta semana (lunes a domingo actual):
+        
+        {json.dumps(mails_summary, indent=2)}
+        
+        REQUISITOS:
+        1. Por cada día de la semana (donde sea necesario) genera tareas accionables.
+        2. Cada tarea debe tener: title, detail, origin (from + subject del mail), priority (alta|media|baja) e icon (emoji).
+        3. Incluye un "summary" de una línea por cada día que tenga tareas.
+        4. Si un mail es URRENGTE o de un CLIENTE, ponle prioridad 'alta'.
+        5. Devuelve ÚNICAMENTE un JSON válido en este formato exacto, sin markdown ni texto extra:
+        [
+          {{
+            "dayIndex": 0-6,
+            "summary": "...",
+            "tasks": [
+              {{
+                "title": "...",
+                "detail": "...",
+                "origin": "...",
+                "priority": "alta|media|baja",
+                "icon": "🚀"
+              }}
+            ]
+          }}
+        ]
+        """
+        
+        response = await model.generate_content_async(prompt)
+        text = response.text.strip()
+        
+        logger.info(f"Gemini RAW response (Weekly Plan): {text}")
+        
+        # Limpieza agresiva de markdown por si Gemini desobedece
+        clean_text = text
+        if "```" in text:
+            import re
+            match = re.search(r'```(?:json)?\s*([\s\S]*?)```', text)
+            if match:
+                clean_text = match.group(1).strip()
+            else:
+                clean_text = text.replace("```json", "").replace("```", "").strip()
+
+        try:
+            return json.loads(clean_text)
+        except json.JSONDecodeError:
+            logger.error(f"Error parseando JSON de Gemini. RAW text: {text}")
+            # Intento desesperado de rescate si el JSON está mal formado
+            return []
+
+    except Exception as e:
+        logger.error(f"Error generando plan semanal AI: {e}")
+        return []

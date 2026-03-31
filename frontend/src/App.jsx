@@ -6,12 +6,13 @@ import { ReporteEjecutivo } from "./views/ReporteEjecutivo";
 import { SprintEnCurso } from "./views/SprintEnCurso";
 import { CalendarView } from "./views/CalendarView";
 import { TeamView } from "./views/TeamView";
+import MiDia from "./views/MiDia";
 
 export default function App() {
   const [teams, setTeams] = useState([]);
   const [team, setTeam] = useState("");
   const [filter, setFilter] = useState({ type: "last_n", n: 3 });
-  const [view, setView] = useState("dashboard");
+  const [view, setView] = useState("midia");
   const [pdfLoading, setPdfLoading] = useState(false);
   const contentRef = useRef(null);
 
@@ -81,6 +82,7 @@ export default function App() {
     sprint: `Sprint en Curso — Equipo ${team}`,
     calendar: `Calendario de Planificación — Equipo ${team}`,
     team: "Gestión del Equipo",
+    midia: "Mi Día — Centro de Comando AI",
   };
 
   return (
@@ -97,16 +99,41 @@ export default function App() {
     >
       {/* Header */}
       <div className="header-wrapper">
-        <div className="header-content">
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-              <div style={{ width: 30, height: 30, borderRadius: 8, background: "#3B82F6", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <span style={{ color: "#fff", fontSize: 15 }}>⚡</span>
-              </div>
-              <span style={{ fontWeight: 700, fontSize: 15, color: T.text }}>Agility Dashboard</span>
+        <div className="header-content-new">
+          {/* Logo Section */}
+          <div className="logo-section">
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: "#3B82F6", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <span style={{ color: "#fff", fontSize: 15 }}>⚡</span>
+            </div>
+            <span style={{ fontWeight: 700, fontSize: 15, color: T.text, whiteSpace: "nowrap" }} className="hide-mobile">Agility Dashboard</span>
+          </div>
+
+          {/* Controls & Nav Group (Right on Desktop) */}
+          <div className="header-main-group">
+            <div className="header-selectors">
+              <select value={team} onChange={(e) => setTeam(e.target.value)} style={{ ...selectStyle, minWidth: 120, maxWidth: 180 }}>
+                {teams.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+
+              {view !== "sprint" && view !== "calendar" && (
+                <div style={{ flexShrink: 0 }}>
+                  <PeriodSelector filter={filter} onChange={setFilter} T={T} />
+                </div>
+              )}
             </div>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div className="nav-scroll">
+              <div className="nav-container">
+                <button style={btnStyle(view === "midia")} onClick={() => setView("midia")}>✨ MI DIA</button>
+                <button style={btnStyle(view === "dashboard")} onClick={() => setView("dashboard")}>Performance</button>
+                <button style={btnStyle(view === "executive")} onClick={() => setView("executive")}>Ejecutivo</button>
+                <button style={btnStyle(view === "sprint")} onClick={() => setView("sprint")}>🟢 Sprint</button>
+                <button style={btnStyle(view === "calendar")} onClick={() => setView("calendar")}>📅 Cal</button>
+                <button style={btnStyle(view === "team")} onClick={() => setView("team")}>👥 Team</button>
+              </div>
+            </div>
+
+            <div className="header-actions">
               <button
                 onClick={() => setDarkMode((d) => !d)}
                 style={{ padding: "7px 12px", borderRadius: 8, border: `1px solid ${T.inputBorder}`, background: T.input, color: T.text, cursor: "pointer", fontSize: 16, lineHeight: 1 }}
@@ -116,44 +143,12 @@ export default function App() {
               </button>
               
               <button
-                className="hide-mobile"
                 onClick={handleExportPDF}
                 disabled={pdfLoading}
                 style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: pdfLoading ? "#94A3B8" : "#3B82F6", color: "#fff", cursor: pdfLoading ? "default" : "pointer", fontSize: 12, fontWeight: 600 }}
               >
-                {pdfLoading ? "Generando..." : "📄 PDF"}
+                {pdfLoading ? "..." : "📄 PDF"}
               </button>
-            </div>
-          </div>
-
-          <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "flex-start", flexWrap: "wrap" }}>
-            <select value={team} onChange={(e) => setTeam(e.target.value)} style={{ ...selectStyle, flex: 1, maxWidth: 180 }}>
-              {teams.map((t) => <option key={t} value={t}>{t}</option>)}
-            </select>
-
-            {view !== "sprint" && view !== "calendar" && (
-              <div style={{ flexShrink: 0 }}>
-                <PeriodSelector filter={filter} onChange={setFilter} T={T} />
-              </div>
-            )}
-            
-            <button
-              className="show-mobile" 
-              style={{ padding: "7px 14px", borderRadius: 8, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 600 }}
-              onClick={handleExportPDF}
-              disabled={pdfLoading}
-            >
-              PDF
-            </button>
-          </div>
-
-          <div className="nav-scroll" style={{ flexShrink: 0, marginLeft: "auto" }}>
-            <div className="nav-container">
-              <button style={btnStyle(view === "dashboard")} onClick={() => setView("dashboard")}>Performance</button>
-              <button style={btnStyle(view === "executive")} onClick={() => setView("executive")}>Ejecutivo</button>
-              <button style={btnStyle(view === "sprint")} onClick={() => setView("sprint")}>🟢 Sprint</button>
-              <button style={btnStyle(view === "calendar")} onClick={() => setView("calendar")}>📅 Cal</button>
-              <button style={btnStyle(view === "team")} onClick={() => setView("team")}>👥 Team</button>
             </div>
           </div>
         </div>
@@ -172,6 +167,7 @@ export default function App() {
         {team && view === "executive" && <ReporteEjecutivo team={team} filter={filter} T={T} />}
         {team && view === "sprint" && <SprintEnCurso team={team} T={T} />}
         {team && view === "calendar" && <CalendarView team={team} T={T} />}
+        {view === "midia" && <MiDia T={T} />}
         {view === "team" && <TeamView T={T} />}
       </div>
     </div>
