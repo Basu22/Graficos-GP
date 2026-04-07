@@ -7,6 +7,14 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
-    allowedHosts: ['graficosagiles.site'] // <--- Agregá esta línea
+    allowedHosts: ['graficosagiles.site'],
+    proxy: {
+      // Proxy /api → localhost:8000 evita CORS cuando se accede desde localhost:5173
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false,
+      }
+    }
   }
 })
