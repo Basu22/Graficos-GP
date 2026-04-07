@@ -13,10 +13,12 @@ if [ ! -f "backend/.env" ]; then
 fi
 
 # 2. Subir cambios a GitHub (para que la Raspberry pueda pulleralos)
+# Usamos sudo -u para que git use la configuración del usuario que lanzó el script
 echo "📥 Subiendo últimas correcciones a GitHub..."
-git add .
-git commit -m "Production Deploy: $(date '+%Y-%m-%d %H:%M:%S')"
-git push origin main || git push origin master
+CURRENT_USER=$(logname || echo $SUDO_USER)
+sudo -u $CURRENT_USER git add .
+sudo -u $CURRENT_USER git commit -m "Production Deploy: $(date '+%Y-%m-%d %H:%M:%S')"
+sudo -u $CURRENT_USER git push origin main
 
 # 3. Detener contenedores previos si existen
 echo "🛑 Deteniendo contenedores actuales..."
