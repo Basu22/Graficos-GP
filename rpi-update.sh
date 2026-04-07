@@ -19,11 +19,11 @@ fi
 
 # 3. Detener contenedores actuales
 echo "🛑 Deteniendo servicios..."
-sudo docker-compose -f docker-compose.prod.yml down
+sudo docker compose -f docker-compose.prod.yml down
 
 # 4. Construir y levantar con Docker Compose
 echo "🏗️  Re-construyendo imágenes y levantando el sistema..."
-sudo docker-compose -f docker-compose.prod.yml up --build -d
+sudo docker compose -f docker-compose.prod.yml up --build -d
 
 # 5. Limpieza (opcional) para ahorrar espacio en la SD de la Raspberry
 echo "🧹 Limpiando imágenes huérfanas para ahorrar espacio..."

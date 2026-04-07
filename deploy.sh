@@ -27,8 +27,8 @@ sudo -u $CURRENT_USER git push origin main
 
 # 3. Desplegar producción en esta Laptop
 echo "🏗️ Desplegando en Producción Local..."
-sudo docker-compose -f docker-compose.prod.yml down --remove-orphans
-sudo docker-compose -f docker-compose.prod.yml up --build -d
+sudo docker compose -f docker-compose.prod.yml down --remove-orphans
+sudo docker compose -f docker-compose.prod.yml up --build -d
 
 # 4. DISPARAR ACTUALIZACIÓN REMOTA (Raspberry Pi)
 if [[ $RPI_HOST == *"XXX"* ]]; then
@@ -42,4 +42,4 @@ else
 fi
 
 echo "✨ Proceso finalizado. Dashboard corriendo localmente en http://localhost"
-echo "📊 Logs locales: sudo docker-compose -f docker-compose.prod.yml logs -f"
+echo "📊 Logs locales: sudo docker compose -f docker-compose.prod.yml logs -f"
