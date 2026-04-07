@@ -36,8 +36,14 @@ if [[ $RPI_HOST == *"XXX"* ]]; then
     echo "Editá deploy.sh y cambiá RPI_HOST por el tuyo para que sea automático de ahora en adelante."
 else
     echo "📡 Conectando a la Raspberry Pi ($RPI_HOST)..."
-    # Se conecta vía SSH, entra a la carpeta, pullea y ejecuta el script rpi-update.sh
-    sudo -u $CURRENT_USER ssh $RPI_HOST "cd $RPI_PATH && git pull origin main && chmod +x rpi-update.sh && ./rpi-update.sh"
+    
+    # 4a. Sincronizar secretos (.env y token.json)
+    echo "🔑 Sincronizando credenciales y tokens..."
+    sudo -u $CURRENT_USER scp backend/.env $RPI_HOST:$RPI_PATH/backend/.env
+    sudo -u $CURRENT_USER scp backend/token.json $RPI_HOST:$RPI_PATH/backend/token.json 2>/dev/null || echo "⚠️  Nota: No se encontró token.json local para copiar."
+
+    # 4b. Disparar actualización de código y rebuild
+    sudo -u $CURRENT_USER ssh $RPI_HOST "cd $RPI_PATH && git fetch origin && git reset --hard origin/main && chmod +x rpi-update.sh && ./rpi-update.sh"
     echo "✅ Despliegue remoto en Raspberry Pi completado."
 fi
 
