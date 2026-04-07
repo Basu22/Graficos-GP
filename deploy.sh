@@ -7,7 +7,7 @@
 # Usuario e IP de tu Raspberry
 RPI_HOST="bossvald@raspberrypi.local" 
 # Ruta absoluta en la Raspberry Pi
-RPI_PATH="/home/bossvald/Documentos/Graficos-GP"
+RPI_PATH="/home/bossvald/Graficos-GP/"
 # ----------------------------
 
 echo "🚀 Iniciando flujo completo de despliegue..."
