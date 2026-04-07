@@ -1,38 +1,45 @@
 #!/bin/bash
 
-# Script de despliegue para Agility Dashboard (Modo Producción)
-# Sube cambios a GitHub, construye y levanta la infraestructura
+# 🍏 Agility Dashboard - Full Deploy Workflow (Laptop -> GitHub -> Raspberry Pi)
+# Este script sincroniza cambios, despliega en producción local y dispara el despliegue remoto en la RPI.
 
-echo "🚀 Iniciando despliegue de Agility Dashboard..."
+# --- CONFIGURACIÓN REMOTA ---
+# Usuario e IP de tu Raspberry
+RPI_HOST="bossvald@raspberrypi.local" 
+# Ruta absoluta en la Raspberry Pi
+RPI_PATH="/home/bossvald/Documentos/Graficos-GP"
+# ----------------------------
 
-# 1. Verificar existencia del archivo .env en backend
+echo "🚀 Iniciando flujo completo de despliegue..."
+
+# 1. Verificar .env local
 if [ ! -f "backend/.env" ]; then
-    echo "❌ Error: No se encontró el archivo backend/.env"
-    echo "Copia backend/.env.example a backend/.env y completa las credenciales de Jira/Gemini."
+    echo "❌ Error: backend/.env no encontrado."
     exit 1
 fi
 
-# 2. Subir cambios a GitHub (para que la Raspberry pueda pulleralos)
-# Usamos sudo -u para que git use la configuración del usuario que lanzó el script
-echo "📥 Subiendo últimas correcciones a GitHub..."
+# 2. Sincronizar cambios a GitHub
+echo "📥 Sincronizando con GitHub..."
 CURRENT_USER=$(logname || echo $SUDO_USER)
 sudo -u $CURRENT_USER git add .
-sudo -u $CURRENT_USER git commit -m "Production Deploy: $(date '+%Y-%m-%d %H:%M:%S')"
+sudo -u $CURRENT_USER git commit -m "Full Deploy: $(date '+%Y-%m-%d %H:%M:%S')"
 sudo -u $CURRENT_USER git push origin main
 
-# 3. Detener contenedores previos si existen
-echo "🛑 Deteniendo contenedores actuales..."
+# 3. Desplegar producción en esta Laptop
+echo "🏗️ Desplegando en Producción Local..."
 sudo docker-compose -f docker-compose.prod.yml down --remove-orphans
-
-# 4. Construir y levantar
-echo "🏗️ Construyendo y levantando imágenes de producción con Docker..."
 sudo docker-compose -f docker-compose.prod.yml up --build -d
 
-# 5. Verificación de salud
-echo "📡 Verificando salud de los servicios..."
-sleep 5
-sudo docker-compose -f docker-compose.prod.yml ps
+# 4. DISPARAR ACTUALIZACIÓN REMOTA (Raspberry Pi)
+if [[ $RPI_HOST == *"XXX"* ]]; then
+    echo "⚠️  Nota: No se disparó el despliegue automático en la Raspberry porque no tiene configurada la IP."
+    echo "Editá deploy.sh y cambiá RPI_HOST por el tuyo para que sea automático de ahora en adelante."
+else
+    echo "📡 Conectando a la Raspberry Pi ($RPI_HOST)..."
+    # Se conecta vía SSH, entra a la carpeta, pullea y ejecuta el script rpi-update.sh
+    sudo -u $CURRENT_USER ssh $RPI_HOST "cd $RPI_PATH && git pull origin main && chmod +x rpi-update.sh && ./rpi-update.sh"
+    echo "✅ Despliegue remoto en Raspberry Pi completado."
+fi
 
-echo "✅ Despliegue completado con éxito."
-echo "🔗 El dashboard debería estar accesible en http://localhost"
-echo "📝 Para ver logs: sudo docker-compose -f docker-compose.prod.yml logs -f"
+echo "✨ Proceso finalizado. Dashboard corriendo localmente en http://localhost"
+echo "📊 Logs locales: sudo docker-compose -f docker-compose.prod.yml logs -f"
