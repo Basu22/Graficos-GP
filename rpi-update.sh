@@ -19,10 +19,10 @@ if [ ! -f "backend/.env" ]; then
     fi
 fi
 
-# 3. Re-lanzar contenedores
-# Usamos --remove-orphans para limpiar servicios viejos
-echo "🛑 Reiniciando servicios y reconstruyendo..."
-sudo docker compose -f docker-compose.prod.yml up --build -d --remove-orphans
+# 3. Re-lanzar contenedores (Forzamos rebuild para evitar falsos CACHED)
+echo "🛑 Reiniciando servicios y recompilando (esto puede tardar unos minutos)..."
+sudo docker compose -f docker-compose.prod.yml build --no-cache frontend
+sudo docker compose -f docker-compose.prod.yml up -d --remove-orphans
 
 # 4. Mantenimiento preventivo (Vital en RPi para ahorrar espacio en la SD)
 echo "🧹 Mantenimiento de storage (Docker prune)..."
