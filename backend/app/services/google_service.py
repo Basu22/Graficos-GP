@@ -112,8 +112,8 @@ async def get_gmail_threads(max_results=50, days=30):
         except Exception as e:
             logger.warning(f"Error leyendo headers de {response.get('id')}: {e}")
 
-    # Step 3: Construimos el batch request (en chunks de 50 para respetar límite de Google)
-    chunk_size = 50
+    # Step 3: Construimos el batch request (en chunks de 15 para respetar el rate limit per-second de Google)
+    chunk_size = 15
     for i in range(0, len(messages), chunk_size):
         chunk = messages[i:i+chunk_size]
         batch = service.new_batch_http_request(callback=handle_batch_response)
@@ -126,8 +126,10 @@ async def get_gmail_threads(max_results=50, days=30):
             )
             batch.add(req)
         
-        # Ejecutar chunk
+        # Ejecutar chunk liberando el Event Loop para no bloquear otros endpoints
+        import asyncio
         batch.execute()
+        await asyncio.sleep(0.1)
 
     # Reordenar por fecha descendente
     detailed.sort(key=lambda x: x.get('date', ''), reverse=True)

@@ -74,14 +74,20 @@ function BankTable({ tableRows, banks }) {
 
   const DiffCell = ({ bd }) => {
     if (!bd) return <td style={{ textAlign: 'right', padding: '5px 8px', color: P.muted, fontSize: 11 }}>—</td>;
-    const { current, diff } = bd;
+    const { current, diff, isFallback } = bd;
     const isDown = diff !== null && diff < 0;
     const isUp   = diff !== null && diff > 0;
     const col    = isDown ? '#EF4444' : isUp ? '#10B981' : P.text;
     return (
       <td style={{ textAlign: 'right', padding: '5px 8px' }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: P.text, fontFamily: "'DM Mono', monospace" }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: P.text, fontFamily: "'DM Mono', monospace", display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
           {current ? fmt(current) : '—'}
+          {isFallback && current ? (
+            <span
+              title="Dato del día anterior (no llegó el reporte de hoy)"
+              style={{ fontSize: 9, cursor: 'help', lineHeight: 1 }}
+            >⚠️</span>
+          ) : null}
         </div>
         {diff !== null && diff !== undefined && (
           <div style={{ fontSize: 9, fontWeight: 700, color: col }}>
@@ -304,7 +310,7 @@ function Section({ title, items, tagStyle, collapsible = true }) {
 }
 
 // ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
-export default function SmartInboxColumn({ smartInbox, healthReport, loadingHealth, isDark = true }) {
+export default function SmartInboxColumn({ smartInbox, healthReport, loadingHealth, isDark = true, onSync, onSyncHealth }) {
 
   const P = getP(isDark);
 
@@ -360,10 +366,26 @@ export default function SmartInboxColumn({ smartInbox, healthReport, loadingHeal
               </span>
             )}
           </div>
-          <button style={{ fontSize: 10, color: P.muted, background: 'transparent', border: `1px solid ${P.border}`,
-            borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontWeight: 600 }}>
-            🔄 Sync
-          </button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <button
+              id="btn-sync-inbox"
+              onClick={onSync}
+              style={{ fontSize: 10, color: P.muted, background: 'transparent', border: `1px solid ${P.border}`,
+                borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontWeight: 600 }}
+              title="Recarga el Smart Inbox (mails de equipo, clientes, etc.)"
+            >
+              🔄 Sync Inbox
+            </button>
+            <button
+              id="btn-sync-salud"
+              onClick={onSyncHealth}
+              style={{ fontSize: 10, color: '#10B981', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)',
+                borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontWeight: 600 }}
+              title="Actualiza el Monitor de Salud (query directo a Gmail operativo)"
+            >
+              🏥 Sync Salud
+            </button>
+          </div>
         </div>
 
         {/* ── SCROLL AREA ── */}

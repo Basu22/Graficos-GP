@@ -14,8 +14,11 @@ BACK_PID=$!
 cd ..
 
 # 2. Asegurar puerto 5173 (Frontend)
-echo "⚡ Levantando el Frontend (Vite)..."
+echo "⚡ Levantando el Frontend (Vite) con Node 20..."
 cd frontend
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+nvm use 20 2>/dev/null || echo "Aviso: NVM no configurado. Intentando con Node base..."
 npm run dev -- --host --port 5173 &
 FRONT_PID=$!
 cd ..

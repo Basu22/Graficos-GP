@@ -20,7 +20,7 @@ async def get_midia_data():
     try:
         # Se volvió a ejecución secuencial porque google-api-python-client  
         # no es thread-safe y bloquea el event loop. Con Batch API ya es rapidísimo (<2s).
-        threads = await get_gmail_threads(max_results=100, days=30)
+        threads = await get_gmail_threads(max_results=300, days=30)
         events = await get_calendar_today()
 
         # Categorización básica para la vista de acordeones (fallback visual)
@@ -357,16 +357,19 @@ async def create_quick_event(body: CreateEventBody):
 # ─────────────────────────────────────────────────────────────────
 # CONFIG DESDE GOOGLE SHEETS — Motor de Decisiones
 # Sheet ID: 1bEb7w_iBqHbuPFNlBFi9jVZFtos1-VfFuI8npxVimkk
+# Pestaña Motor (default gid=0) + Pestaña Filtros (gid=2103787807)
 # ─────────────────────────────────────────────────────────────────
 import csv, io, httpx, re
 from functools import lru_cache
 from datetime import datetime as _dt
 
-SHEET_ID = "1bEb7w_iBqHbuPFNlBFi9jVZFtos1-VfFuI8npxVimkk"
-SHEET_CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
+SHEET_ID          = "1bEb7w_iBqHbuPFNlBFi9jVZFtos1-VfFuI8npxVimkk"
+SHEET_CSV_URL     = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
+SHEET_FILTROS_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv&gid=2103787807"
 
-# Cache TTL simple (resetteable forzando un nuevo endpoint call)
-_config_cache = {"data": None, "ts": 0, "ttl": 300}
+# Cachés con TTL de 5 minutos
+_config_cache  = {"data": None, "ts": 0, "ttl": 300}
+_filters_cache = {"data": None, "ts": 0, "ttl": 300}
 
 async def fetch_sheet_config(force_refresh: bool = False) -> list[dict]:
     now = _dt.utcnow().timestamp()
@@ -382,19 +385,51 @@ async def fetch_sheet_config(force_refresh: bool = False) -> list[dict]:
             _config_cache["ts"] = now
             return rows
     except Exception as e:
-        logger.warning(f"No se pudo leer el Sheet de configuración: {e}")
+        logger.warning(f"No se pudo leer el Sheet Motor: {e}")
         return _config_cache["data"] or []
+
+async def fetch_filters_config(force_refresh: bool = False) -> list[dict]:
+    """Lee la pestaña Filtros — IGNORAR / SILENCIAR / REBOTAR."""
+    now = _dt.utcnow().timestamp()
+    if not force_refresh and _filters_cache["data"] and (now - _filters_cache["ts"]) < _filters_cache["ttl"]:
+        return _filters_cache["data"]
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=10) as client:
+            resp = await client.get(SHEET_FILTROS_URL)
+            resp.raise_for_status()
+            reader = csv.DictReader(io.StringIO(resp.text))
+            rows = [
+                dict(row) for row in reader
+                if row.get("Tipo") and row.get("Campo") and row.get("Valor")
+                and (row.get("Activo") or "SI").strip().upper() == "SI"
+            ]
+            _filters_cache["data"] = rows
+            _filters_cache["ts"] = now
+            logger.info(f"[Filtros] {len(rows)} filtros activos cargados desde Sheets")
+            return rows
+    except Exception as e:
+        logger.warning(f"No se pudo leer el Sheet Filtros: {e}")
+        return _filters_cache["data"] or []
 
 @router.get("/inbox-config")
 async def get_inbox_config(refresh: bool = False):
     """
-    Retorna la configuración de criterios del Smart Inbox
-    cargada desde Google Sheets. TTL de 5 minutos.
+    Retorna la configuración completa del Smart Inbox:
+    - config: reglas de clasificación (pestaña Motor)
+    - filters: reglas de filtrado previo (pestaña Filtros)
+    TTL de 5 minutos para cada pestaña.
     """
-    rows = await fetch_sheet_config(force_refresh=refresh)
+    rows    = await fetch_sheet_config(force_refresh=refresh)
+    filters = await fetch_filters_config(force_refresh=refresh)
     if not rows:
         raise HTTPException(status_code=503, detail="No se pudo obtener la configuración del Sheet")
-    return {"config": rows, "source": SHEET_CSV_URL, "cached": not refresh}
+    return {
+        "config":  rows,
+        "filters": filters,
+        "source":  SHEET_CSV_URL,
+        "cached":  not refresh,
+    }
+
 
 
 # ─────────────────────────────────────────────────────────────────
@@ -406,13 +441,26 @@ async def get_inbox_config(refresh: bool = False):
 
 BANKS = ["BSF", "BER", "BSJ", "BSC"]
 
+# Patrones con soporte para el formato real: "Oferta Tarjeta - CSH" (guión + espacios)
+# que envía el remitente operativagobdato@gbsj.com.ar
 PRODUCT_DEFS = [
-    {"key": "haberes",   "label": "Adelanto de Haberes",  "patterns": ["adelanto de haberes", "haberes"]},
-    {"key": "prestamos", "label": "Oferta Préstamos",     "patterns": ["oferta prestamos", "oferta préstamos", "prestamos"]},
-    {"key": "cch",       "label": "Oferta Tarjeta – CCH", "patterns": [r"oferta tarjeta.*cch", r"tarjeta.*cch", r"\bcch\b"]},
-    {"key": "csh",       "label": "Oferta Tarjeta – CSH", "patterns": [r"oferta tarjeta.*csh", r"tarjeta.*csh", r"\bcsh\b"]},
-    {"key": "nc",        "label": "Oferta Tarjeta – NC",  "patterns": [r"oferta tarjeta.*\bnc\b", r"no cliente"]},
+    {"key": "haberes",   "label": "Adelanto de Haberes",  "patterns": [
+        r"adelanto de haberes", r"haberes"]},
+    {"key": "prestamos", "label": "Oferta Préstamos",     "patterns": [
+        r"oferta prestamos", r"oferta pr[eé]stamos", r"prestamos"]},
+    {"key": "cch",       "label": "Oferta Tarjeta – CCH", "patterns": [
+        r"oferta tarjeta[\s\-–]+cch", r"tarjeta[\s\-–]+cch", r"\bcch\b"]},
+    {"key": "csh",       "label": "Oferta Tarjeta – CSH", "patterns": [
+        r"oferta tarjeta[\s\-–]+csh", r"tarjeta[\s\-–]+csh", r"\bcsh\b"]},
+    {"key": "nc",        "label": "Oferta Tarjeta – NC",  "patterns": [
+        r"oferta tarjeta[\s\-–]+nc\b", r"tarjeta[\s\-–]+nc\b", r"\bnc\b"]},
 ]
+
+# ─── Caché del resultado del análisis (TTL 60 min) ─────────────────────────────
+# Se invalida automáticamente si llegan mails nuevos (fingerprint de IDs cambia)
+_health_cache: dict = {"data": None, "ts": 0.0, "fingerprint": ""}
+HEALTH_CACHE_TTL = 3600  # 60 minutos
+
 
 def _clean_num(s: str) -> int:
     return int(re.sub(r"[.,\s]", "", s.strip()))
@@ -476,24 +524,168 @@ def _calc_diff(curr, prev) -> float | None:
     return round(((curr - prev) / prev) * 100, 1)
 
 
+@router.post("/health-report/sync")
+async def sync_health_report():
+    """
+    Invalida la caché del Monitor de Salud para que el próximo
+    llamado a /health-report/analyze recalcule desde cero.
+    Se expone como botón independiente "Sync Salud" en el frontend,
+    separado del Sync del Smart Inbox.
+    """
+    _health_cache["data"]        = None
+    _health_cache["ts"]          = 0.0
+    _health_cache["fingerprint"] = ""
+    logger.info("[Health] Caché invalidada manualmente via Sync Salud")
+    return {"ok": True, "message": "Caché del Monitor de Salud invalidada. El próximo análisis recalculará desde Gmail."}
+
+
 @router.post("/health-report/analyze")
 async def analyze_health_reports(emails: list[dict]):
     """
     Construye la tabla Monitor de Salud (Productos × Bancos con diff%).
 
     Flujo:
-    1. Filtra mails individuales de operativagobdato@gbsj.com.ar
-       con asunto "Detalle de Ofertas Cargadas | BANCO | FECHA"
-    2. Agrupa por fecha extraída del asunto (no del campo date)
-    3. Compara los 2 DIAS MAS RECIENTES con datos reales
-    4. Tabla: filas=Productos, columnas=Bancos+Total con diff%
+    1. Query directo a Gmail para mails de operativagobdato (independiente del Inbox general)
+    2. Combina con la lista recibida del frontend (dedup por ID)
+    3. Verifica caché de 60 min — si los IDs no cambiaron, devuelve resultado guardado
+    4. Agrupa por fecha del asunto (no por fecha de recepción)
+    5. Para bancos sin mail en el día más reciente, usa el último dato disponible (sin ceros)
     """
+    import hashlib, time, datetime as _dt
+    from googleapiclient.discovery import build as _build
+
     OPERATIVA_SENDER = "operativagobdato"
     DETAIL_KEYWORD   = "detalle de ofertas"
     SUMMARY_KEYWORDS = ["reporte diario", "estado de ofertas"]
 
+    # ── FASE A: Query directo a Gmail para mails del remitente operativo ──────────
+    operativa_mails: list[dict] = []
+    reporte_mails:   list[dict] = []
+
+    def _get_body_text(full_msg: dict) -> str:
+        """Extrae texto plano del body de un mensaje Gmail en formato 'full'."""
+        import base64 as _b64
+        def _decode(data):
+            return _b64.urlsafe_b64decode(data + '==').decode('utf-8', errors='ignore') if data else ''
+        def _walk(part):
+            mime = part.get('mimeType', '')
+            if mime == 'text/plain':
+                return _decode(part.get('body', {}).get('data', ''))
+            if mime == 'text/html':
+                raw = _decode(part.get('body', {}).get('data', ''))
+                return re.sub(r'<[^>]+>', ' ', raw)
+            for sub in part.get('parts', []):
+                t = _walk(sub)
+                if t.strip(): return t
+            return ''
+        payload = full_msg.get('payload', {})
+        if not payload.get('parts'):
+            mime = payload.get('mimeType', '')
+            raw  = payload.get('body', {}).get('data', '')
+            txt  = _b64.urlsafe_b64decode(raw + '==').decode('utf-8', errors='ignore') if raw else ''
+            if 'html' in mime:
+                txt = re.sub(r'<[^>]+>', ' ', txt)
+            return txt
+        for part in payload.get('parts', []):
+            t = _walk(part)
+            if t.strip(): return t
+        return ''
+
+    try:
+        creds = get_google_creds()
+        if creds:
+            _svc = _build('gmail', 'v1', credentials=creds)
+            _res = _svc.users().messages().list(
+                userId='me',
+                q=f"from:{OPERATIVA_SENDER} subject:detalle de ofertas",
+                maxResults=200,
+            ).execute()
+            for _m in _res.get('messages', []):
+                try:
+                    # format='full' para obtener el body HTML con CSH y NC
+                    # (el snippet se trunca a ~199 chars, omitiendo los últimos productos)
+                    _full = _svc.users().messages().get(
+                        userId='me', id=_m['id'],
+                        format='full'
+                    ).execute()
+                    _hdrs = _full.get('payload', {}).get('headers', [])
+                    _subj = next((h['value'] for h in _hdrs if h['name'] == 'Subject'), '')
+                    _from = next((h['value'] for h in _hdrs if h['name'] == 'From'), '')
+                    _ts   = int(_full.get('internalDate', 0)) / 1000
+                    _date = _dt.datetime.fromtimestamp(_ts, tz=_dt.timezone.utc).isoformat()
+                    _body = _get_body_text(_full)
+                    operativa_mails.append({
+                        "id":      _full['id'],
+                        "subject": _subj,
+                        "from":    _from,
+                        "snippet": _full.get('snippet', ''),
+                        "body":    _body,    # body completo: incluye CSH y NC
+                        "date":    _date,
+                    })
+                except Exception as _e:
+                    logger.warning(f"[Health] error leyendo mail operativo {_m['id']}: {_e}")
+            logger.info(f"[Health] query directo: {len(operativa_mails)} mails operativos")
+
+            # ── FASE A2: Buscar también los Reportes Diarios de Ofertas (para el snippet de análisis)
+            reporte_mails: list[dict] = []
+            _res2 = _svc.users().messages().list(
+                userId='me',
+                q='subject:"reporte diario de estado de ofertas" -subject:"ANALISIS IA"',
+                maxResults=10,
+            ).execute()
+            for _m2 in _res2.get('messages', []):
+                try:
+                    _rfull = _svc.users().messages().get(
+                        userId='me', id=_m2['id'], format='full'
+                    ).execute()
+                    _rhdrs = _rfull.get('payload', {}).get('headers', [])
+                    _rsubj = next((h['value'] for h in _rhdrs if h['name'] == 'Subject'), '')
+                    
+                    if "analisis ia" in _rsubj.lower() or "análisis ia" in _rsubj.lower():
+                        continue
+
+                    _rfrom = next((h['value'] for h in _rhdrs if h['name'] == 'From'), '')
+                    _rts   = int(_rfull.get('internalDate', 0)) / 1000
+                    _rdate = _dt.datetime.fromtimestamp(_rts, tz=_dt.timezone.utc).isoformat()
+                    _rbody = _get_body_text(_rfull)
+                    reporte_mails.append({
+                        "id":      _rfull['id'],
+                        "subject": _rsubj,
+                        "from":    _rfrom,
+                        "snippet": _rfull.get('snippet', ''),
+                        "body":    _rbody,
+                        "date":    _rdate,
+                    })
+                except Exception as _e2:
+                    logger.warning(f"[Health] error leyendo reporte {_m2['id']}: {_e2}")
+            logger.info(f"[Health] reportes diarios encontrados: {len(reporte_mails)}")
+
+    except Exception as _e:
+        logger.warning(f"[Health] query directo falló: {_e}")
+        reporte_mails = []
+
+
+    # ── FASE B: Combinar ambas fuentes (priorizando nuestra versión con body completo) ──
+    all_by_id: dict[str, dict] = {m['id']: m for m in emails if m.get('id')}
+    for m in operativa_mails:
+        # Sobreescribimos porque nuestra versión tiene el body='full' con CSH y NC
+        all_by_id[m['id']] = m
+    all_mails = list(all_by_id.values())
+
+    # ── FASE C: Caché de 60 min con fingerprint de IDs ───────────────────────────
+    fingerprint = hashlib.md5("".join(sorted(all_by_id.keys())).encode()).hexdigest()
+    now_ts = time.time()
+    if (
+        _health_cache["data"] is not None
+        and _health_cache["fingerprint"] == fingerprint
+        and (now_ts - _health_cache["ts"]) < HEALTH_CACHE_TTL
+    ):
+        logger.info(f"[Health] Cache hit — fingerprint={fingerprint[:8]}")
+        return _health_cache["data"]
+
+    # ── FASE D: Filtrar y clasificar ──────────────────────────────────────────────
     detail_mails, summary_mails = [], []
-    for m in emails:
+    for m in all_mails:
         subj = (m.get("subject") or "").lower()
         frm  = (m.get("from")   or "").lower()
         if (OPERATIVA_SENDER in frm or OPERATIVA_SENDER in subj) and DETAIL_KEYWORD in subj:
@@ -501,35 +693,33 @@ async def analyze_health_reports(emails: list[dict]):
         elif any(kw in subj for kw in SUMMARY_KEYWORDS):
             summary_mails.append(m)
 
-    logger.info(f"[Health] detail={len(detail_mails)} summary={len(summary_mails)}")
+    logger.info(f"[Health] detail={len(detail_mails)} summary={len(summary_mails)} total={len(all_mails)}")
 
-    # Agrupar por fecha reportada: {YYYY-MM-DD: {BANCO: {prod_key: valor}}}
-    days = {}
+    # ── FASE E: Agrupar datos por fecha del asunto ────────────────────────────────
+    days: dict[str, dict] = {}
     for mail in detail_mails:
         subj  = mail.get("subject") or ""
         bank  = _extract_bank_from_subject(subj)
         fdate = _extract_date_from_subject(subj) or (mail.get("date") or "")[:10]
         if not bank or not fdate:
             continue
-        content = f"{subj} {mail.get('snippet','') or ''} {mail.get('body','') or ''}"
+        content  = f"{subj} {mail.get('snippet','') or ''} {mail.get('body','') or ''}"
         products = _extract_products_from_text(content)
         if fdate not in days:
             days[fdate] = {}
         days[fdate][bank] = products
         logger.debug(f"[Health] {fdate}/{bank} -> {products}")
 
-    # Fallback: intentar parsear mails de resumen si hay menos de 2 dias con datos
+    # Fallback: parsear mails de resumen si hay menos de 2 días con datos
     if len(days) < 2 and summary_mails:
         summary_mails.sort(key=lambda x: x.get("date", ""), reverse=True)
-        other_banks_pat = '|'.join(b for b in BANKS)  # pre-compila fuera del loop
         for sm in summary_mails[:6]:
             dk = (sm.get("date") or "")[:10]
             if dk and dk not in days:
                 text = f"{sm.get('subject','')} {sm.get('snippet','')} {sm.get('body','')}"
-                day_data = {}
+                day_data: dict[str, dict] = {}
                 for bank in BANKS:
                     try:
-                        # Busca el bloque de texto asociado a cada banco
                         bm = re.search(rf'\b{bank}\b(.{{0,600}})', text, re.IGNORECASE | re.DOTALL)
                         if bm:
                             prods = _extract_products_from_text(bm.group(1))
@@ -546,9 +736,41 @@ async def analyze_health_reports(emails: list[dict]):
 
     latest_date = sorted_days[0]
     prev_date   = sorted_days[1] if len(sorted_days) > 1 else None
-    latest_day  = days[latest_date]
-    prev_day    = days[prev_date] if prev_date else {}
-    logger.info(f"[Health] Comparando {latest_date} vs {prev_date}")
+    latest_day  = days[latest_date].copy()
+    prev_day    = days[prev_date].copy() if prev_date else {}
+
+    # ── FASE F: Fallback por banco — último dato conocido si falta el mail ────────
+    # Si un banco no tiene datos en la fecha más reciente o la anterior,
+    # usamos el último registro histórico disponible para ese banco.
+    bank_history: dict[str, dict] = {}
+    for d in sorted_days:
+        for bank, prod_data in days[d].items():
+            if bank not in bank_history and prod_data:
+                bank_history[bank] = prod_data
+
+    bank_prev_history: dict[str, dict] = {}
+    for d in sorted_days[1:]:
+        for bank, prod_data in days[d].items():
+            if bank not in bank_prev_history and prod_data:
+                bank_prev_history[bank] = prod_data
+
+    for bank in BANKS:
+        if not latest_day.get(bank) and bank in bank_history:
+            latest_day[bank] = bank_history[bank]
+            logger.info(f"[Health] {bank}: sin datos el {latest_date}, usando último registro disponible")
+        if not prev_day.get(bank) and bank in bank_prev_history:
+            prev_day[bank] = bank_prev_history[bank]
+            logger.info(f"[Health] {bank}: sin datos previos, usando último registro previo disponible")
+
+    # Qué bancos no tenían mail propio en latest_date (usan dato de otro día) → ⚠️ en UI
+    fallback_banks: set[str] = {
+        bank for bank in BANKS
+        if bank not in days.get(latest_date, {}) and latest_day.get(bank)
+    }
+
+    logger.info(f"[Health] Comparando {latest_date} vs {prev_date} | fallback={fallback_banks}")
+
+
 
     # Construir tabla filas=Producto, columnas=Banco
     table_rows = []
@@ -560,7 +782,12 @@ async def analyze_health_reports(emails: list[dict]):
             curr = (latest_day.get(bank) or {}).get(pk, 0)
             prev = (prev_day.get(bank)   or {}).get(pk, 0)
             diff = _calc_diff(curr, prev)
-            row["banks"][bank] = {"current": curr, "previous": prev, "diff": diff}
+            row["banks"][bank] = {
+                "current":    curr,
+                "previous":   prev,
+                "diff":       diff,
+                "isFallback": bank in fallback_banks,  # ⚠️ dato del día anterior
+            }
             row["total_current"]  += curr
             row["total_previous"] += prev
         row["total_diff"] = _calc_diff(row["total_current"], row["total_previous"])
@@ -569,37 +796,68 @@ async def analyze_health_reports(emails: list[dict]):
         if row["total_current"] > 0 or row["total_previous"] > 0:
             table_rows.append(row)
 
-    # Extraer snippet de análisis del "Reporte Diario de Estado de Ofertas"
-    # Se buscan oraciones que contengan palabras clave de análisis real
-    ANALYSIS_KEYWORDS = [
-        r'\bcaída\b', r'\bbajada\b', r'\bsubida\b', r'\balza\b', r'\bincremento\b',
-        r'\bdisminución\b', r'\bdecreto\b', r'\bbaja\b', r'\bsube\b', r'\bbajan\b',
-        r'\bsuben\b', r'\bvariación\b', r'\baumento\b', r'\bdescenso\b',
-        r'\bcaen\b', r'\bsube\b', r'\bcayó\b', r'\bsubió\b', r'\baumentó\b',
-    ]
-    ANALYSIS_PAT = re.compile('|'.join(ANALYSIS_KEYWORDS), re.IGNORECASE)
-
+    # ── Extraer el snippet narrativo del Reporte Diario más reciente ─────────────
+    # Los reportes vienen primero de la Fase A2, con fallback a los que mandó el frontend
     latest_snippet, latest_from = "", ""
-    if summary_mails:
-        summary_mails.sort(key=lambda x: x.get("date", ""), reverse=True)
-        sm = summary_mails[0]
-        latest_from = sm.get("from", "")
-        full_text = " ".join([
-            sm.get("snippet", "") or "",
-            sm.get("body", "") or "",
-        ]).strip()
-        # Dividir en oraciones y buscar las que tienen análisis
-        sentences = re.split(r'(?<=[.!?])\s+|[\n\r]+', full_text)
-        analysis_sentences = [
-            s.strip() for s in sentences
-            if ANALYSIS_PAT.search(s) and len(s.strip()) > 20
-        ]
-        if analysis_sentences:
-            latest_snippet = " ".join(analysis_sentences[:6])[:600]
-        else:
-            # Fallback: primeros 400 chars del snippet
-            latest_snippet = (sm.get("snippet") or "")[:400]
+    _all_reportes = sorted(
+        reporte_mails + [
+            m for m in all_mails
+            if any(kw in (m.get('subject') or '').lower() for kw in SUMMARY_KEYWORDS)
+            and m.get('id') not in {r['id'] for r in reporte_mails}
+            and "analisis ia" not in (m.get('subject') or '').lower()
+            and "análisis ia" not in (m.get('subject') or '').lower()
+        ],
+        key=lambda x: x.get('date', ''), reverse=True
+    )
 
+    for sm in _all_reportes[:5]:
+        body_text = sm.get("body", "") or sm.get("snippet", "") or ""
+        if not body_text.strip():
+            continue
+
+        # La intro es un patrón estándar pero puede variar alguna palabra.
+        # Siempre termina mencionando el horario ("XX.XX hs.").
+        intro_regex = r'din[aá]mica comunicacional.*?corrida de proceso.*?(\d{1,2}[.:]\d{2}\s*hs\.?)'
+        m_intro = re.search(intro_regex, body_text, re.IGNORECASE | re.DOTALL)
+        if m_intro:
+            after = body_text[m_intro.end():].strip()
+        else:
+        # Fallback: si no machó la frase exacta pero logramos atrapar el horario de la intro
+            m_hs = re.search(r'\b\d{1,2}[.:]\d{2}\s*hs\.?', body_text[:600], re.IGNORECASE)
+            if m_hs:
+                after = body_text[m_hs.end():].strip()
+            else:
+                after = body_text
+
+        # Cortar en el momento que empieza la firma del remitente
+        after = re.split(r'PwC Argentina|Price Waterhouse|Manager \| Digital Advisory', after, flags=re.IGNORECASE)[0].strip()
+
+        # Quitar líneas de tabla (solo números/espacios/puntos) y de banco
+        lines = re.split(r'[\n\r]+|(?<=\.)\s{2,}', after)
+        narrative = [
+            ln.strip() for ln in lines
+            if ln.strip()
+            and len(ln.strip()) > 25
+            and not re.match(r'^[\d\s.,\-]+$', ln.strip())
+            and not re.match(r'^(BSF|BER|BSJ|BSC|Total|Adelanto|Oferta|Haberes|Prestamos|CCH|CSH|NC)[\s:]*$', ln.strip(), re.I)
+            and '[Image]' not in ln
+            and 'Forwarded message' not in ln
+            and not ln.startswith('De: ')
+            and not ln.startswith('Date: ')
+            and not ln.startswith('Subject: ')
+            and not ln.startswith('To: ')
+        ]
+
+        if narrative:
+            latest_from    = sm.get("from", "")
+            latest_snippet = " ".join(narrative[:4])[:600]
+            logger.info(f"[Health] Snippet narrativo extraído ({len(latest_snippet)} chars): {latest_snippet[:80]}...")
+            break
+
+    if not latest_snippet and _all_reportes:
+        # Fallback: snippet del mail más reciente
+        latest_from    = _all_reportes[0].get("from", "")
+        latest_snippet = (_all_reportes[0].get("snippet") or "")[:400]
 
     # Analisis IA
     ai_analysis = None
@@ -608,37 +866,55 @@ async def analyze_health_reports(emails: list[dict]):
         genai.configure(api_key=settings.gemini_api_key)
         models = [m.name for m in genai.list_models() if "generateContent" in m.supported_generation_methods]
         if models and table_rows:
-            model = genai.GenerativeModel(models[0])
+            # Líneas de variación de la tabla (solo los datos que ya calculamos)
             var_lines = [
-                f"- {row['label']}: {'sube' if (row['total_diff'] or 0) > 0 else 'baja'} {abs(row['total_diff'] or 0)}% (total actual {row['total_current']:,})"
+                f"- {row['label']}: {'sube' if (row['total_diff'] or 0) > 0 else 'baja'} {abs(row['total_diff'] or 0)}% "
+                f"(actual: {row['total_current']:,} | anterior: {row['total_previous']:,})"
                 for row in table_rows if row["total_diff"] is not None
             ]
-            other_ctx = [
-                f"  [{m.get('from','')}] {m.get('subject','')}: {(m.get('snippet','') or '')[:80]}"
-                for m in emails[:25]
-                if OPERATIVA_SENDER not in (m.get("from","") or "").lower() and m.get("snippet")
-            ]
-            prompt = f"""Sos analista del equipo de Oferta Minorista (bancos BSF, BER, BSJ, BSC).
+            # Bancos con dato del día anterior (fallback)
+            fallback_note = ""
+            fallback_list = [b for b in BANKS if b in fallback_banks]
+            if fallback_list:
+                fallback_note = f"Nota: los bancos {', '.join(fallback_list)} no enviaron reporte hoy — se usa el dato del día anterior."
 
-Comparacion {latest_date} vs {prev_date or "dia anterior"}:
-{chr(10).join(var_lines) or "Sin variaciones detectadas."}
+            prompt = f"""Sos analista senior del equipo de Oferta Minorista (bancos BSF, BER, BSJ, BSC).
+Tu rol es interpretar los datos de ofertas del día y agregar valor analítico propio.
 
-Snippet del reporte diario:
-{latest_snippet[:250] if latest_snippet else "No disponible."}
+Variaciones del día {latest_date} vs {prev_date or 'día anterior'}:
+{chr(10).join(var_lines) or 'Sin variaciones detectadas.'}
 
-Otros mails del inbox:
-{chr(10).join(other_ctx[:8])}
+{fallback_note}
 
-En maximo 3 puntos sin markdown:
-1. Que banco/producto tuvo mayor impacto y en que direccion
-2. Si algun mail explica la variacion (falla tecnica, feriado, politica)
-3. Recomendacion de accion si hay baja significativa
-Responde en espanol, maximo 90 palabras."""
-            ai_analysis = model.generate_content(prompt).text.strip()
+Texto del Reporte Diario de hoy:
+{latest_snippet[:400] if latest_snippet else 'No disponible.'}
+
+Escribí un análisis breve en español (máximo 80 palabras, sin markdown, sin bullets) que:
+1. Resuma el impacto más relevante del día
+2. Agregue tu interpretación propia sobre las causas más probables o el riesgo asociado
+NO menciones que buscaste mails ni que analizaste el inbox."""
+
+            # Iterar sobre una lista de modelos preferidos para evadir la cuota (como en Plan Semanal)
+            preferred_models = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-pro", "gemini-flash-latest"]
+            available_models = [m_pref for m_pref in preferred_models if any(m_pref in m_avail for m_avail in models)]
+            if not available_models:
+                available_models = [models[0].replace('models/', '')]
+            
+            for m_name in available_models:
+                try:
+                    logger.info(f"[Health] Intentando IA con modelo {m_name}...")
+                    model = genai.GenerativeModel(m_name)
+                    ai_analysis = model.generate_content(prompt).text.strip()
+                    logger.info(f"[Health] IA exitosa con {m_name}")
+                    break
+                except Exception as eval_e:
+                    logger.warning(f"[Health] Fallo IA con {m_name}: {eval_e}")
+                    continue
+
     except Exception as e:
-        logger.warning(f"[Health] IA fallo: {e}")
+        logger.warning(f"[Health] IA fallo inesperado general: {e}")
 
-    return {
+    result = {
         "latestDate":    latest_date,
         "previousDate":  prev_date,
         "latestFrom":    latest_from,
@@ -650,6 +926,14 @@ Responde en espanol, maximo 90 palabras."""
         "_debug": {
             "detailMailsFound":  len(detail_mails),
             "summaryMailsFound": len(summary_mails),
+            "totalMailsCombined": len(all_mails),
             "daysWithData":      sorted_days[:6],
+            "cacheFingerprint":  fingerprint[:8],
         }
     }
+    # Guardar en caché con el fingerprint actual
+    _health_cache["data"]        = result
+    _health_cache["ts"]          = now_ts
+    _health_cache["fingerprint"] = fingerprint
+    logger.info(f"[Health] Resultado guardado en caché — fingerprint={fingerprint[:8]}")
+    return result

@@ -423,7 +423,13 @@ export default function MiDia({ T }) {
           smartInbox={smartInbox}
           healthReport={healthReport}
           loadingHealth={loadingHealth}
-          onRefresh={fetchData}
+          onSync={fetchData}
+          onSyncHealth={async () => {
+            try {
+              await fetch(`${API}/midia/health-report/sync`, { method: 'POST' });
+              fetchData();
+            } catch(e) { console.error('Sync Salud falló:', e); }
+          }}
           isDark={T?.bg === '#0F172A' || T?.bg === '#0f172a'}
         />
 

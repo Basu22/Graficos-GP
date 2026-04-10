@@ -1,9 +1,13 @@
 /**
  * ╔══════════════════════════════════════════════════════════════╗
  * ║     SMART INBOX — Motor de Decisiones (config dinámica)      ║
- * ║  Los criterios se cargan desde Google Sheets en runtime.     ║
- * ║  Fallback a criterios hardcodeados si el Sheet no responde.  ║
+ * ║  Clasificación + Filtros vienen 100% desde Google Sheets.    ║
+ * ║  Fallback mínimo de emergencia si el Sheet no responde.      ║
  * ╚══════════════════════════════════════════════════════════════╝
+ *
+ * Pipeline:
+ *   Mail → [FILTROS] → IGNORAR | SILENCIAR | REBOTAR | pasa →
+ *          [CLASIFICADOR] → URGENTE / BLOQUEO / JIRA / INICIATIVA / ...
  */
 
 // ─── HELPERS BASE ────────────────────────────────────────────────
@@ -26,96 +30,125 @@ const getTimeBucket = (dateStr) => {
   return 'older';
 };
 
-const calcIsStale = (dateStr, isPending) => {
+const calcIsStale = (dateStr, isPending, slaDays = 3) => {
   if (!isPending || !dateStr) return false;
-  return (Date.now() - new Date(dateStr).getTime()) / 86400000 > 3;
+  return (Date.now() - new Date(dateStr).getTime()) / 86400000 > slaDays;
 };
 
-// ─── CRITERIOS FALLBACK (si el Sheet no responde) ─────────────────
+// ─── FALLBACK MÍNIMO (solo si el Sheet está caído) ────────────────
+// NO contiene emails ni keywords reales — es solo la estructura vacía
+// para que el motor no explote. En condiciones normales todo viene del Sheet.
 export const DEFAULT_CONFIG = {
-  URGENTE_PATTERNS: [
-    '@basilio', 'menciona a basilio', 'accionable', 'acciones pendientes',
-    'fecha limite', 'fecha límite', 'urgente', 'urgent',
-    'validacion de accesos', 'validación de accesos',
-    'capacitacion experian', 'capacitación experian',
-    // Emails de contactos bancarios que generan urgencias
-    'amayo@bancosanjuan.com', 'ruccia@bancosantafe.com.ar', 'sosar@bancosantafe.com.ar',
-    'msalas@bancosanjuan.com', 'mmallaviabarrena@bancosanjuan.com',
-    'mbonocore@bancosanjuan.com', 'vachillini@bancosanjuan.com',
-    'ptomasini@bancosanjuan.com', 'erika.roude@bancoentrerios.com.ar',
-    'ayelen', 'ayelén', 'necesito que', 'podés revisar', 'me confirmás',
-  ],
-  BLOQUEO_PATTERNS: [
-    'comite rei', 'comité rei',
-    'fabian.urchueguia@bancoentrerios.com.ar', 'jmuller@bancosanjuan.com',
-    'comite de implementacion', 'comité de implementación',
-    'motor comercial', 'subida a produccion', 'subida a producción',
-    'sergio isaguirre', 'fix tecnico', 'fix técnico',
-    'esperando respuesta', 'bloqueado por',
-  ],
-  JIRA_EPICS: ['rei', 'motor v4', 'ingresos minimos', 'ingresos mínimos', 'experian'],
-  HEALTH_SENDERS: ['santiago travi', 'stravi', 'operativagobdato'],
-  HEALTH_SUBJECTS: ['estado de ofertas', 'reporte diario', 'detalle de ofertas'],
-  INICIATIVA_CONTACTS: [
-    'amayo@bancosanjuan.com', 'ruccia@bancosantafe.com.ar', 'sosar@bancosantafe.com.ar',
-    'msalas@bancosanjuan.com', 'mmallaviabarrena@bancosanjuan.com',
-    'mbonocore@bancosanjuan.com', 'vachillini@bancosanjuan.com',
-    'ptomasini@bancosanjuan.com', 'erika.roude@bancoentrerios.com.ar',
-  ],
-  INITIATIVE_TAGS:  ['riesgos', 'segmentos', 'negocio', 'producto', 'iniciativa', 'roadmap'],
-  INITIATIVE_TEAMS: ['back', 'datos', 'agilidad', 'frontend', 'data', 'devops'],
-  ONBOARDING_LABELS: ['mda', 'onboarding', 'accesos'],
-  JIRA_ACTION_PATTERNS: [
-    'mentioned you', 'te mencionó', 'assigned to you', 'asignado a vos',
-    'action required', 'needs your', 'waiting on you', 'acciones pendientes',
-    '@basilio',
-  ],
-  NOISE_PATTERNS: [
-    'confluence', 'wiki actualizado', 'page updated', 'document updated',
-    'aceptado:', 'rechazado:', 'delegado:', 'accepted:', 'declined:',
-    'tentative:', 'maybe:', 'ha aceptado', 'ha rechazado',
-  ],
-  SCRUM_CEREMONIES: ['review', 'planning', 'retrospectiva', 'retro', 'sprint'],
+  URGENTE_PATTERNS:    [],
+  BLOQUEO_PATTERNS:    [],
+  JIRA_EPICS:          [],
+  HEALTH_SENDERS:      ['operativagobdato'],
+  HEALTH_SUBJECTS:     ['estado de ofertas', 'reporte diario', 'detalle de ofertas'],
+  INICIATIVA_CONTACTS: [],
+  INITIATIVE_TAGS:     [],
+  INITIATIVE_TEAMS:    ['back', 'datos', 'agilidad', 'frontend', 'data', 'devops'],
+  ONBOARDING_LABELS:   [],
+  JIRA_ACTION_PATTERNS:[],
+  NOISE_PATTERNS:      [],
+  SCRUM_CEREMONIES:    ['review', 'planning', 'retrospectiva', 'retro', 'sprint'],
+  // SLA por tag (días). Se sobreescribe con los datos del Sheet.
+  SLA_BY_TAG: { URGENTE: 1, BLOQUEO: 2, JIRA: 3, INICIATIVA: 5 },
 };
 
-// ─── PARSER DE CONFIG DESDE SHEETS ───────────────────────────────
-/**
- * Parsea las filas del Sheet en un objeto de config compatible con DEFAULT_CONFIG.
- * El sheet tiene columnas: Nivel, Tag, Criterio
- * El criterio es texto libre del cual extraemos emails y keywords.
- */
+// ─── ESTADO GLOBAL DE FILTROS ────────────────────────────────────
+// Se llena cuando llega la respuesta del Sheet.
+let _filters = { ignorar: [], silenciar: [], rebotar: [] };
+
+// ─── PARSER DE CONFIG DESDE SHEETS (pestaña Motor) ───────────────
 export function parseSheetConfig(rows = []) {
-  const emailRe  = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  const emailRe = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
 
-  const findRow = (tagFragment) =>
-    rows.find(r => normalize(r.Tag || '').includes(normalize(tagFragment)));
+  const findRows = (tagFragment) =>
+    rows.filter(r => normalize(r.Tag || '').includes(normalize(tagFragment)));
 
-  const extractEmails = (text = '') => [...new Set((text.match(emailRe) || []).map(normalize))];
+  const extractEmails   = (text = '') => [...new Set((text.match(emailRe) || []).map(normalize))];
   const extractKeywords = (text = '') =>
-    text.split(/[,;]/).map(s => s.trim()).filter(s => s.length > 3 && !s.includes('@'))
-        .map(normalize);
+    text.split(/[,;]/).map(s => s.trim()).filter(s => s.length > 2 && !s.includes('@')).map(normalize);
 
-  const urgRow  = findRow('urgente');
-  const bloqRow = findRow('bloqueo');
-  const iniRow  = findRow('iniciativa');
+  const criteriaFor = (tag) => findRows(tag).flatMap(r => [
+    ...extractEmails(r.Criterio   || ''),
+    ...extractKeywords(r.Criterio || ''),
+  ]);
 
-  const urgEmails  = urgRow  ? extractEmails(urgRow.Criterio  || '') : [];
-  const urgKws     = urgRow  ? extractKeywords(urgRow.Criterio  || '') : [];
-  const bloqEmails = bloqRow ? extractEmails(bloqRow.Criterio || '') : [];
-  const bloqKws    = bloqRow ? extractKeywords(bloqRow.Criterio || '') : [];
-  const iniEmails  = iniRow  ? extractEmails(iniRow.Criterio  || '') : [];
+  const slaFor = (tag) => {
+    const row = findRows(tag)[0];
+    return row?.SLA_dias ? parseInt(row.SLA_dias) : null;
+  };
+
+  const urgPatterns  = criteriaFor('urgente');
+  const bloqPatterns = criteriaFor('bloqueo');
+  const jiraEpics    = criteriaFor('jira').filter(k => !k.includes('@'));
+  const jiraActPats  = criteriaFor('jira');
+  const healthSnds   = criteriaFor('health');
+  const healthSubjs  = criteriaFor('health');
+  const iniContacts  = criteriaFor('iniciativa').filter(k => k.includes('@'));
+  const iniTags      = criteriaFor('iniciativa').filter(k => !k.includes('@'));
+  const onboardKws   = criteriaFor('onboarding');
+  const ceremonies   = criteriaFor('ceremonia');
+
+  const SLA_BY_TAG = {
+    URGENTE:   slaFor('urgente')   || DEFAULT_CONFIG.SLA_BY_TAG.URGENTE,
+    BLOQUEO:   slaFor('bloqueo')   || DEFAULT_CONFIG.SLA_BY_TAG.BLOQUEO,
+    JIRA:      slaFor('jira')      || DEFAULT_CONFIG.SLA_BY_TAG.JIRA,
+    INICIATIVA:slaFor('iniciativa')|| DEFAULT_CONFIG.SLA_BY_TAG.INICIATIVA,
+  };
 
   return {
     ...DEFAULT_CONFIG,
-    URGENTE_PATTERNS: [...new Set([...DEFAULT_CONFIG.URGENTE_PATTERNS, ...urgEmails, ...urgKws])],
-    BLOQUEO_PATTERNS: [...new Set([...DEFAULT_CONFIG.BLOQUEO_PATTERNS, ...bloqEmails, ...bloqKws])],
-    INICIATIVA_CONTACTS: [...new Set([...DEFAULT_CONFIG.INICIATIVA_CONTACTS, ...iniEmails])],
+    URGENTE_PATTERNS:    urgPatterns.length  ? urgPatterns  : DEFAULT_CONFIG.URGENTE_PATTERNS,
+    BLOQUEO_PATTERNS:    bloqPatterns.length ? bloqPatterns : DEFAULT_CONFIG.BLOQUEO_PATTERNS,
+    JIRA_EPICS:          jiraEpics.length    ? jiraEpics    : DEFAULT_CONFIG.JIRA_EPICS,
+    JIRA_ACTION_PATTERNS:jiraActPats.length  ? jiraActPats  : DEFAULT_CONFIG.JIRA_ACTION_PATTERNS,
+    HEALTH_SENDERS:      healthSnds.length   ? healthSnds   : DEFAULT_CONFIG.HEALTH_SENDERS,
+    HEALTH_SUBJECTS:     healthSubjs.length  ? healthSubjs  : DEFAULT_CONFIG.HEALTH_SUBJECTS,
+    INICIATIVA_CONTACTS: iniContacts.length  ? iniContacts  : DEFAULT_CONFIG.INICIATIVA_CONTACTS,
+    INITIATIVE_TAGS:     iniTags.length      ? iniTags      : DEFAULT_CONFIG.INITIATIVE_TAGS,
+    ONBOARDING_LABELS:   onboardKws.length   ? onboardKws   : DEFAULT_CONFIG.ONBOARDING_LABELS,
+    SCRUM_CEREMONIES:    ceremonies.length   ? ceremonies   : DEFAULT_CONFIG.SCRUM_CEREMONIES,
+    SLA_BY_TAG,
     _sheetLoaded: true,
     _sheetRows: rows.length,
   };
 }
 
-// ─── PRE-COMPILACIÓN DE PATTERNS (O(1) en clasificación) ─────────
+// ─── PARSER DE FILTROS DESDE SHEETS (pestaña Filtros) ─────────────
+export function parseFiltersConfig(filterRows = []) {
+  const build = (tipo) =>
+    filterRows
+      .filter(r => (r.Tipo || '').toUpperCase() === tipo && (r.Activo || 'SI').toUpperCase() === 'SI')
+      .map(r => ({ campo: r.Campo || '', valor: normalize(r.Valor || '') }));
+
+  return {
+    ignorar:  build('IGNORAR'),
+    silenciar:build('SILENCIAR'),
+    rebotar:  build('REBOTAR'),
+  };
+}
+
+// ─── APLICAR FILTROS A UN MAIL ────────────────────────────────────
+function applyFilters(email) {
+  const sn = normalize(email.subject || '');
+  const fn = normalize(email.from    || '');
+
+  const match = (regla) => {
+    const val = regla.valor;
+    if (regla.campo === 'asunto_contiene')    return sn.includes(val);
+    if (regla.campo === 'remitente_contiene') return fn.includes(val);
+    return false;
+  };
+
+  if (_filters.ignorar.some(match))   return 'IGNORAR';
+  if (_filters.silenciar.some(match)) return 'SILENCIAR';
+  if (_filters.rebotar.some(match))   return 'REBOTAR';
+  return null;
+}
+
+// ─── PRE-COMPILACIÓN DE PATTERNS ─────────────────────────────────
 function compileConfig(cfg) {
   const compile = (list) => list.map(p => ({
     raw: p,
@@ -138,24 +171,25 @@ function compileConfig(cfg) {
       'accepted:', 'declined:', 'aceptado:', 'rechazado:', 'delegado:',
       'tentative:', 'accepted your', 'declined your', 'ha aceptado', 'ha rechazado', 'maybe:'
     ].map(p => (str) => str.includes(normalize(p))),
+    sla: cfg.SLA_BY_TAG || DEFAULT_CONFIG.SLA_BY_TAG,
   };
 }
 
-// Compilado por defecto (usado mientras el sheet carga)
 let _compiled = compileConfig(DEFAULT_CONFIG);
 
-/** Actualizar definiciones cuando llega config del Sheet */
-export function applySheetConfig(rows) {
-  const parsed = parseSheetConfig(rows);
+/** Actualizar clasificador + filtros cuando llega config del Sheet */
+export function applySheetConfig(motorRows, filterRows = []) {
+  const parsed = parseSheetConfig(motorRows);
   _compiled = compileConfig(parsed);
+  _filters  = parseFiltersConfig(filterRows);
   return parsed;
 }
 
 // ─── HELPERS ─────────────────────────────────────────────────────
 const isMeetingNoise = (email) => {
   const s = normalize(email.subject || '');
-  const f = normalize(email.from || '');
-  if (_compiled.ceremonies.some(fn => fn(s))) return false; // ceremonias no son ruido
+  const f = normalize(email.from    || '');
+  if (_compiled.ceremonies.some(fn => fn(s))) return false;
   return _compiled.meetResp.some(fn => fn(s)) || f.includes('zoom') || f.includes('google meet');
 };
 
@@ -190,55 +224,60 @@ export function processSmartInbox(emails = [], options = {}) {
   const initiatives= [];
   const onboarding = [];
   const infoItems  = [];
+  const sla = _compiled.sla;
 
   for (const email of emails) {
+    // ── 0. PIPELINE DE FILTROS (Sheet pestaña Filtros) ───────────
+    const filterResult = applyFilters(email);
+    if (filterResult === 'IGNORAR')   continue;   // descartado completamente
+    if (filterResult === 'SILENCIAR') {
+      infoItems.push({ ...email, _tag: 'INFO', _reason: 'silenced' });
+      continue;
+    }
+    if (filterResult === 'REBOTAR') {
+      healthMails.push(email);                      // hoy solo HEALTH usa REBOTAR
+      continue;
+    }
+
     const sn   = normalize(email.subject  || '');
     const fn   = normalize(email.from     || '');
     const cn   = normalize((email.snippet || '') + ' ' + (email.body || ''));
     const full = `${sn} ${fn} ${cn}`;
 
-    // 0. Ruido calendario
+    // ── 1. Ruido residual de reuniones (no capturado por filtros) ─
     if (isMeetingNoise(email)) {
       infoItems.push({ ...email, _tag: 'INFO', _reason: 'meeting_noise' });
       continue;
     }
-    // 1. Ruido explícito
-    if (_compiled.noise.some(p => p.test(sn) || p.test(fn))) {
-      infoItems.push({ ...email, _tag: 'INFO', _reason: 'noise' });
-      continue;
-    }
 
-    // 2. Reportes de salud (Health Monitor)
+    // ── 2. Reportes de salud (Health Monitor) ────────────────────
     const isHealth = _compiled.healthSnd.some(p => p.test(fn))
       || _compiled.healthSubj.some(p => p.test(sn));
-    if (isHealth) {
-      healthMails.push(email);
-      continue;
-    }
+    if (isHealth) { healthMails.push(email); continue; }
 
-    // 3. URGENTE
+    // ── 3. URGENTE ────────────────────────────────────────────────
     if (_compiled.urgent.some(p => p.test(full)) || full.includes(`@${userN}`)) {
       urgentes.push({
         ...email, _tag: 'URGENTE',
         _timeBucket: getTimeBucket(email.date),
-        isStale: calcIsStale(email.date, true),
+        isStale: calcIsStale(email.date, true, sla.URGENTE),
         ticketId: extractTicketId(email.subject),
       });
       continue;
     }
 
-    // 4. BLOQUEO
+    // ── 4. BLOQUEO ────────────────────────────────────────────────
     if (_compiled.blocker.some(p => p.test(full))) {
       bloqueados.push({
         ...email, _tag: 'BLOQUEO',
         _timeBucket: getTimeBucket(email.date),
-        isStale: calcIsStale(email.date, true),
+        isStale: calcIsStale(email.date, true, sla.BLOQUEO),
         ticketId: extractTicketId(email.subject),
       });
       continue;
     }
 
-    // 5. JIRA / Ceremonias
+    // ── 5. JIRA / Ceremonias ──────────────────────────────────────
     const isJira = fn.includes('jira') || fn.includes('atlassian')
       || sn.includes('jira') || _compiled.epics.some(p => p.test(full));
     const isCeremony = _compiled.ceremonies.some(fn2 => fn2(sn));
@@ -251,25 +290,22 @@ export function processSmartInbox(emails = [], options = {}) {
         _type: requiresAction ? 'action' : 'fyi',
         _isCeremony: isCeremony && !isJira,
         _timeBucket: getTimeBucket(email.date),
-        isStale: calcIsStale(email.date, requiresAction),
+        isStale: calcIsStale(email.date, requiresAction, sla.JIRA),
         ticketId, link: buildJiraLink(ticketId),
       });
       continue;
     }
 
-    // 6. Onboarding MDA
+    // ── 6. Onboarding ─────────────────────────────────────────────
     if (_compiled.onboard.some(p => p.test(sn) || p.test(cn))) {
       onboarding.push(email);
       continue;
     }
 
-    // 7. Iniciativas (contactos bancarios o tags de iniciativa)
+    // ── 7. Iniciativas ────────────────────────────────────────────
     const isIni = _compiled.iniTags.some(p => p.test(sn) || p.test(cn))
       || _compiled.iniCtacts.some(p => p.test(fn));
-    if (isIni) {
-      initiatives.push(email);
-      continue;
-    }
+    if (isIni) { initiatives.push(email); continue; }
 
     infoItems.push({ ...email, _tag: 'INFO', _reason: 'unclassified' });
   }
@@ -278,10 +314,10 @@ export function processSmartInbox(emails = [], options = {}) {
   const threads = groupByThread(initiatives);
   const initiativeCards = [];
   for (const [threadKey, threadEmails] of threads.entries()) {
-    const sorted  = [...threadEmails].sort((a, b) => new Date(a.date||0) - new Date(b.date||0));
+    const sorted   = [...threadEmails].sort((a, b) => new Date(a.date||0) - new Date(b.date||0));
     const original = sorted[0];
     const { hasResponse, respondingTeam, responseEmail } = detectTeamResponse(sorted.slice(1));
-    const tag = DEFAULT_CONFIG.INITIATIVE_TAGS.find(t => normalize(original.subject||'').includes(t)) || 'iniciativa';
+    const tag = (_compiled.iniTags.find(p => p.test(normalize(original.subject||'')))?.raw) || 'iniciativa';
     const isWaiting = !hasResponse;
     initiativeCards.push({
       threadId: threadKey, tag,
@@ -294,7 +330,7 @@ export function processSmartInbox(emails = [], options = {}) {
       lastResponse: responseEmail ? { from: responseEmail.from, snippet: responseEmail.snippet, date: responseEmail.date } : null,
       totalMessages: sorted.length,
       _timeBucket: getTimeBucket(original.date),
-      isStale: calcIsStale(original.date, isWaiting),
+      isStale: calcIsStale(original.date, isWaiting, sla.INICIATIVA),
     });
   }
 
@@ -306,12 +342,12 @@ export function processSmartInbox(emails = [], options = {}) {
   bloqueados.sort((a, b) => new Date(a.date||0) - new Date(b.date||0));
   jiraItems.sort((a, b) => {
     if (a._type === 'action' && b._type !== 'action') return -1;
-    if (a._type !== 'action' && b._type === 'action') return 1;
+    if (a._type !== 'action' && b._type === 'action') return  1;
     return new Date(b.date||0) - new Date(a.date||0);
   });
   initiativeCards.sort((a, b) => {
     if (a.responseStatus === 'WAITING' && b.responseStatus !== 'WAITING') return -1;
-    if (a.responseStatus !== 'WAITING' && b.responseStatus === 'WAITING') return 1;
+    if (a.responseStatus !== 'WAITING' && b.responseStatus === 'WAITING') return  1;
     return 0;
   });
 
@@ -319,12 +355,21 @@ export function processSmartInbox(emails = [], options = {}) {
     urgentes, bloqueados, jira: jiraItems, health: healthMails,
     initiatives: initiativeCards, infoItems,
     onboarding: onboardingStatus,
-    dailyKPIs: null, // Se llena async via /health-report/analyze
+    dailyKPIs: null,
     urgentCount: urgentes.length + bloqueados.length,
     _meta: {
       totalProcessed: emails.length,
       processedAt: new Date().toISOString(),
-      counts: { urgentes: urgentes.length, bloqueados: bloqueados.length, jira: jiraItems.length, health: healthMails.length, initiatives: initiativeCards.length, info: infoItems.length },
+      filtersApplied: {
+        ignorar:  _filters.ignorar.length,
+        silenciar:_filters.silenciar.length,
+        rebotar:  _filters.rebotar.length,
+      },
+      counts: {
+        urgentes: urgentes.length, bloqueados: bloqueados.length,
+        jira: jiraItems.length, health: healthMails.length,
+        initiatives: initiativeCards.length, info: infoItems.length,
+      },
     }
   };
 }

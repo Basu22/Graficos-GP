@@ -33,13 +33,13 @@ export function useSmartInbox(emailsOrGroups = [], userInfo = {}) {
       try {
         const res = await fetch(`${BACKEND}/midia/inbox-config`);
         if (!res.ok) throw new Error("Sheet no disponible");
-        const { config } = await res.json();
-        applySheetConfig(config);
+        const { config, filters = [] } = await res.json();
+        applySheetConfig(config, filters);
         setConfigLoaded(true);
-        console.log(`✅ Smart Inbox config cargada desde Sheets (${config.length} reglas)`);
+        console.log(`✅ Smart Inbox config cargada (${config.length} reglas motor, ${filters.length} filtros)`);
       } catch (e) {
         console.warn("⚠️ Usando criterios por defecto (Sheet no disponible):", e.message);
-        setConfigLoaded(true); // fallback igualmente
+        setConfigLoaded(true);
       }
     };
     loadConfig();
