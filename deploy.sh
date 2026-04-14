@@ -1,35 +1,33 @@
 #!/bin/bash
 
-# 🍏 Agility Dashboard - Deploy Final FIX
+# 🍏 Agility Dashboard - Deploy con gestión de usuarios corregida
 
 # --- CONFIGURACIÓN REMOTA ---
 RPI_HOST="bossvald@raspberrypi.local" 
 RPI_PATH="/home/bossvald/Graficos-GP"
 # ----------------------------
 
+# Detectar el usuario real para las llaves SSH
+REAL_USER=${SUDO_USER:-$(whoami)}
+
 echo "🚀 Iniciando flujo de despliegue..."
 
-# 1. Sincronizar GitHub
-echo "📥 Sincronizando con GitHub..."
+# 1. Sincronizar GitHub (como usuario real para usar sus llaves SSH)
+echo "📥 Sincronizando con GitHub como $REAL_USER..."
 git add .
-git commit -m "Full Deploy: $(date '+%Y-%m-%d %H:%M:%S')"
-# Intentamos el push. Si falla por SSH, avisamos.
-if ! git push origin main; then
-    echo "❌ Error: El push a GitHub falló. ¿Cargaste tu clave SSH en GitHub?"
-    exit 1
+git commit -m "Full Deploy: $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null
+# Forzamos el uso del usuario real para el push
+sudo -u $REAL_USER git push origin main
+if [ $? -ne 0 ]; then
+    echo "❌ Error: El push falló. Si te sigue pidiendo permiso denegado, probá correrlo sin 'sudo' delante."
 fi
 
 # 2. Desplegar producción en esta Laptop
 echo "🏗️ Desplegando en Producción Local..."
-# FORZAMOS 'docker compose' (V2) para evitar el error 'ContainerConfig'
-# Si no existe, avisamos que debe actualizar Docker
 if docker compose version &> /dev/null; then
     sudo docker compose -f docker-compose.prod.yml up --build -d --remove-orphans
 else
-    echo "⚠️  ERROR CRÍTICO: No se encontró 'docker compose' (V2)."
-    echo "Tu versión de docker-compose (V1) es demasiado vieja y causa el error ContainerConfig."
-    echo "Por favor, instala docker-compose-plugin o Docker Desktop."
-    exit 1
+    sudo docker-compose -f docker-compose.prod.yml up --build -d --remove-orphans
 fi
 
 # 3. DISPARAR ACTUALIZACIÓN REMOTA
@@ -37,11 +35,11 @@ echo "📡 Conectando a la Raspberry Pi ($RPI_HOST)..."
 
 # 3a. Sincronizar secretos
 echo "🔑 Sincronizando credenciales..."
-scp backend/.env "$RPI_HOST:$RPI_PATH/backend/.env"
-[ -f "backend/token.json" ] && scp backend/token.json "$RPI_HOST:$RPI_PATH/backend/token.json"
+sudo -u $REAL_USER scp backend/.env "$RPI_HOST:$RPI_PATH/backend/.env"
+[ -f "backend/token.json" ] && sudo -u $REAL_USER scp backend/token.json "$RPI_HOST:$RPI_PATH/backend/token.json"
 
 # 3b. Rebuild remoto
 echo "🏗️  Actualizando Raspberry..."
-ssh -t $RPI_HOST "cd $RPI_PATH && git fetch origin && git reset --hard origin/main && chmod +x rpi-update.sh && ./rpi-update.sh"
+sudo -u $REAL_USER ssh -t $RPI_HOST "cd $RPI_PATH && git fetch origin && git reset --hard origin/main && chmod +x rpi-update.sh && ./rpi-update.sh"
 
-echo "✅ Despliegue completado con éxito."
+echo "✅ Proceso finalizado."
