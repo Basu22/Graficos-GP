@@ -111,21 +111,71 @@ export default function MiDia({ T }) {
   }, []);
 
   // Fetch inicial (Weather + Data)
+  // Mapeo de códigos de clima de wttr.in a emojis
+  const getWeatherIcon = (code) => {
+    const icons = {
+      "113": "☀️", "116": "⛅", "119": "☁️", "122": "☁️",
+      "176": "🌦️", "179": "🌨️", "182": "🌨️", "185": "🌨️", "200": "⛈️",
+      "248": "🌫️", "260": "🌫️", "263": "🌦️", "266": "🌦️", "293": "🌦️",
+      "296": "🌦️", "299": "🌧️", "302": "🌧️", "311": "🌧️", "314": "🌧️"
+    };
+    return icons[code] || "⛅";
+  };
+
+  // Fetch de Clima Independiente
+  const fetchWeather = useCallback(async () => {
+    try {
+      const resp = await fetch("https://wttr.in/?format=j1");
+      const wData = await resp.json();
+      const current = wData.current_condition[0];
+      
+      // Aplanamos el pronóstico de 3 días para tener un flujo continuo
+      let allHourly = [];
+      wData.weather.forEach((day, dayIdx) => {
+        day.hourly.forEach(h => {
+          const hour = parseInt(h.time === "0" ? "0" : h.time.padStart(4, "0").slice(0, 2));
+          // Calculamos un timestamp aproximado para el filtrado
+          const dateRef = new Date();
+          dateRef.setDate(dateRef.getDate() + dayIdx);
+          dateRef.setHours(hour, 0, 0, 0);
+          
+          allHourly.push({
+            time: h.time === "0" ? "00:00" : `${h.time.padStart(4, "0").slice(0, 2)}:00`,
+            temp: h.tempC,
+            icon: getWeatherIcon(h.weatherCode),
+            ts: dateRef.getTime()
+          });
+        });
+      });
+
+      const dailyIcons = {};
+      wData.weather.forEach(w => {
+        dailyIcons[w.date] = getWeatherIcon(w.hourly[4].weatherCode);
+      });
+
+      setWeather({
+        temp: current.temp_C,
+        desc: current.lang_es?.[0]?.value || current.weatherDesc[0].value,
+        icon: getWeatherIcon(current.weatherCode),
+        fullHourly: allHourly, // Guardamos la lista completa
+        dailyIcons
+      });
+    } catch (e) {
+      console.error("Error clima:", e);
+    }
+  }, []);
+
+  // Timer para refrescar solo el clima cada 1 hora
+  useEffect(() => {
+    fetchWeather();
+    const weatherTimer = setInterval(fetchWeather, 3600000); // 1 hora
+    return () => clearInterval(weatherTimer);
+  }, [fetchWeather]);
+
+  // Fetch de Datos de Negocio (Google, etc.)
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      // Clima
-      fetch("https://wttr.in/?format=j1")
-        .then(r => r.json())
-        .then(wData => {
-          setWeather({
-            temp: wData.current_condition[0].temp_C,
-            desc: wData.current_condition[0].lang_es?.[0]?.value || wData.current_condition[0].weatherDesc[0].value,
-            icon: "⛅"
-          });
-        }).catch(() => setWeather({ temp: "--", desc: "Clima no disponible", icon: "⚠️" }));
-
-      // Datos de Mi Dia (Google)
       const res = await fetch(`${API}/midia/data`);
       const data = await res.json();
       
@@ -307,24 +357,36 @@ export default function MiDia({ T }) {
             <span style={{ fontSize: 13, fontWeight: 700 }}>{now.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
             <span style={{ fontSize: 11, color: PALETTE.textMuted }}>{weather ? `${weather.icon} ${weather.temp}°C · ${weather.desc}` : "Cargando clima..."}</span>
           </div>
-          {/* Próximo feriado: Pill dinámico */}
-          {nextHoliday && (
-            <div style={{
-              background: nextHoliday.isToday ? "rgba(245, 158, 11, 0.1)" : "rgba(59, 130, 246, 0.05)",
-              border: `1px solid ${nextHoliday.isToday ? "rgba(245, 158, 11, 0.3)" : "rgba(59, 130, 246, 0.2)"}`,
-              borderRadius: "100px", padding: "6px 16px", display: "flex", alignItems: "center", gap: 10,
-              boxShadow: "inset 0 1px 2px rgba(255,255,255,0.5)"
+
+          {/* Widget Clima por Horas (Dinámico) */}
+          {weather?.fullHourly && (
+            <div style={{ 
+              display: "flex", gap: 10, padding: "4px 8px", 
+              background: PALETTE.cardInner, borderRadius: 14, 
+              border: `1px solid ${PALETTE.border}`, flexShrink: 0
             }}>
-              <div style={{ 
-                width: 6, height: 6, borderRadius: "50%", 
-                background: nextHoliday.isToday ? "#F59E0B" : "#3B82F6",
-                boxShadow: `0 0 8px ${nextHoliday.isToday ? "#F59E0B" : "#3B82F6"}`
-              }} />
+              {weather.fullHourly
+                .filter(h => h.ts > now.getTime()) // Solo el futuro
+                .slice(0, 3) // Solo las próximas 3 disponibles
+                .map((h, i) => (
+                  <div key={i} style={{ textAlign: "center", minWidth: 46 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800 }}>{h.temp}°</div>
+                    <div style={{ fontSize: 16 }}>{h.icon}</div>
+                    <div style={{ fontSize: 9, color: PALETTE.textMuted }}>{h.time}</div>
+                  </div>
+                ))}
+            </div>
+          )}
+
+          {/* Próximo feriado: Integrado sin cápsula */}
+          {nextHoliday && (
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <span style={{ fontSize: 20 }}>📅</span>
               <div style={{ display: "flex", flexDirection: "column" }}>
-                <span style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", letterSpacing: 0.8, color: nextHoliday.isToday ? "#B45309" : "#3B82F6" }}>
-                  {nextHoliday.isToday ? "Feriado Hoy" : `Días para el feriado: ${nextHoliday.daysLeft === 0 ? "Mañana" : nextHoliday.daysLeft}`}
+                <span style={{ fontSize: 13, fontWeight: 700, color: nextHoliday.isToday ? "#F59E0B" : PALETTE.text }}>
+                  {nextHoliday.isToday ? "¡Hoy es Feriado!" : `Días para el feriado: ${nextHoliday.daysLeft === 0 ? "Mañana" : nextHoliday.daysLeft}`}
                 </span>
-                <span style={{ fontSize: 10, fontWeight: 700, color: PALETTE.text, opacity: 0.8 }}>{nextHoliday.name}</span>
+                <span style={{ fontSize: 11, color: PALETTE.textMuted }}>{nextHoliday.name}</span>
               </div>
             </div>
           )}
@@ -382,6 +444,13 @@ export default function MiDia({ T }) {
               const isToday = index === currentDay;
               const isSelected = index === selectedDay;
               const isPast = index < currentDay;
+              
+              const d = new Date();
+              const diff = index - d.getDay();
+              d.setDate(d.getDate() + diff);
+              const dateKey = d.toISOString().slice(0, 10);
+              const dayIcon = weather?.dailyIcons?.[dateKey];
+
               return (
                 <div key={index} onClick={() => setSelectedDay(index)}
                   className={`day-item ${day.isHoliday ? 'is-holiday' : ''}`}
@@ -396,7 +465,10 @@ export default function MiDia({ T }) {
                   title={day.isHoliday ? day.holidayName : ""}
                 >
                   <span style={{ fontSize: 9, fontWeight: 700, textTransform: "uppercase", opacity: 0.8 }}>{label}</span>
-                  <span style={{ fontSize: 16, fontWeight: 800 }}>{getDateForWeekday(index)}</span>
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center" }}>
+                    <span style={{ fontSize: 16, fontWeight: 800 }}>{getDateForWeekday(index)}</span>
+                    {dayIcon && <span style={{ fontSize: 12, marginTop: -2 }}>{dayIcon}</span>}
+                  </div>
                   {day.isHoliday && <span style={{ fontSize: 7, display: "block", fontWeight: 700, opacity: 0.85 }}>🏖️</span>}
                 </div>
               );

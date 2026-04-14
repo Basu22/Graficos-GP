@@ -344,8 +344,29 @@ export default function GmailCalendarWidget({ events = [], selectedDay, selected
                   borderRadius: 4, padding: '2px 6px', zIndex: 5, overflow: 'hidden', boxSizing: 'border-box'
                 }}
               >
-                <div style={{ fontSize: 10, fontWeight: 700, color: color.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {ev.title}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: color.text, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1 }}>
+                    {ev.title}
+                  </div>
+                  {ev.link && (
+                    <div 
+                      onClick={(e) => { e.stopPropagation(); window.open(ev.link, '_blank'); }}
+                      style={{ 
+                        fontSize: 10, cursor: 'pointer', marginLeft: 4, flexShrink: 0,
+                        background: '#fff', 
+                        width: 18, height: 18, borderRadius: '50%',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.15)',
+                        transition: "transform 0.2s",
+                        border: '1px solid rgba(0,0,0,0.05)'
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.transform = "scale(1.2)"}
+                      onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
+                      title="Unirse a la reunión"
+                    >
+                      🔗
+                    </div>
+                  )}
                 </div>
               </div>
             );

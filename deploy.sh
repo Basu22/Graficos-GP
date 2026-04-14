@@ -23,7 +23,7 @@ fi
 
 # 2. Desplegar producción Local (NO FATAL)
 echo "🏗️ Intentando despliegue en Producción Local (Laptop)..."
-if ! sudo docker compose -f docker-compose.prod.yml up --build -d --remove-orphans; then
+if ! sudo docker-compose -f docker-compose.prod.yml up --build -d --remove-orphans; then
     echo "⚠️  Aviso: Docker local falló (es probable que tu versión de Docker sea antigua)."
     echo "⏭️  Saltando despliegue local y siguiendo con la Raspberry..."
 fi

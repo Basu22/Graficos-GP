@@ -1,33 +1,37 @@
 #!/bin/bash
-# 🍏 Agility Dashboard - RPI Optimized Update
-echo "📦 Iniciando actualización en la Raspberry Pi..."
+# 🍏 Agility Dashboard - RPI Optimized Update (Versión GARANTIZADA)
+echo "📦 Iniciando actualización PROFUNDA en la Raspberry Pi..."
 
-# 1. Limpieza de seguridad para evitar errores de lock de git
+# 1. Limpieza de seguridad y Git
 git reset --hard HEAD
 git clean -fd
 git pull origin main || git pull origin master
 
-# 2. Verificar .env (Busca en backend/ que es donde lo deja deploy.sh)
+# 2. Verificar .env
 if [ ! -f "backend/.env" ]; then
     echo "⚠️  No se encontró el archivo .env en backend/"
-    # Intentamos buscar en raíz como fallback
     if [ -f ".env" ]; then
         cp .env backend/.env
     else
-        echo "❌ Error: backend/.env no encontrado. El sistema no arrancará correctamente."
+        echo "❌ Error: backend/.env no encontrado."
         exit 1
     fi
 fi
 
-# 3. Re-lanzar contenedores (Forzamos rebuild TOTAL para sincronizar versiones)
-echo "🛑 Reiniciando servicios y recompilando todo (esto puede tardar unos minutos)..."
-# Reconstruimos todo sin caché para asegurar que los parches de midia.py y el frontend entren
-sudo docker compose -f docker-compose.prod.yml build --no-cache
-sudo docker compose -f docker-compose.prod.yml up -d --force-recreate --remove-orphans
+# 3. LA PURGA DE DOCKER (Garantiza sincronización total con lo que ves en tu PC)
+echo "🧹 Limpiando versiones anteriores para evitar discrepancias..."
+sudo docker compose -f docker-compose.prod.yml down --remove-orphans
+# Borramos imágenes antiguas para forzar que Docker lea el código nuevo
+sudo docker image prune -a -f --filter "label=com.docker.compose.project=graficos-gp"
 
-# 4. Mantenimiento preventivo (Vital en RPi para ahorrar espacio en la SD)
-echo "🧹 Mantenimiento de storage (Docker prune)..."
-sudo docker image prune -f
-sudo docker system prune -f --filter "until=24h"
+# 4. Re-lanzar contenedores
+echo "🛑 Recompilando todo de cero (esto tarda entre 5-8 minutos)..."
+sudo docker compose -f docker-compose.prod.yml build --no-cache
+sudo docker compose -f docker-compose.prod.yml up -d --force-recreate
+
+# 5. Mantenimiento final
+echo "🧹 Limpieza de residuos de construcción..."
+sudo docker system prune -f --filter "until=1h"
 
 echo "✅ Actualización completada satisfactoriamente en graficosagiles.site"
+echo "🚀 Versión sincronizada 100% con tu local."

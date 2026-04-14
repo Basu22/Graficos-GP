@@ -324,6 +324,7 @@ async def create_quick_event(body: CreateEventBody):
     Crea un evento de Calendar desde el widget rápido estilo Gmail.
     """
     try:
+        import uuid
         creds = get_google_creds()
         service = build('calendar', 'v3', credentials=creds)
         tz = "America/Argentina/Buenos_Aires"
@@ -332,12 +333,20 @@ async def create_quick_event(body: CreateEventBody):
             "description": body.description or "",
             "start": {"dateTime": body.start, "timeZone": tz},
             "end":   {"dateTime": body.end,   "timeZone": tz},
+            "conferenceData": {
+                "createRequest": {
+                    "requestId": str(uuid.uuid4()),
+                    "conferenceSolutionKey": {"type": "hangoutsMeet"},
+                }
+            },
         }
         if body.attendees:
             event_body["attendees"] = [{"email": e} for e in body.attendees if e]
+        
         created = service.events().insert(
             calendarId="primary",
             body=event_body,
+            conferenceDataVersion=1,
             sendUpdates="all" if body.attendees else "none",
         ).execute()
         return {
