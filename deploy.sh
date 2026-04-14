@@ -16,7 +16,9 @@ echo "📥 Sincronizando con GitHub..."
 git add .
 git commit -m "Full Deploy: $(date '+%Y-%m-%d %H:%M:%S')" 2>/dev/null
 if ! sudo -u $REAL_USER git push origin main; then
-    echo "⚠️  Aviso: El push falló. Continuando para intentar el deploy remoto..."
+    echo "❌ ERROR FATAL: El push falló. El despliegue se detiene para evitar inconsistencias."
+    echo "Asegúrate de que tus llaves SSH estén bien configuradas en GitHub."
+    exit 1
 fi
 
 # 2. Desplegar producción Local (NO FATAL)
