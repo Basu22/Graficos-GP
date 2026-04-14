@@ -3,6 +3,7 @@
 # 🍏 Agility Dashboard - Full Deploy Workflow (Laptop -> GitHub -> Raspberry Pi)
 
 # --- CONFIGURACIÓN REMOTA ---
+# Si raspberrypi.local falla, pon aquí la IP (ej: "192.168.1.100")
 RPI_HOST="bossvald@raspberrypi.local" 
 RPI_PATH="/home/bossvald/Graficos-GP"
 # ----------------------------
@@ -16,15 +17,21 @@ if [ ! -f "backend/.env" ]; then
 fi
 
 # 2. Sincronizar cambios a GitHub
-# IMPORTANTE: Si da error de permisos, corre: sudo chown -R $USER:$USER .
 echo "📥 Sincronizando con GitHub..."
+# Si te pide contraseña, recordá cambiar el remoto a SSH con:
+# git remote set-url origin git@github.com:Basu22/Graficos-GP.git
 git add .
 git commit -m "Full Deploy: $(date '+%Y-%m-%d %H:%M:%S')"
 git push origin main
 
 # 3. Desplegar producción en esta Laptop
 echo "🏗️ Desplegando en Producción Local..."
-sudo docker compose -f docker-compose.prod.yml up --build -d --remove-orphans
+# Usamos docker-compose con guion para mayor compatibilidad en versiones antiguas
+if command -v docker-compose &> /dev/null; then
+    sudo docker-compose -f docker-compose.prod.yml up --build -d --remove-orphans
+else
+    sudo docker compose -f docker-compose.prod.yml up --build -d --remove-orphans
+fi
 
 # 4. DISPARAR ACTUALIZACIÓN REMOTA
 echo "📡 Conectando a la Raspberry Pi ($RPI_HOST)..."
