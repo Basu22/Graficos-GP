@@ -456,10 +456,10 @@ PRODUCT_DEFS = [
         r"oferta tarjeta[\s\-–]+nc\b", r"tarjeta[\s\-–]+nc\b", r"\bnc\b"]},
 ]
 
-# ─── Caché del resultado del análisis (TTL 60 min) ─────────────────────────────
-# Se invalida automáticamente si llegan mails nuevos (fingerprint de IDs cambia)
+# ─── Caché del resultado del análisis (TTL 120 min) ─────────────────────────────
+# Aumentamos el TTL y simplificamos para que sea muy estable
 _health_cache: dict = {"data": None, "ts": 0.0, "fingerprint": ""}
-HEALTH_CACHE_TTL = 3600  # 60 minutos
+HEALTH_CACHE_TTL = 7200  # 2 horas
 
 
 def _clean_num(s: str) -> int:
@@ -865,55 +865,16 @@ async def analyze_health_reports(emails: list[dict]):
     ai_analysis = None
     try:
         settings = get_settings()
-        if settings.gemini_api_key:
+        if settings.gemini_api_key and table_rows:
             genai.configure(api_key=settings.gemini_api_key)
-            # Limitamos intentos para no agotar la paciencia de Nginx
-            preferred_models = ["gemini-2.0-flash", "gemini-1.5-flash"]
-            
-            # Líneas de variación de la tabla (solo los datos que ya calculamos)
-            var_lines = [
-                f"- {row['label']}: {'sube' if (row['total_diff'] or 0) > 0 else 'baja'} {abs(row['total_diff'] or 0)}% "
-                f"(actual: {row['total_current']:,} | anterior: {row['total_previous']:,})"
-                for row in table_rows if row["total_diff"] is not None
-            ]
-            # Bancos con dato del día anterior (fallback)
-            fallback_note = ""
-            fallback_list = [b for b in BANKS if b in fallback_banks]
-            if fallback_list:
-                fallback_note = f"Nota: los bancos {', '.join(fallback_list)} no enviaron reporte hoy — se usa el dato del día anterior."
-
-            prompt = f"""Sos analista senior del equipo de Oferta Minorista (bancos BSF, BER, BSJ, BSC).
-Tu rol es interpretar los datos de ofertas del día y agregar valor analítico propio.
-
-Variaciones del día {latest_date} vs {prev_date or 'día anterior'}:
-{chr(10).join(var_lines) or 'Sin variaciones detectadas.'}
-
-{fallback_note}
-
-Texto del Reporte Diario de hoy:
-{latest_snippet[:400] if latest_snippet else 'No disponible.'}
-
-Escribí un análisis breve en español (máximo 80 palabras, sin markdown, sin bullets) que:
-1. Resuma el impacto más relevante del día
-2. Agregue tu interpretación propia sobre las causas más probables o el riesgo asociado
-NO menciones que buscaste mails ni que analizaste el inbox."""
-
-            # Iterar sobre una lista de modelos preferidos para evadir la cuota (como en Plan Semanal)
-            preferred_models = ["gemini-2.0-flash", "gemini-2.5-flash", "gemini-2.5-pro", "gemini-1.5-pro", "gemini-flash-latest"]
-            available_models = [m_pref for m_pref in preferred_models if any(m_pref in m_avail for m_avail in models)]
-            if not available_models:
-                available_models = [models[0].replace('models/', '')]
-            
-            for m_name in available_models:
-                try:
-                    logger.info(f"[Health] Intentando IA con modelo {m_name}...")
-                    model = genai.GenerativeModel(m_name)
-                    ai_analysis = model.generate_content(prompt).text.strip()
-                    logger.info(f"[Health] IA exitosa con {m_name}")
-                    break
-                except Exception as eval_e:
-                    logger.warning(f"[Health] Fallo IA con {m_name}: {eval_e}")
-                    continue
+            # Solo 1 intento con el modelo más rápido
+            model = genai.GenerativeModel("gemini-1.5-flash")
+            # 5 segundos o nada, prioridad absoluta a la carga de la tabla
+            resp = model.generate_content(prompt, request_options={"timeout": 5.0})
+            ai_analysis = resp.text.strip()
+            logger.info("[Health] IA exitosa (Flash)")
+    except Exception as e:
+        logger.warning(f"[Health] IA omitida por estabilidad: {e}")
 
     except Exception as e:
         logger.warning(f"[Health] IA fallo inesperado general: {e}")
