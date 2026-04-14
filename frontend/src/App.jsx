@@ -82,7 +82,7 @@ export default function App() {
     sprint: `Sprint en Curso — Equipo ${team}`,
     calendar: `Calendario de Planificación — Equipo ${team}`,
     team: "Gestión del Equipo",
-    midia: "Mi Día — Centro de Comando AI",
+    midia: "CEBRA AZUL — VERSIÓN 2.0",
   };
 
   return (
