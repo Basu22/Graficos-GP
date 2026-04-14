@@ -598,7 +598,7 @@ async def analyze_health_reports(emails: list[dict]):
             _res = _svc.users().messages().list(
                 userId='me',
                 q=f"from:{OPERATIVA_SENDER} subject:detalle de ofertas",
-                maxResults=200,
+                maxResults=50, # Reducimos a los últimos 50 para velocidad
             ).execute()
             for _m in _res.get('messages', []):
                 try:
@@ -661,8 +661,10 @@ async def analyze_health_reports(emails: list[dict]):
             logger.info(f"[Health] reportes diarios encontrados: {len(reporte_mails)}")
 
     except Exception as _e:
-        logger.warning(f"[Health] query directo falló: {_e}")
-        reporte_mails = []
+        logger.warning(f"[Health] query directo falló o tomó demasiado tiempo: {_e}")
+        # No matamos la ejecución, intentamos seguir con lo que mandó el frontend
+        if not operativa_mails:
+             logger.info("[Health] Usando mails recibidos del frontend como fallback")
 
 
     # ── FASE B: Combinar ambas fuentes (priorizando nuestra versión con body completo) ──
@@ -859,13 +861,15 @@ async def analyze_health_reports(emails: list[dict]):
         latest_from    = _all_reportes[0].get("from", "")
         latest_snippet = (_all_reportes[0].get("snippet") or "")[:400]
 
-    # Analisis IA
+    # Analisis IA (Opcional, con timeout para evitar 502)
     ai_analysis = None
     try:
         settings = get_settings()
-        genai.configure(api_key=settings.gemini_api_key)
-        models = [m.name for m in genai.list_models() if "generateContent" in m.supported_generation_methods]
-        if models and table_rows:
+        if settings.gemini_api_key:
+            genai.configure(api_key=settings.gemini_api_key)
+            # Limitamos intentos para no agotar la paciencia de Nginx
+            preferred_models = ["gemini-2.0-flash", "gemini-1.5-flash"]
+            
             # Líneas de variación de la tabla (solo los datos que ya calculamos)
             var_lines = [
                 f"- {row['label']}: {'sube' if (row['total_diff'] or 0) > 0 else 'baja'} {abs(row['total_diff'] or 0)}% "
