@@ -122,10 +122,25 @@ export default function MiDia({ T }) {
     return icons[code] || "⛅";
   };
 
+  const [weatherLocation, setWeatherLocation] = useState("San+Vicente,Buenos+Aires");
+
+  // Al montar, intentamos obtener la ubicación por navegador
+  useEffect(() => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const { latitude, longitude } = position.coords;
+          setWeatherLocation(`${latitude},${longitude}`);
+        },
+        (err) => console.log("Usando ubicación por defecto (San Vicente):", err.message)
+      );
+    }
+  }, []);
+
   // Fetch de Clima Independiente
   const fetchWeather = useCallback(async () => {
     try {
-      const resp = await fetch("https://wttr.in/?format=j1");
+      const resp = await fetch(`https://wttr.in/${weatherLocation}?format=j1`);
       const wData = await resp.json();
       const current = wData.current_condition[0];
       

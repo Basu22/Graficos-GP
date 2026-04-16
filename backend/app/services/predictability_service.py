@@ -10,14 +10,11 @@ async def get_predictability(client: JiraClient, board_id: int, sprint_ids: list
         if sprint["id"] not in sprint_ids:
             continue
 
-        issues = await client.get_issues_for_sprint(sprint["id"])
         label = get_sprint_label(sprint)
-
-        committed = sum(get_story_points(i) for i in issues)
-        delivered = sum(
-            get_story_points(i) for i in issues
-            if i["fields"].get("status", {}).get("statusCategory", {}).get("key") == "done"
-        )
+        
+        # Consumir métricas globales ya hidratadas en metrics.py
+        committed = sprint.get("committed", 0.0)
+        delivered = sprint.get("delivered", 0.0)
 
         pct = round((delivered / committed * 100), 1) if committed > 0 else 0.0
 

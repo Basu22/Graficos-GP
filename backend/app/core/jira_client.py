@@ -135,6 +135,18 @@ class JiraClient:
             if len(parts) >= 2:
                 teams.add(parts[1])
         return sorted(teams)
+    async def get_sprint_report(self, board_id: int, sprint_id: int) -> dict:
+        """Consulta el reporte de sprint nativo (Greenhopper) para obtener datos de burndown e incidencias."""
+        url = f"{self.base_url}/rest/greenhopper/1.0/rapid/charts/sprintreport"
+        params = {"rapidViewId": board_id, "sprintId": sprint_id}
+        return await self._get(url, params)
+
+    async def get_velocity_chart(self, board_id: int) -> dict:
+        """Obtiene de Greenhopper el histórico inmutable de velocidad (Comprometido vs Terminado)."""
+        url = f"{self.base_url}/rest/greenhopper/1.0/rapid/charts/velocity"
+        params = {"rapidViewId": board_id}
+        data = await self._get(url, params)
+        return data.get("velocityStatEntries", {})
 
 
 async def get_jira_client():

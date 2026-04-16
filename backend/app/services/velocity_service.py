@@ -10,15 +10,11 @@ async def get_velocity(client: JiraClient, board_id: int, sprint_ids: list[int],
         if sprint["id"] not in sprint_ids:
             continue
 
-        # Usar API v2 que devuelve todos los customfields incluyendo customfield_10006
-        issues = await client.get_issues_for_sprint(sprint["id"])
         label = get_sprint_label(sprint)
-
-        committed = sum(get_story_points(i) for i in issues)
-        delivered = sum(
-            get_story_points(i) for i in issues
-            if i["fields"].get("status", {}).get("statusCategory", {}).get("key") == "done"
-        )
+        
+        # Leer los datos ya hidratados por _resolve_sprints en metrics.py
+        committed = sprint.get("committed", 0.0)
+        delivered = sprint.get("delivered", 0.0)
 
         points.append(VelocityPoint(
             sprint_id=sprint["id"],

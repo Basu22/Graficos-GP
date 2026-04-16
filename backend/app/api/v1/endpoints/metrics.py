@@ -33,6 +33,8 @@ def _sprint_closed_in_quarter(sprint: dict, q: int, year: int) -> bool:
         return False
 
 
+import asyncio
+
 async def _resolve_sprints(
     client: JiraClient,
     sprint_ids: list[int] | None,
@@ -42,7 +44,6 @@ async def _resolve_sprints(
     year: int | None,
 ):
     board_id = await client.get_board_id()
-    # Traer solo sprints cerrados para métricas históricas
     sprints = await client.get_sprints(board_id, state="closed", team=team)
     sprints_sorted = sorted(sprints, key=lambda s: s.get("startDate", ""))
 
@@ -55,7 +56,38 @@ async def _resolve_sprints(
         filtered = sprints_sorted[-n:]
 
     ids = [s["id"] for s in filtered]
-    return board_id, ids, filtered
+
+    # Pre-carga e Hidratación Híbrida de Velocity
+    velocity_chart = await client.get_velocity_chart(board_id)
+    
+    def get_sum_value(stat_dict):
+        if not stat_dict: return 0.0
+        # Estos sumadores globales vienen directamente con "value" (ej: {'value': 25.0, 'text': '25.0'})
+        try: return float(stat_dict.get("value", 0) or 0)
+        except (ValueError, TypeError): return 0.0
+
+    async def hydrate_sprint(sprint):
+        sprint_str_id = str(sprint["id"])
+        
+        if sprint_str_id in velocity_chart:
+            v_data = velocity_chart[sprint_str_id]
+            sprint["committed"] = float(v_data.get("estimated", {}).get("value", 0) or 0)
+            sprint["delivered"] = float(v_data.get("completed", {}).get("value", 0) or 0)
+        else:
+            # Rescate histórico para Sprints que Jira expulsó del gráfico de velocidad
+            try:
+                rep = await client.get_sprint_report(board_id, sprint["id"])
+                contents = rep.get("contents", {})
+                sprint["committed"] = get_sum_value(contents.get("allIssuesEstimateSum"))
+                sprint["delivered"] = get_sum_value(contents.get("completedIssuesEstimateSum"))
+            except Exception:
+                sprint["committed"] = 0.0
+                sprint["delivered"] = 0.0
+        return sprint
+
+    populated_filtered = await asyncio.gather(*(hydrate_sprint(s) for s in filtered))
+
+    return board_id, ids, populated_filtered
 
 
 @router.get("/velocity", response_model=VelocityResponse)

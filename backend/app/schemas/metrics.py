@@ -112,3 +112,27 @@ class ExecutiveReport(BaseModel):
     scope_change: ScopeChangeResponse
     carry_over: CarryOverResponse
     strategic_synthesis: list[StrategicSynthesisPoint]
+
+
+# ── Sprint Report (Detalle interactivo) ────────────────────────────────────────
+
+class SprintIssue(BaseModel):
+    key: str
+    summary: str
+    type: str
+    priority: str
+    status: str
+    status_category: str  # "done", "todo", "indeterminate"
+    points: Optional[float] = 0.0
+
+
+class SprintReportResponse(BaseModel):
+    sprint: SprintInfo
+    completed_issues: list[SprintIssue]
+    not_completed_issues: list[SprintIssue]
+    punted_issues: list[SprintIssue]  # Sacados del sprint
+    completed_points: float
+    not_completed_points: float
+    # Los datos del Burndown se enviarán como crudos de Greenhopper por ahora 
+    # para dejar que el frontend maneje la línea de tiempo.
+    burn_data: Optional[dict] = None

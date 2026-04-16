@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
   ResponsiveContainer, ReferenceLine, ComposedChart, Area, Line,
@@ -5,8 +6,10 @@ import {
 import { API, COLORS, THEMES, buildQuery } from "../constants";
 import { useFetch } from "../hooks/useFetch";
 import { ChartCard, Spinner, EmptyState } from "../components/ui";
+import { SprintReportModal } from "../components/SprintReportModal";
 
 const CustomTick = (props) => {
+// ... (mantenemos el componente CustomTick igual)
   const { x, y, payload, T } = props;
   if (!payload || !payload.value) return null;
   const val = String(payload.value);
@@ -27,13 +30,14 @@ const CustomTick = (props) => {
 };
 
 const CustomLabel = (props) => {
+// ... (mantenemos el componente CustomLabel igual)
   const { x, y, width, value, fill, T, isBar } = props;
   if (value === undefined || value === null) return null;
   
   const isZero = Number(value) === 0;
   
   if (isBar) {
-    if (isZero) return null; // No mostrar ceros dentro de barras para no ensuciar
+    if (isZero) return null; 
     return (
       <text 
         x={x + width / 2} 
@@ -49,7 +53,6 @@ const CustomLabel = (props) => {
     );
   }
 
-  // Gráficos de línea
   const color = fill || T?.text || "#1e293b";
   const verticalOffset = isZero ? 15 : -8;
 
@@ -69,6 +72,7 @@ const CustomLabel = (props) => {
 };
 
 export function DashboardPerformance({ team, filter, T }) {
+  const [selectedSprintId, setSelectedSprintId] = useState(null);
   const theme = T || THEMES.light;
   const q = buildQuery(team, filter);
   const { data: vel } = useFetch(`${API}/metrics/velocity${q}`);
@@ -76,13 +80,25 @@ export function DashboardPerformance({ team, filter, T }) {
   const { data: scope } = useFetch(`${API}/metrics/scope-change${q}`);
   const { data: carry } = useFetch(`${API}/metrics/carry-over${q}`);
 
+  const handleChartClick = (state) => {
+    if (state && state.activePayload && state.activePayload.length > 0) {
+      const sprintId = state.activePayload[0].payload.sprint_id;
+      if (sprintId) setSelectedSprintId(sprintId);
+    }
+  };
+
   return (
     <div className="responsive-grid-2">
       <ChartCard T={T} title="Velocidad (Story Points)"
         badge={vel ? { text: `Promedio: ${vel.average_committed} pts`, color: "#EF4444" } : null}>
         {!vel ? <Spinner /> : (vel.data || []).length === 0 ? <EmptyState /> : (
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={vel.data} margin={{ top: 20, right: 20, left: -15, bottom: 50 }}>
+            <BarChart 
+              data={vel.data} 
+              margin={{ top: 20, right: 20, left: -15, bottom: 50 }}
+              onClick={handleChartClick}
+              style={{ cursor: 'pointer' }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke={T?.chartGrid || "#f1f5f9"} />
               <XAxis dataKey="sprint_label" tick={(p) => <CustomTick {...p} T={T} />} interval={0} height={55} />
               <YAxis tick={{ fontSize: 10, fill: T?.textMuted || "#64748b" }} />
@@ -98,6 +114,7 @@ export function DashboardPerformance({ team, filter, T }) {
         )}
       </ChartCard>
 
+      {/* Los demás gráficos permanecen igual */}
       <ChartCard T={T} title="Predictibilidad (%)"
         badge={pred ? { text: `Promedio: ${pred.average}%`, color: "#EF4444" } : null}>
         {!pred ? <Spinner /> : (pred.data || []).length === 0 ? <EmptyState /> : (
@@ -150,6 +167,13 @@ export function DashboardPerformance({ team, filter, T }) {
           </ResponsiveContainer>
         )}
       </ChartCard>
+
+      {/* MODAL DE REPORTE */}
+      <SprintReportModal 
+        sprintId={selectedSprintId} 
+        onClose={() => setSelectedSprintId(null)} 
+        T={T}
+      />
     </div>
   );
 }
