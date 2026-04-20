@@ -64,7 +64,8 @@ function TicketCard({ ticket, T }) {
 
       <div style={{ fontSize: 11, color: theme?.textMuted || "#64748B", marginBottom: totalSub > 0 ? 10 : 0 }}>
         👤 {ticket.assignee}
-        {ticket.lead_time_days && <span style={{ marginLeft: 8, color: "#F97316" }}>⏱ {ticket.lead_time_days}d</span>}
+        {ticket.cycle_time_days && <span style={{ marginLeft: 8, color: ticket.cycle_time_days < 5 ? "#22C55E" : ticket.cycle_time_days < 10 ? "#F59E0B" : "#EF4444", fontWeight: 700 }}>⏳ CT: {ticket.cycle_time_days}d</span>}
+        {ticket.lead_time_days && <span style={{ marginLeft: 8, color: theme?.textFaint || "#94A3B8" }}>📅 LT: {ticket.lead_time_days}d</span>}
       </div>
 
       {totalSub > 0 && (
@@ -229,6 +230,7 @@ export function SprintEnCurso({ team, T }) {
         <KPICard T={T} value={`${kpis.completion_pct}%`} label="Completado" sub={`${kpis.done_points} / ${kpis.total_points} pts`} color="#22C55E" />
         <KPICard T={T} value={kpis.in_progress_points} label="En Progreso" sub="Story points" color="#3B82F6" />
         <KPICard T={T} value={kpis.todo_points} label="Por Hacer" sub="Story points" color="#94A3B8" />
+        <KPICard T={T} value={kpis.avg_cycle_time_days ? `${kpis.avg_cycle_time_days}d` : "—"} label="Cycle Time" sub="Trabajo activo" color="#8B5CF6" />
         <KPICard T={T} value={kpis.avg_lead_time_days ? `${kpis.avg_lead_time_days}d` : "—"} label="Lead Time" sub="Issues cerrados" color="#F97316" />
         <KPICard T={T} value={kpis.carry_over_from_prev} label="Carry Over" sub="Del sprint anterior" color="#EF4444" />
       </div>

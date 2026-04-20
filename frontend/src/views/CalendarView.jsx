@@ -1,6 +1,14 @@
 import { useState, useEffect } from "react";
 import { API, THEMES, EVENT_TYPES, MONTHS, DAYS_SHORT, getDaysInMonth, getFirstDayOfMonth, isoDate, dateInRange } from "../constants";
 
+const ABSENCE_TYPES = {
+  vacation: { label: "Vacaciones", color: "#22C55E", icon: "🏖️" },
+  medical: { label: "Lic. Médica", color: "#EF4444", icon: "🏥" },
+  exam: { label: "Lic. Examen", color: "#8B5CF6", icon: "📝" },
+  study: { label: "Lic. Estudio", color: "#06B6D4", icon: "📚" },
+  other: { label: "Otro", color: "#64748B", icon: "📌" },
+};
+
 export function CalendarView({ T, team }) {
   const theme = T || {};
   const today = new Date();
@@ -17,6 +25,7 @@ export function CalendarView({ T, team }) {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [filterTypes, setFilterTypes] = useState(new Set(Object.keys(EVENT_TYPES)));
   const [form, setForm] = useState({ title: "", type: "vacation", person: "", start_date: "", end_date: "", notes: "", color: "" });
+  const [availability, setAvailability] = useState({});
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showDayDetail, setShowDayDetail] = useState(false);
@@ -58,14 +67,21 @@ export function CalendarView({ T, team }) {
 
   async function loadAllCorrect() {
     try {
-      const [evData, holData, sprData] = await Promise.all([
-        fetch(`${API}/calendar/events?year=${year}${team ? `&team=${team}` : ""}`).then(r => r.json()),
+      const [evData, holData, sprData, availData] = await Promise.all([
+        fetch(`${API}/calendar/events?year=${year}${team && team !== 'Todos' ? `&team=${team}` : ""}`).then(r => r.json()),
         fetch(`${API}/calendar/holidays/${year}`).then(r => r.json()),
-        fetch(`${API}/calendar/sprints-for-calendar?year=${year}${team ? `&team=${team}` : ""}`).then(r => r.json()),
+        fetch(`${API}/calendar/sprints-for-calendar?year=${year}${team && team !== 'Todos' ? `&team=${team}` : ""}`).then(r => r.json()),
+        fetch(`${API}/people/availability?start=${year}-01-01&end=${year}-12-31${team && team !== 'Todos' ? `&team=${team}` : ""}`).then(r => r.json()),
       ]);
       setEvents(Array.isArray(evData) ? evData : []);
       setHolidays(Array.isArray(holData) ? holData : []);
       setSprintEvents(Array.isArray(sprData) ? sprData : []);
+
+      const availMap = {};
+      if (Array.isArray(availData)) {
+        availData.forEach(d => { availMap[d.date] = d; });
+      }
+      setAvailability(availMap);
     } catch (e) { console.error("loadAll error:", e); }
   }
 
@@ -74,11 +90,29 @@ export function CalendarView({ T, team }) {
   function eventsForDay(dateStr) {
     if (!dateStr) return [];
     const evs = allEvents.filter((e) => dateInRange(dateStr, e.start_date, e.end_date || e.start_date));
-    // Última limpieza: si hay dos con el mismo nombre en el mismo día, mostramos uno solo
+
+    // Inyectar ausencias de personas
+    const avail = availability[dateStr];
+    if (avail && avail.unavailable && filterTypes.has("vacation")) { // We use vacation as a toggle for absences if needed, or always show.
+      // We will always show absences, or maybe map them to a filter? Let's just always show them if there are any.
+      avail.unavailable.forEach(u => {
+        evs.push({
+          id: `absence-${dateStr}-${u.name}`,
+          type: "absence",
+          title: u.name,
+          person: u.name,
+          start_date: dateStr,
+          end_date: dateStr,
+          absenceType: u.type
+        });
+      });
+    }
+
     const unique = [];
     const titles = new Set();
     evs.forEach(e => {
-      const t = (e.title || "").trim().toLowerCase();
+      const isAbsence = e.type === "absence";
+      const t = (isAbsence ? `absence-${e.title}` : (e.title || "").trim()).toLowerCase();
       if (!titles.has(t)) {
         titles.add(t);
         unique.push(e);
@@ -181,69 +215,134 @@ export function CalendarView({ T, team }) {
     const isToday = dateStr === todayStr;
     const isWeekend = dateStr ? [0, 6].includes(new Date(dateStr + "T12:00:00").getDay()) : false;
     const hasHoliday = dayEvs.some((e) => e.type === "holiday");
-    const cellBg = !cell.cur ? "transparent" : isToday ? c("#EFF6FF", "#1E3A5F") : hasHoliday ? c("#FFF7ED", "#431407") : isWeekend ? c("#F8FAFC", "#131F35") : theme.bg === "#0F172A" ? "#0F172A" : "#F8FAFC";
     const meta = cell.cur && sprintsMetasMap[dateStr];
+
+    // Lógica del Sprint Activo (más nuevo si hay solapamiento)
+    const daySprints = dayEvs.filter(e => e.type === "sprint");
+    // Sort by start_date descending (newest start date first)
+    daySprints.sort((a, b) => new Date(b.start_date) - new Date(a.start_date));
+    const activeSprint = daySprints.length > 0 ? daySprints[0] : null;
+
+    let isSprintStart = false;
+    let isSprintEnd = false;
+
+    if (activeSprint && !isMini && !isMobile) {
+      const nextDate = new Date(dateStr + "T12:00:00");
+      nextDate.setDate(nextDate.getDate() + 1);
+      const nextDateStr = nextDate.toISOString().slice(0, 10);
+
+      isSprintStart = activeSprint.start_date === dateStr;
+      if (!isSprintStart) {
+        if (activeSprint.end_date === dateStr) {
+          isSprintEnd = true;
+        } else if (activeSprint.end_date === nextDateStr && sprintEvents.some(s => s.start_date === nextDateStr)) {
+          isSprintEnd = true;
+        }
+      }
+    }
+
+    let dynamicBg = theme.bg === "#0F172A" ? "#0F172A" : "#F8FAFC";
+    if (isToday) dynamicBg = c("#EFF6FF", "#1E3A5F");
+    else if (hasHoliday) dynamicBg = c("#FFF7ED", "#431407");
+    else if (isWeekend) dynamicBg = c("#F8FAFC", "#131F35");
+    else if (isSprintStart) dynamicBg = c("#F0FDF4", "#064E3B"); // Verde claro / Verde muy oscuro
+    else if (isSprintEnd) dynamicBg = c("#FFF1F2", "#450A0A"); // Rojo claro / Rojo muy oscuro
+
+    const cellBg = !cell.cur ? "transparent" : dynamicBg;
 
     return (
       <div onClick={() => handleDayClick(dateStr)}
         style={{ minHeight: isMini ? 32 : isMobile ? 44 : 80, padding: isMini ? "1px" : isMobile ? "2px" : "6px 8px", borderRadius: 6, background: cellBg, border: `1px solid ${isToday ? "#3B82F6" : cell.cur ? (isMobile || isMini ? "transparent" : borderColor) : "transparent"}`, opacity: cell.cur ? 1 : 0, cursor: cell.cur ? "pointer" : "default", display: "flex", flexDirection: "column", alignItems: "center", position: "relative" }}>
-        
-        {meta && !isMini && (
-          <div style={{ position: "absolute", top: 4, right: 6, display: "flex", gap: 3, alignItems: "center", pointerEvents: "none" }}>
-            <span style={{ fontSize: 9, fontWeight: 800, color: "#3B82F6" }}>⚡{meta.businessDays}</span>
-            {meta.holidays > 0 && <span style={{ fontSize: 9, fontWeight: 800, color: "#F97316" }}>🇦🇷{meta.holidays}</span>}
+
+        {(!isMini && !isMobile) ? (
+          <div style={{ position: "absolute", top: 4, left: 6, display: "flex", pointerEvents: "none" }}>
+            <span style={{ fontSize: 16, fontWeight: isToday ? 800 : 700, background: isToday ? "#3B82F6" : "transparent", color: isToday ? "#fff" : isWeekend ? "#F97316" : textColor, width: 26, height: 26, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              {cell.cur ? cell.day : ""}
+            </span>
+          </div>
+        ) : (
+          <span style={{ fontSize: isMini ? 12 : 14, fontWeight: isToday ? 800 : 500, background: isToday ? "#3B82F6" : "transparent", color: isToday ? "#fff" : isWeekend ? "#F97316" : textColor, width: isMini ? 18 : 24, height: isMini ? 18 : 24, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", marginTop: 2 }}>
+            {cell.cur ? cell.day : ""}
+          </span>
+        )}
+
+        {cell.cur && availability[dateStr] && !isWeekend && !isMini && (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginTop: (!isMini && !isMobile) ? 4 : 2, marginBottom: 4 }}>
+            {(() => {
+              const dayAvail = availability[dateStr];
+              const pct = dayAvail.total > 0 ? dayAvail.available / dayAvail.total : 1;
+              const color = pct >= 0.8 ? "#22C55E" : pct >= 0.5 ? "#F97316" : "#EF4444";
+              return (
+                <span style={{ fontSize: 13, fontWeight: 800, color }}>
+                  {dayAvail.available}<span style={{ fontSize: 11, opacity: 0.7 }}>/{dayAvail.total}</span>
+                </span>
+              );
+            })()}
           </div>
         )}
 
-        <span style={{ fontSize: isMini ? 9 : isMobile ? 11 : 13, fontWeight: isToday ? 800 : 500, background: isToday ? "#3B82F6" : "transparent", color: isToday ? "#fff" : isWeekend ? "#F97316" : textColor, width: isMini ? 16 : isMobile ? 20 : 22, height: isMini ? 16 : isMobile ? 20 : 22, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          {cell.cur ? cell.day : ""}
-        </span>
-        
+        {cell.cur && (!isMini || meta) && (
+          <div style={{ position: "absolute", top: 4, right: 6, display: "flex", gap: 3, alignItems: "center", pointerEvents: "none" }}>
+            {activeSprint && !isMini && (
+              <span style={{ fontSize: 9, fontWeight: 800, color: c("#475569", "#F8FAFC"), background: c("rgba(0,0,0,0.05)", "rgba(255,255,255,0.1)"), padding: "2px 5px", borderRadius: 4, marginRight: 2 }}>
+                {(() => {
+                  const match = activeSprint.title.match(/\d+/);
+                  let label = match ? `SP${match[0]}` : activeSprint.title;
+                  if (isSprintStart) label = "INICIO " + label;
+                  else if (isSprintEnd) label = "CIERRE " + label;
+                  return label;
+                })()}
+              </span>
+            )}
+            {meta && !isMini && <span style={{ fontSize: 9, fontWeight: 800, color: "#3B82F6" }}>⚡{meta.businessDays}</span>}
+            {meta && !isMini && meta.holidays > 0 && <span style={{ fontSize: 9, fontWeight: 800, color: "#F97316" }}>🇦🇷{meta.holidays}</span>}
+          </div>
+        )}
+
         {cell.cur && (
           <div style={{ display: "flex", gap: 2, flexWrap: "wrap", justifyContent: "center", marginTop: 2 }}>
             {isMobile || isMini ? (
-              Array.from(new Set(dayEvs.map(e => e.type))).map(type => {
-                const info = EVENT_TYPES[type] || EVENT_TYPES.custom;
+              Array.from(new Set(dayEvs.map(e => e.type === "absence" ? "absence" : e.type))).map(type => {
+                const isAbs = type === "absence";
+                const info = isAbs ? { color: "#EF4444" } : (EVENT_TYPES[type] || EVENT_TYPES.custom);
                 return <div key={type} style={{ width: isMini ? 3 : 4, height: isMini ? 3 : 4, borderRadius: "50%", background: info.color }} />;
               })
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 2, width: "100%" }}>
                 {(() => {
                   const holidayEv = dayEvs.find((e) => e.type === "holiday");
-                  const sprintEvs = dayEvs.filter((e) => e.type === "sprint" && !isWeekend && !holidayEv);
-                  const otherEvs = dayEvs.filter((e) => e.type !== "holiday" && e.type !== "sprint");
-                  const visibleEvs = [...sprintEvs, ...otherEvs];
+                  const visibleEvs = dayEvs.filter((e) => e.type !== "holiday" && e.type !== "sprint");
                   return (
                     <>
                       {holidayEv && <div style={{ fontSize: 9, padding: "2px 5px", borderRadius: 3, background: "#F97316", color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis" }} title={holidayEv.title}>🇦🇷 {holidayEv.title}</div>}
-                      {visibleEvs.slice(0, holidayEv ? 2 : 3).map((ev, ei) => {
-                        const info = EVENT_TYPES[ev.type] || EVENT_TYPES.custom;
-                        const isSprint = ev.type === "sprint";
-                        const pillColor = sprintPillColor(ev, dateStr) || (ev.color || info.color);
+                      {visibleEvs.slice(0, holidayEv ? 2 : 4).map((ev, ei) => {
+                        const isAbsence = ev.type === "absence";
+                        const info = isAbsence ? (ABSENCE_TYPES[ev.absenceType] || ABSENCE_TYPES.other) : (EVENT_TYPES[ev.type] || EVENT_TYPES.custom);
+                        const pillColor = ev.color || info.color;
                         return (
-                          <div key={ei} onClick={(e) => { e.stopPropagation(); openEditEvent(ev); }} title={ev.title}
-                            style={{ 
-                              fontSize: 9, 
-                              padding: "1px 4px", 
-                              borderRadius: 3, 
-                              cursor: "pointer", 
-                              background: isSprint ? (isMobile ? pillColor : "transparent") : (ev.color || info.color) + "20", 
-                              borderLeft: `3px solid ${isSprint ? pillColor : (ev.color || info.color)}`, 
-                              color: isSprint ? (isMobile ? "#fff" : textColor) : (ev.color || info.color), 
-                              fontWeight: 700, 
-                              whiteSpace: "nowrap", 
-                              overflow: "hidden", 
+                          <div key={ei} onClick={(e) => { e.stopPropagation(); if (!isAbsence) openEditEvent(ev); }} title={ev.title}
+                            style={{
+                              fontSize: 9,
+                              padding: "1px 4px",
+                              borderRadius: 3,
+                              cursor: isAbsence ? "default" : "pointer",
+                              background: pillColor + "20",
+                              borderLeft: `3px solid ${pillColor}`,
+                              color: pillColor,
+                              fontWeight: 700,
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
                               textOverflow: "ellipsis",
                               marginBottom: 1,
                               display: "flex",
                               alignItems: "center",
                               gap: 3
                             }}>
-                            {isSprint ? <span style={{ color: pillColor, fontSize: 10 }}>●</span> : info.icon} {ev.title}
+                            {info.icon} {ev.title}
                           </div>
                         );
                       })}
-                      {visibleEvs.length > (holidayEv ? 2 : 3) && <div style={{ fontSize: 9, color: mutedColor }}>+{visibleEvs.length - (holidayEv ? 2 : 3)}</div>}
+                      {visibleEvs.length > (holidayEv ? 2 : 4) && <div style={{ fontSize: 9, color: mutedColor }}>+{visibleEvs.length - (holidayEv ? 2 : 4)}</div>}
                     </>
                   );
                 })()}
@@ -386,24 +485,25 @@ export function CalendarView({ T, team }) {
               <div style={{ fontSize: 18, fontWeight: 800, color: textColor }}>{selectedDay?.split("-").reverse().join("/")}</div>
               <button onClick={() => { setShowDayDetail(false); openNewEvent(selectedDay); }} style={{ padding: "6px 14px", borderRadius: 8, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 700 }}>+ Añadir</button>
             </div>
-            
+
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               {(() => {
                 const dayEvs = eventsForDay(selectedDay);
                 if (dayEvs.length === 0) return <div style={{ textAlign: "center", padding: 40, color: mutedColor, fontSize: 13 }}>No hay eventos para este día</div>;
                 return dayEvs.map((ev, i) => {
-                  const info = EVENT_TYPES[ev.type] || EVENT_TYPES.custom;
+                  const isAbsence = ev.type === "absence";
+                  const info = isAbsence ? (ABSENCE_TYPES[ev.absenceType] || ABSENCE_TYPES.other) : (EVENT_TYPES[ev.type] || EVENT_TYPES.custom);
                   const isSprint = ev.type === "sprint";
                   const pColor = isSprint ? sprintPillColor(ev, selectedDay) : (ev.color || info.color);
                   return (
-                    <div key={i} onClick={() => { setShowDayDetail(false); openEditEvent(ev); }}
-                      style={{ padding: 16, borderRadius: 12, background: isSprint ? pColor : theme.healthMuted || "#F8FAFC", borderLeft: `5px solid ${pColor}`, cursor: "pointer", display: "flex", alignItems: "center", gap: 12 }}>
+                    <div key={i} onClick={() => { if (!isAbsence) { setShowDayDetail(false); openEditEvent(ev); } }}
+                      style={{ padding: 16, borderRadius: 12, background: isSprint ? pColor : theme.healthMuted || "#F8FAFC", borderLeft: `5px solid ${pColor}`, cursor: isAbsence ? "default" : "pointer", display: "flex", alignItems: "center", gap: 12 }}>
                       <span style={{ fontSize: 20 }}>{info.icon}</span>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 14, fontWeight: 700, color: isSprint ? "#fff" : textColor }}>{ev.title}</div>
                         <div style={{ fontSize: 11, color: isSprint ? "rgba(255,255,255,0.8)" : mutedColor }}>{ev.person || info.label}</div>
                       </div>
-                      <span style={{ color: isSprint ? "#fff" : mutedColor }}>›</span>
+                      {!isAbsence && <span style={{ color: isSprint ? "#fff" : mutedColor }}>›</span>}
                     </div>
                   );
                 });

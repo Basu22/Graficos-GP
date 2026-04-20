@@ -95,8 +95,8 @@ class JiraClient:
             _cache_set(cache_key, all_sprints)
             return all_sprints
 
-    async def get_issues_for_sprint(self, sprint_id: int, fields: list[str] = None) -> list:
-        cache_key = f"issues|{sprint_id}|{fields}"
+    async def get_issues_for_sprint(self, sprint_id: int, fields: list[str] = None, expand: str = None) -> list:
+        cache_key = f"issues|{sprint_id}|{fields}|{expand}"
         async with get_lock(cache_key):
             cached = _cache_get(cache_key)
             if cached is not None:
@@ -111,10 +111,14 @@ class JiraClient:
             all_issues, start = [], 0
             client = get_http_client()
             while True:
-                r = await client.get(url, headers=self.headers, params={
+                params_dict = {
                     "jql": jql, "startAt": start, "maxResults": 100,
                     "fields": ",".join(use_fields),
-                })
+                }
+                if expand:
+                    params_dict["expand"] = expand
+
+                r = await client.get(url, headers=self.headers, params=params_dict)
                 r.raise_for_status()
                 data = r.json()
                 all_issues.extend(data.get("issues", []))
@@ -124,6 +128,36 @@ class JiraClient:
 
             _cache_set(cache_key, all_issues)
             return all_issues
+
+    async def get_issues_by_keys(self, keys: list[str], fields: list[str] = None) -> list:
+        if not keys:
+            return []
+        
+        # Batching en chunks de 50 para no reventar el JQL length limit
+        default_fields = ["summary", "status", "assignee", "issuetype", "resolutiondate"]
+        use_fields = fields or default_fields
+        url = f"{self.base_url}/rest/api/2/search"
+        client = get_http_client()
+        all_issues = []
+
+        chunk_size = 50
+        for i in range(0, len(keys), chunk_size):
+            chunk = keys[i:i + chunk_size]
+            jql = f"issue IN ({','.join(chunk)})"
+            
+            try:
+                r = await client.get(url, headers=self.headers, params={
+                    "jql": jql, 
+                    "maxResults": 100,
+                    "fields": ",".join(use_fields),
+                })
+                r.raise_for_status()
+                data = r.json()
+                all_issues.extend(data.get("issues", []))
+            except Exception as e:
+                print(f"Error fetching batch keys {chunk}: {e}")
+
+        return all_issues
 
 
     async def get_teams(self, board_id: int) -> list[str]:

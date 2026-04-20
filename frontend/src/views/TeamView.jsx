@@ -15,7 +15,7 @@ const STATUS_COLOR = { done: "#22C55E", indeterminate: "#F59E0B", new: "#64748B"
 const STATUS_LABEL = { done: "✅ Listo", indeterminate: "🔄 En progreso", new: "⬜ Por hacer" };
 
 // ── PersonDetail (panel lateral) ───────────────────────────────────────────────
-function PersonDetail({ person, T, onClose }) {
+function PersonDetail({ person, T, onClose, onSaved }) {
   const theme = T || THEMES.light;
   const { card, cardBorder: border, text, textMuted: muted, textFaint: faint, bg, input } = theme;
 
@@ -25,15 +25,23 @@ function PersonDetail({ person, T, onClose }) {
   const [jiraName, setJiraName] = useState(person.jira_name || "");
   const [jiraUsers, setJiraUsers] = useState([]);
   const [savingName, setSavingName] = useState(false);
+  const [period, setPeriod] = useState("last_3");
+  const [openSprints, setOpenSprints] = useState({});
 
   const cardS = { background: card, borderRadius: 12, padding: "16px 20px", border: `1px solid ${border}` };
   const inp = { padding: "7px 10px", borderRadius: 6, border: `1px solid ${border}`, background: input || bg, color: text, fontSize: 12, outline: "none", width: "100%", boxSizing: "border-box" };
 
   useEffect(() => {
     loadJiraUsers();
-    if (person.jira_name) loadStats();
-    else setLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (person.jira_name) {
+      loadStats();
+    } else {
+      setLoading(false);
+    }
+  }, [person.id, person.jira_name, period]);
 
   async function loadJiraUsers() {
     try {
@@ -43,8 +51,15 @@ function PersonDetail({ person, T, onClose }) {
   }
   async function loadStats() {
     setLoading(true);
+    let url = `${API}/people/${person.id}/stats?team=${person.team}`;
+    if (period === "last_3") url += "&last_n=3";
+    else if (period.startsWith("Q")) {
+      const q = period.substring(1, 2);
+      const y = period.split(" ")[1];
+      url += `&quarter=${q}&year=${y}`;
+    }
     try {
-      const data = await fetch(`${API}/people/${person.id}/stats?team=${person.team}`).then(r => r.json());
+      const data = await fetch(url).then(r => r.json());
       setStats(data);
     } catch (e) { console.error(e); }
     setLoading(false);
@@ -55,7 +70,8 @@ function PersonDetail({ person, T, onClose }) {
     try {
       await fetch(`${API}/people/${person.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...person, jira_name: jiraName }) });
       person.jira_name = jiraName;
-      await loadStats();
+      if (onSaved) onSaved(person);
+      // El useEffect se disparará automáticamente porque person.jira_name cambió
     } catch (e) {}
     setSavingName(false);
   }
@@ -63,11 +79,9 @@ function PersonDetail({ person, T, onClose }) {
   const teamColor = person.team === "Back" ? "#8B5CF6" : "#06B6D4";
 
   return (
-    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", zIndex: 2000, display: "flex", alignItems: "flex-start", justifyContent: "flex-end" }}
-      onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div style={{ width: 720, maxWidth: "95vw", height: "100vh", overflowY: "auto", background: bg, borderLeft: `1px solid ${border}`, boxShadow: "-20px 0 60px rgba(0,0,0,0.3)", display: "flex", flexDirection: "column" }}>
-        {/* Header */}
-        <div style={{ padding: "24px 28px 0", borderBottom: `1px solid ${border}`, paddingBottom: 16, background: card, position: "sticky", top: 0, zIndex: 10 }}>
+    <div style={{ flex: 1, minHeight: 0, overflowY: "auto", background: card, border: `1px solid ${border}`, borderRadius: 12, boxShadow: "0 10px 25px rgba(0,0,0,0.1)", display: "flex", flexDirection: "column" }}>
+      {/* Header */}
+      <div style={{ padding: "24px 28px 0", borderBottom: `1px solid ${border}`, paddingBottom: 16, background: card, position: "sticky", top: 0, zIndex: 10, borderRadius: "12px 12px 0 0" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 16 }}>
             <div style={{ width: 52, height: 52, borderRadius: "50%", flexShrink: 0, background: teamColor + "20", border: `2px solid ${teamColor}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 800, color: teamColor }}>
               {person.name.charAt(0).toUpperCase()}
@@ -128,9 +142,9 @@ function PersonDetail({ person, T, onClose }) {
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
                     {[
                       { label: "SP asignados", val: stats.active_sprint?.sp_total, color: "#3B82F6" },
-                      { label: "SP entregados", val: stats.active_sprint?.sp_done, color: "#22C55E" },
+                      { label: "SP efectivos", val: stats.active_sprint?.sp_done, color: "#22C55E" },
                       { label: "Completado", val: `${stats.active_sprint?.completion}%`, color: "#8B5CF6" },
-                      { label: "Lead time prom", val: stats.avg_lead_time ? `${stats.avg_lead_time}d` : "—", color: "#F59E0B" },
+                      { label: "Cycle time prom", val: stats.avg_cycle_time ? `${stats.avg_cycle_time}d` : "—", color: "#F59E0B" },
                     ].map((k, i) => (
                       <div key={i} style={{ ...cardS, textAlign: "center" }}>
                         <div style={{ fontSize: 22, fontWeight: 800, color: k.color }}>{k.val}</div>
@@ -144,7 +158,17 @@ function PersonDetail({ person, T, onClose }) {
                         <a href={`${JIRA_BASE}/browse/${t.key}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", textDecoration: "none" }}>{t.key}</a>
                         <span style={{ flex: 1, fontSize: 12, color: text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.summary}</span>
                         <span style={{ fontSize: 10, fontWeight: 700, color: STATUS_COLOR[t.status_cat] || muted }}>{STATUS_LABEL[t.status_cat] || t.status}</span>
-                        {t.sp > 0 && <span style={{ fontSize: 11, fontWeight: 800, color: "#8B5CF6" }}>{t.sp} SP</span>}
+                        {t.sp > 0 && (
+                          <span style={{ fontSize: 11, fontWeight: 800, color: "#8B5CF6", background: "#8B5CF620", padding: "2px 6px", borderRadius: 4 }}>
+                            {t.total_sp > 0 && t.sp !== t.total_sp 
+                              ? `Esfuerzo: ${t.sp}/${t.total_sp} SP | ${Math.round((t.sp / t.total_sp) * 100)}%` 
+                              : `${t.sp} SP`}
+                          </span>
+                        )}
+                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                          {t.cycle_time && <span style={{ fontSize: 10, color: t.cycle_time < 5 ? "#22C55E" : t.cycle_time < 10 ? "#F59E0B" : "#EF4444", fontWeight: 700 }}>⏳ CT: {t.cycle_time}d</span>}
+                          {t.lead_time && <span style={{ fontSize: 10, color: muted }}>📅 LT: {t.lead_time}d</span>}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -153,44 +177,103 @@ function PersonDetail({ person, T, onClose }) {
 
               {tab === "history" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-                  <div style={{ fontSize: 12, color: muted }}>Sprints: <strong style={{ color: text }}>{stats.sprints_analyzed?.join(", ") || "—"}</strong></div>
-                  <div style={cardS}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: text, marginBottom: 12 }}>Velocidad por sprint</div>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ fontSize: 12, color: muted }}>Sprints: <strong style={{ color: text }}>{stats.sprints_analyzed?.join(", ") || "—"}</strong></div>
+                    <select 
+                      value={period} 
+                      onChange={(e) => setPeriod(e.target.value)} 
+                      style={{ ...inp, width: "auto", padding: "4px 8px", background: card, fontWeight: 600 }}
+                    >
+                      <option value="last_3">Últimos 3 sprints</option>
+                      <option value="Q1 2026">Q1 2026</option>
+                      <option value="Q2 2026">Q2 2026</option>
+                      <option value="Q3 2026">Q3 2026</option>
+                      <option value="Q4 2026">Q4 2026</option>
+                    </select>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     {Object.entries(stats.velocity_by_sprint || {}).map(([spName, v], i) => {
                       const pct = v.committed > 0 ? (v.delivered / v.committed) * 100 : 0;
+                      const isOpen = openSprints[spName] !== false; // Abierto por defecto
+                      const sprintTickets = stats.history_tickets?.filter((t) => t.sprint === spName && t.status_cat === "done") || [];
+                      
                       return (
-                        <div key={i} style={{ marginBottom: 8 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                            <span style={{ fontSize: 11, color: muted }}>{spName}</span>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: text }}>{v.delivered} / {v.committed} SP</span>
+                        <div key={i} style={cardS}>
+                          <div 
+                            style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer", marginBottom: isOpen ? 12 : 0 }}
+                            onClick={() => setOpenSprints(prev => ({ ...prev, [spName]: !isOpen }))}
+                          >
+                            <div style={{ fontSize: 13, fontWeight: 700, color: text }}>
+                              {isOpen ? "▼" : "▶"} {spName}
+                            </div>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: text }}>
+                              {v.delivered} / {v.committed} SP
+                            </div>
                           </div>
-                          <div style={{ height: 6, borderRadius: 3, background: border, overflow: "hidden" }}>
-                            <div style={{ height: "100%", borderRadius: 3, background: pct >= 85 ? "#22C55E" : pct >= 70 ? "#F59E0B" : "#EF4444", width: `${Math.min(pct, 100)}%` }} />
-                          </div>
+                          
+                          {isOpen && (
+                            <>
+                              <div style={{ height: 6, borderRadius: 3, background: border, overflow: "hidden", marginBottom: 16 }}>
+                                <div style={{ height: "100%", borderRadius: 3, background: pct >= 85 ? "#22C55E" : pct >= 70 ? "#F59E0B" : "#EF4444", width: `${Math.min(pct, 100)}%` }} />
+                              </div>
+                              
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                {sprintTickets.length === 0 ? (
+                                  <div style={{ fontSize: 11, color: muted, fontStyle: "italic" }}>No hay tickets con esfuerzo registrado en este sprint.</div>
+                                ) : (
+                                  sprintTickets.map((t, j) => (
+                                    <div key={j} style={{ padding: "8px 12px", border: `1px solid ${border}`, borderRadius: 8, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", background: bg }}>
+                                      <a href={`${JIRA_BASE}/browse/${t.key}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", textDecoration: "none" }}>{t.key}</a>
+                                      <span style={{ flex: 1, fontSize: 11, color: text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.summary}</span>
+                                      {t.sp > 0 && (
+                                        <span style={{ fontSize: 10, fontWeight: 800, color: "#8B5CF6", background: "#8B5CF620", padding: "2px 6px", borderRadius: 4 }}>
+                                          {t.total_sp > 0 && t.sp !== t.total_sp 
+                                            ? `Esfuerzo: ${t.sp}/${t.total_sp} SP` 
+                                            : `${t.sp} SP`}
+                                        </span>
+                                      )}
+                                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                        {t.cycle_time && <span style={{ fontSize: 10, color: t.cycle_time < 5 ? "#22C55E" : t.cycle_time < 10 ? "#F59E0B" : "#EF4444", fontWeight: 700 }}>⏳ CT: {t.cycle_time}d</span>}
+                                        {t.lead_time && <span style={{ fontSize: 10, color: muted }}>📅 LT: {t.lead_time}d</span>}
+                                      </div>
+                                    </div>
+                                  ))
+                                )}
+                              </div>
+                            </>
+                          )}
                         </div>
                       );
                     })}
-                  </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {stats.history_tickets?.filter((t) => t.status_cat === "done").map((t, i) => (
-                      <div key={i} style={{ ...cardS, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                        <a href={`${JIRA_BASE}/browse/${t.key}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", textDecoration: "none" }}>{t.key}</a>
-                        <span style={{ flex: 1, fontSize: 12, color: text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.summary}</span>
-                        {t.sp > 0 && <span style={{ fontSize: 11, fontWeight: 800, color: "#8B5CF6" }}>{t.sp} SP</span>}
-                        {t.lead_time && <span style={{ fontSize: 10, color: muted }}>⏱ {t.lead_time}d</span>}
-                      </div>
-                    ))}
                   </div>
                 </div>
               )}
 
               {tab === "metrics" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  
+                  <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: -4 }}>
+                    <select 
+                      value={period} 
+                      onChange={(e) => setPeriod(e.target.value)} 
+                      style={{ ...inp, width: "auto", padding: "4px 8px", background: card, fontWeight: 600 }}
+                    >
+                      <option value="last_3">Últimos 3 sprints</option>
+                      <option value="Q1 2026">Q1 2026</option>
+                      <option value="Q2 2026">Q2 2026</option>
+                      <option value="Q3 2026">Q3 2026</option>
+                      <option value="Q4 2026">Q4 2026</option>
+                    </select>
+                  </div>
+
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 12 }}>
                     {[
                       { label: "Velocidad promedio", val: `${stats.avg_velocity} SP`, icon: "⚡", color: "#3B82F6" },
-                      { label: "Lead time promedio", val: stats.avg_lead_time ? `${stats.avg_lead_time} días` : "—", icon: "⏱", color: "#F59E0B" },
-                      { label: "Total tickets", val: stats.history_tickets?.length, icon: "🎫", color: "#8B5CF6" },
+                      { label: "Predictibilidad", val: `${stats.predictability_pct || 0}%`, icon: "🎯", color: "#22C55E" },
+                      { label: "Cycle time promedio", val: stats.avg_cycle_time ? `${stats.avg_cycle_time} días` : "—", icon: "⏳", color: "#F59E0B" },
+                      { label: "Total SP entregados", val: `${stats.total_sp_delivered || 0} SP`, icon: "🏆", color: "#8B5CF6" },
+                      { label: "Tickets completados", val: stats.history_tickets?.filter(t => t.status_cat === 'done').length || 0, icon: "🎫", color: "#06B6D4" },
+                      { label: "Bugs abiertos", val: stats.bugs_in_progress || 0, icon: "🐛", color: "#EF4444" },
                     ].map((k, i) => (
                       <div key={i} style={{ ...cardS, textAlign: "center", padding: "20px 16px" }}>
                         <div style={{ fontSize: 28, marginBottom: 6 }}>{k.icon}</div>
@@ -199,12 +282,26 @@ function PersonDetail({ person, T, onClose }) {
                       </div>
                     ))}
                   </div>
+
+                  {Object.keys(stats.type_distribution || {}).length > 0 && (
+                    <div style={{ ...cardS, marginTop: 8 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: text, marginBottom: 12 }}>Distribución de Trabajo (Tipos)</div>
+                      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                        {Object.entries(stats.type_distribution).map(([t, count], i) => (
+                          <div key={i} style={{ padding: "6px 12px", background: bg, borderRadius: 8, border: `1px solid ${border}`, fontSize: 11, fontWeight: 600 }}>
+                            <span style={{ color: TYPE_COLOR[t] || muted, marginRight: 6 }}>●</span>
+                            <span style={{ color: text }}>{t}:</span> <span style={{ color: muted }}>{count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                 </div>
               )}
             </>
           )}
         </div>
-      </div>
     </div>
   );
 }
@@ -223,10 +320,6 @@ export function TeamView({ T }) {
   const [editAbsencePerson, setEditAbsencePerson] = useState(null);
   const [personForm, setPersonForm] = useState({ name: "", team: "Back", role: "Developer", birthday: "" });
   const [absenceForm, setAbsenceForm] = useState({ type: "vacation", start_date: "", end_date: "", notes: "" });
-  const [activeTab, setActiveTab] = useState("people");
-  const [availRange, setAvailRange] = useState({ start: "", end: "", team: "Todos" });
-  const [availability, setAvailability] = useState([]);
-  const [loadingAvail, setLoadingAvail] = useState(false);
 
   const today = new Date().toISOString().slice(0, 10);
   const inp = { padding: "8px 10px", borderRadius: 6, border: `1px solid ${border}`, background: input || bg, color: text, fontSize: 12, boxSizing: "border-box", outline: "none", width: "100%" };
@@ -245,7 +338,7 @@ export function TeamView({ T }) {
     if (!personForm.name) return;
     try {
       if (editPerson) {
-        await fetch(`${API}/people/${editPerson.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...personForm, absences: editPerson.absences || [] }) });
+        await fetch(`${API}/people/${editPerson.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...personForm, absences: editPerson.absences || [], jira_name: editPerson.jira_name }) });
       } else {
         await fetch(`${API}/people/`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(personForm) });
       }
@@ -276,31 +369,26 @@ export function TeamView({ T }) {
     await loadPeople();
   }
 
-  async function loadAvailability() {
-    if (!availRange.start || !availRange.end) return;
-    setLoadingAvail(true);
-    try {
-      const teamParam = availRange.team === "Todos" ? "" : availRange.team;
-      const data = await fetch(`${API}/people/availability?start=${availRange.start}&end=${availRange.end}${teamParam ? `&team=${teamParam}` : ""}`).then(r => r.json());
-      setAvailability(data);
-    } catch (e) { console.error(e); }
-    setLoadingAvail(false);
-  }
-
-  const filteredPeople = filterTeam === "Todos" ? people : people.filter(p => p.team === filterTeam);
   const absentToday = people.filter(p => p.absences?.some(a => a.start_date <= today && today <= a.end_date));
+  const filteredPeople = people.filter(p => {
+    if (filterTeam === "Todos") return true;
+    if (filterTeam === "Back") return p.team === "Back";
+    if (filterTeam === "Datos") return p.team === "Datos";
+    if (filterTeam === "Ausentes") return p.absences?.some(a => a.start_date <= today && today <= a.end_date);
+    return true;
+  });
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-      {/* KPIs */}
+      {/* KPIs como Filtros */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16 }}>
         {[
-          { label: "Total personas", value: people.length, color: "#3B82F6", icon: "👥" },
-          { label: "Equipo Back", value: people.filter(p => p.team === "Back").length, color: "#8B5CF6", icon: "⚙️" },
-          { label: "Equipo Datos", value: people.filter(p => p.team === "Datos").length, color: "#06B6D4", icon: "📊" },
-          { label: "Ausentes hoy", value: absentToday.length, color: absentToday.length > 0 ? "#EF4444" : "#22C55E", icon: "🏖️" },
+          { id: "Todos", label: "Total personas", value: people.length, color: "#3B82F6", icon: "👥" },
+          { id: "Back", label: "Equipo Back", value: people.filter(p => p.team === "Back").length, color: "#8B5CF6", icon: "⚙️" },
+          { id: "Datos", label: "Equipo Datos", value: people.filter(p => p.team === "Datos").length, color: "#06B6D4", icon: "📊" },
+          { id: "Ausentes", label: "Ausentes hoy", value: absentToday.length, color: absentToday.length > 0 ? "#EF4444" : "#22C55E", icon: "🏖️" },
         ].map((k, i) => (
-          <div key={i} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 16 }}>
+          <div key={i} onClick={() => setFilterTeam(k.id)} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 16, cursor: "pointer", border: filterTeam === k.id ? `2px solid ${k.color}` : `1px solid ${border}`, background: filterTeam === k.id ? k.color + "11" : card, transition: "all 0.2s" }}>
             <div style={{ fontSize: 28 }}>{k.icon}</div>
             <div>
               <div style={{ fontSize: 26, fontWeight: 800, color: k.color, letterSpacing: -1 }}>{k.value}</div>
@@ -310,37 +398,25 @@ export function TeamView({ T }) {
         ))}
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <div style={{ display: "flex", background: bg, borderRadius: 8, padding: 3 }}>
-          {[["people", "👥 Personas"], ["availability", "📅 Disponibilidad"]].map(([v, l]) => (
-            <button key={v} onClick={() => setActiveTab(v)} style={{ padding: "7px 16px", borderRadius: 6, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, background: activeTab === v ? "#3B82F6" : "transparent", color: activeTab === v ? "#fff" : muted }}>{l}</button>
-          ))}
-        </div>
-        {activeTab === "people" && (
-          <>
-            <div style={{ display: "flex", gap: 6, marginLeft: 8 }}>
-              {["Todos", ...TEAMS].map(t => (
-                <button key={t} onClick={() => setFilterTeam(t)} style={{ padding: "5px 12px", borderRadius: 20, border: `1px solid ${filterTeam === t ? "#3B82F6" : border}`, background: filterTeam === t ? "#3B82F6" : "transparent", color: filterTeam === t ? "#fff" : muted, fontSize: 11, fontWeight: 600, cursor: "pointer" }}>{t}</button>
-              ))}
-            </div>
-            <button onClick={() => { setEditPerson(null); setPersonForm({ name: "", team: "Back", role: "Developer", birthday: "" }); setShowPersonModal(true); }}
-              style={{ marginLeft: "auto", padding: "7px 16px", borderRadius: 8, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
-              + Persona
-            </button>
-          </>
-        )}
+      {/* Toolbar */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
+        <button onClick={() => { setEditPerson(null); setPersonForm({ name: "", team: "Back", role: "Developer", birthday: "" }); setShowPersonModal(true); }}
+          style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+          + Persona
+        </button>
       </div>
 
-      {/* Lista personas */}
-      {activeTab === "people" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      {/* Main Layout: Lista y Panel Lateral */}
+      <div style={{ display: "flex", gap: 20, alignItems: "flex-start", position: "relative" }}>
+        
+        {/* Columna Izquierda: Lista personas */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: selectedPerson ? "0 0 calc(100% - 600px)" : 1, transition: "flex 0.4s cubic-bezier(0.4, 0, 0.2, 1)", minWidth: 0 }}>
           {filteredPeople.length === 0 && <div style={{ ...cardStyle, textAlign: "center", padding: 48, color: muted }}>No hay personas cargadas aún.</div>}
           {filteredPeople.map(person => {
             const absentNow = person.absences?.find(a => a.start_date <= today && today <= a.end_date);
             const teamColor = person.team === "Back" ? "#8B5CF6" : "#06B6D4";
             return (
-              <div key={person.id} style={{ ...cardStyle, cursor: "pointer" }} onClick={() => setSelectedPerson(person)}>
+              <div key={person.id} style={{ ...cardStyle, cursor: "pointer", border: selectedPerson?.id === person.id ? `2px solid ${teamColor}` : `1px solid ${border}` }} onClick={() => setSelectedPerson(person)}>
                 <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
                   <div style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, background: teamColor + "20", border: `2px solid ${teamColor}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, color: teamColor }}>
                     {person.name.charAt(0).toUpperCase()}
@@ -381,61 +457,24 @@ export function TeamView({ T }) {
               </div>
             );
           })}
-        </div>
-      )}
+      </div>
 
-      {/* Disponibilidad */}
-      {activeTab === "availability" && (
-        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <div style={{ ...cardStyle, display: "flex", gap: 12, alignItems: "flex-end", flexWrap: "wrap" }}>
-            {[["Desde", "start"], ["Hasta", "end"]].map(([label, key]) => (
-              <div key={key} style={{ flex: 1, minWidth: 120 }}>
-                <label style={{ fontSize: 11, color: muted, fontWeight: 600, display: "block", marginBottom: 4 }}>{label}</label>
-                <input type="date" value={availRange[key]} onChange={(e) => setAvailRange(r => ({ ...r, [key]: e.target.value }))} style={inp} />
-              </div>
-            ))}
-            <div style={{ flex: 1, minWidth: 120 }}>
-              <label style={{ fontSize: 11, color: muted, fontWeight: 600, display: "block", marginBottom: 4 }}>Equipo</label>
-              <select value={availRange.team} onChange={(e) => setAvailRange(r => ({ ...r, team: e.target.value }))} style={inp}>
-                {["Todos", ...TEAMS].map(t => <option key={t}>{t}</option>)}
-              </select>
-            </div>
-            <button onClick={loadAvailability} disabled={loadingAvail} style={{ padding: "8px 20px", borderRadius: 8, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", opacity: loadingAvail ? 0.7 : 1 }}>
-              {loadingAvail ? "Cargando..." : "Ver disponibilidad"}
-            </button>
-          </div>
-          {availability.length > 0 && (
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(7,1fr)", gap: 6 }}>
-              {availability.map((day, i) => {
-                const pct = day.total > 0 ? day.available / day.total : 1;
-                const color = pct >= 0.8 ? "#22C55E" : pct >= 0.5 ? "#F97316" : "#EF4444";
-                const isWknd = [0, 6].includes(new Date(day.date + "T12:00:00").getDay());
-                return (
-                  <div key={i} style={{ background: card, border: `1px solid ${isWknd ? border : color + "60"}`, borderRadius: 8, padding: "8px 10px", opacity: isWknd ? 0.5 : 1 }}>
-                    <div style={{ fontSize: 9, color: muted, fontWeight: 600 }}>{new Date(day.date + "T12:00:00").toLocaleDateString("es-AR", { weekday: "short" })}</div>
-                    <div style={{ fontSize: 12, fontWeight: 800, color: text }}>{new Date(day.date + "T12:00:00").toLocaleDateString("es-AR", { day: "numeric", month: "short" })}</div>
-                    {!isWknd && (
-                      <>
-                        <div style={{ fontSize: 18, fontWeight: 800, color, marginTop: 4 }}>{day.available}<span style={{ fontSize: 10, color: muted }}>/{day.total}</span></div>
-                        {day.unavailable?.length > 0 && (
-                          <div style={{ marginTop: 4 }}>
-                            {day.unavailable.map((u, ui) => (
-                              <div key={ui} style={{ fontSize: 8, color: "#EF4444", fontWeight: 600 }}>{ABSENCE_TYPES[u.type]?.icon} {u.name}</div>
-                            ))}
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* PersonDetail */}
-      {selectedPerson && <PersonDetail person={selectedPerson} T={T} onClose={() => setSelectedPerson(null)} />}
+      {/* Columna Derecha: Panel Fijo */}
+      <div style={{ 
+        width: selectedPerson ? 580 : 0, 
+        opacity: selectedPerson ? 1 : 0, 
+        overflow: "hidden", 
+        transition: "all 0.4s cubic-bezier(0.4, 0, 0.2, 1)",
+        position: "sticky",
+        top: 20,
+        maxHeight: "calc(100vh - 40px)",
+        display: "flex",
+        flexDirection: "column",
+        flexShrink: 0
+      }}>
+        {selectedPerson && <PersonDetail person={selectedPerson} T={T} onClose={() => setSelectedPerson(null)} onSaved={loadPeople} />}
+      </div>
+    </div>
 
       {/* Modal Persona */}
       {showPersonModal && (

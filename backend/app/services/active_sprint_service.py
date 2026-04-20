@@ -1,5 +1,5 @@
 from app.core.jira_client import JiraClient
-from app.services.sprint_helpers import get_story_points, calc_lead_time_days, get_sprint_label
+from app.services.sprint_helpers import get_story_points, calc_lead_time_days, calc_cycle_time_days, get_sprint_label
 from dateutil import parser as dateparser
 from datetime import datetime, timezone
 
@@ -162,7 +162,8 @@ async def get_active_sprint_data(client: JiraClient, board_id: int, team: str) -
         sprint_id,
         fields=["summary", "status", "assignee", "customfield_10006",
                 "issuetype", "created", "resolutiondate", "priority",
-                "customfield_10002", "issuelinks", "parent", "subtasks"]
+                "customfield_10002", "issuelinks", "parent", "subtasks"],
+        expand="changelog"
     )
 
     # Separar principales y subtareas
@@ -185,6 +186,7 @@ async def get_active_sprint_data(client: JiraClient, board_id: int, team: str) -
             sp = get_story_points(issue)
             status_cat = _status_category(issue)
             lt = calc_lead_time_days(issue) if status_cat == "done" else _days_in_progress(issue)
+            ct = calc_cycle_time_days(issue)
             main_tickets.append({
                 "key": issue["key"],
                 "summary": issue["fields"].get("summary", "")[:80],
@@ -197,6 +199,7 @@ async def get_active_sprint_data(client: JiraClient, board_id: int, team: str) -
                 "epic_link": _epic_link(issue),
                 "issue_links": _issue_links(issue),
                 "lead_time_days": lt,
+                "cycle_time_days": ct,
                 "subtasks": [],  # se llena abajo
             })
 
@@ -213,6 +216,9 @@ async def get_active_sprint_data(client: JiraClient, board_id: int, team: str) -
 
     lead_times = [t["lead_time_days"] for t in main_tickets if t["status_category"] == "done" and t["lead_time_days"]]
     avg_lead_time = round(sum(lead_times) / len(lead_times), 1) if lead_times else None
+
+    cycle_times = [t["cycle_time_days"] for t in main_tickets if t["status_category"] == "done" and t["cycle_time_days"]]
+    avg_cycle_time = round(sum(cycle_times) / len(cycle_times), 1) if cycle_times else None
 
     all_sprints = await client.get_sprints(board_id, state="closed", team=team)
     all_sprints_sorted = sorted(all_sprints, key=lambda s: s.get("startDate", ""))
@@ -343,6 +349,7 @@ async def get_active_sprint_data(client: JiraClient, board_id: int, team: str) -
             "todo_points": todo_sp,
             "completion_pct": round(done_sp / total_sp * 100, 1) if total_sp else 0,
             "avg_lead_time_days": avg_lead_time,
+            "avg_cycle_time_days": avg_cycle_time,
             "carry_over_from_prev": carry_over_pts,
         },
         "tickets": main_tickets,

@@ -36,6 +36,7 @@ class PersonIn(BaseModel):
     role: str
     birthday: Optional[str] = None
     absences: Optional[list] = []
+    jira_name: Optional[str] = None
 
 @router.get("/")
 async def get_people(team: Optional[str] = None):
@@ -128,8 +129,14 @@ async def get_availability(start: str, end: str, team: Optional[str] = None):
 # ── Endpoint de stats por persona desde Jira ─────────────────────────────────
 
 @router.get("/{person_id}/stats")
-async def get_person_stats_endpoint(person_id: str, team: Optional[str] = None):
-    """Stats de Jira para una persona: sprint activo + últimos 3 cerrados."""
+async def get_person_stats_endpoint(
+    person_id: str,
+    team: Optional[str] = None,
+    last_n: Optional[int] = None,
+    quarter: Optional[int] = None,
+    year: Optional[int] = None,
+):
+    """Stats de Jira para una persona: sprint activo + historial según período."""
     people = _load()
     person = next((p for p in people if p["id"] == person_id), None)
     if not person:
@@ -142,7 +149,7 @@ async def get_person_stats_endpoint(person_id: str, team: Optional[str] = None):
         from app.core.jira_client import JiraClient
         from app.services.person_stats_service import get_person_stats
         client = JiraClient()
-        return await get_person_stats(client, jira_name, team_name)
+        return await get_person_stats(client, jira_name, team_name, last_n=last_n, quarter=quarter, year=year)
     except Exception as e:
         raise HTTPException(500, f"Error fetching Jira stats: {str(e)}")
 

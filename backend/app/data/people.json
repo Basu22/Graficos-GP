@@ -1,10 +1,155 @@
 [
   {
-    "id": "117a0c95-df7a-4392-974b-1668671cd308",
+    "id": "ee870fb6-7678-4516-b0c4-29ae6c8b9324",
     "name": "Carlos Quinteros",
     "team": "Back",
     "role": "Tech Lead",
     "birthday": "",
-    "absences": []
+    "absences": [],
+    "jira_name": "Carlos Quinteros"
+  },
+  {
+    "id": "37a10dd7-8647-4290-b2ff-fe84f8f6eacf",
+    "name": "Alejandro Lo Preiato",
+    "team": "Back",
+    "role": "QA",
+    "birthday": "",
+    "absences": [],
+    "jira_name": "Alejandro Humberto Lo Preiato"
+  },
+  {
+    "id": "77ad6dd4-3219-44c7-a555-d5ae6fbaa4a7",
+    "name": "Maria Teresa Bravo",
+    "team": "Back",
+    "role": "Developer",
+    "birthday": "",
+    "absences": [],
+    "jira_name": "Maria Teresa Bravo"
+  },
+  {
+    "id": "0705db23-ce84-4b24-a6e6-7e7dc664718b",
+    "name": "Axel Gimenez",
+    "team": "Back",
+    "role": "Developer",
+    "birthday": "",
+    "absences": [],
+    "jira_name": "Axel Gimenez"
+  },
+  {
+    "id": "0ebb1048-7d9f-4a8d-a770-a7a06b3a47b8",
+    "name": "Diego Agudo",
+    "team": "Back",
+    "role": "Developer",
+    "birthday": "",
+    "absences": [],
+    "jira_name": "Diego Osvaldo Agudo"
+  },
+  {
+    "id": "c259621e-bcd6-4fe4-8052-94a6c75e0fea",
+    "name": "Matias Abossio",
+    "team": "Back",
+    "role": "Developer",
+    "birthday": "",
+    "absences": [],
+    "jira_name": "Matias Hernan Abossio Gonzalez"
+  },
+  {
+    "id": "c2653eab-c3ac-40d6-b449-c867fe09359e",
+    "name": "Facundo Guerrero",
+    "team": "Back",
+    "role": "Developer",
+    "birthday": "",
+    "absences": [],
+    "jira_name": "Facundo Guerrero"
+  },
+  {
+    "id": "03341184-e4fc-4961-8525-8431c3276f6b",
+    "name": "Fernando Mesa",
+    "team": "Back",
+    "role": "Developer",
+    "birthday": "",
+    "absences": [],
+    "jira_name": "Fernando Gaston Mesa"
+  },
+  {
+    "id": "dc79d014-f2f5-4d3b-bea3-152f433f4287",
+    "name": "Ezequiel Watkings",
+    "team": "Back",
+    "role": "Developer",
+    "birthday": "",
+    "absences": [],
+    "jira_name": "Ezequiel Luna Watkins"
+  },
+  {
+    "id": "6316c9ab-1bc6-4bf8-9872-e9dea8392cca",
+    "name": "Gustavo Vera",
+    "team": "Back",
+    "role": "QA",
+    "birthday": "",
+    "absences": [],
+    "jira_name": "Gustavo Vera Maurera"
+  },
+  {
+    "id": "5c53408d-dff7-4a9c-bac1-612537c0a85e",
+    "name": "Mariana Garcia de Weert",
+    "team": "Back",
+    "role": "Developer",
+    "birthday": "",
+    "absences": [],
+    "jira_name": null
+  },
+  {
+    "id": "334a1131-75ba-472d-a90e-00bbfea6674d",
+    "name": "Ricardo Farias",
+    "team": "Back",
+    "role": "Developer",
+    "birthday": "",
+    "absences": [],
+    "jira_name": null
+  },
+  {
+    "id": "f8c79ead-9f5b-4b2e-a96b-e4db91b2e20d",
+    "name": "Alejandro Schwegler",
+    "team": "Datos",
+    "role": "Tech Lead",
+    "birthday": "",
+    "absences": [],
+    "jira_name": null
+  },
+  {
+    "id": "5b090c1b-5fa1-488a-a8d8-2b72038f534f",
+    "name": "Edgardo Jovanovich",
+    "team": "Datos",
+    "role": "Data Engineer",
+    "birthday": "",
+    "absences": [],
+    "jira_name": "Edgardo Jovanovich"
+  },
+  {
+    "id": "f7a0ccf0-c1c3-4bb0-84fb-973976ecbe9f",
+    "name": "Marcos Royett",
+    "team": "Datos",
+    "role": "Data Engineer",
+    "birthday": "",
+    "absences": [],
+    "jira_name": "Marcos Royett"
+  },
+  {
+    "id": "b4a48203-d30f-4d69-82d8-38c3565c3a79",
+    "name": "Thiago Pacheco",
+    "team": "Datos",
+    "role": "Data Engineer",
+    "birthday": "",
+    "absences": [],
+    "jira_name": null
+  },
+  {
+    "id": "264718f9-0889-40b7-b816-9287bf57a029",
+    "name": "Tomas Agostino",
+    "team": "Datos",
+    "role": "Data Engineer",
+    "birthday": "",
+    "absences": [],
+    "jira_name": "Tomas Agostino"
   }
 ]

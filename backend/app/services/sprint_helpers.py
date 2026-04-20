@@ -81,6 +81,43 @@ def calc_lead_time_days(issue: dict) -> Optional[float]:
         return None
 
 
+def calc_cycle_time_days(issue: dict) -> Optional[float]:
+    fields = issue.get("fields", {})
+    resolved_str = fields.get("resolutiondate")
+    if not resolved_str:
+        return None
+        
+    changelog = issue.get("changelog", {})
+    if not changelog:
+        return None
+        
+    histories = changelog.get("histories", [])
+    in_progress_date = None
+    
+    # Buscar la primera vez que pasó a un estado de progreso
+    for history in sorted(histories, key=lambda h: h.get("created", "")):
+        for item in history.get("items", []):
+            if item.get("field") == "status":
+                to_string = item.get("toString", "").lower()
+                if any(x in to_string for x in ["progreso", "progress", "doing", "en curso", "started"]):
+                    try:
+                        in_progress_date = dateparser.parse(history["created"])
+                        break
+                    except Exception:
+                        pass
+        if in_progress_date:
+            break
+            
+    if not in_progress_date:
+        return None
+        
+    try:
+        resolved = dateparser.parse(resolved_str)
+        delta = (resolved - in_progress_date).total_seconds() / 86400
+        return round(delta, 2) if delta >= 0 else None
+    except Exception:
+        return None
+
 def parse_sprint_history(sprint_list: list[str]) -> list[dict]:
     """
     Parsea el formato horrible de JPA de Jira:
