@@ -79,3 +79,24 @@ def calc_lead_time_days(issue: dict) -> Optional[float]:
         return round(delta, 2) if delta >= 0 else None
     except Exception:
         return None
+
+
+def parse_sprint_history(sprint_list: list[str]) -> list[dict]:
+    """
+    Parsea el formato horrible de JPA de Jira:
+    'com.atlassian.greenhopper.service.sprint.Sprint@...[id=1628,name=Sprint 51,...]'
+    """
+    import re
+    parsed = []
+    for s_str in (sprint_list or []):
+        try:
+            sid_match = re.search(r"id=(\d+)", s_str)
+            name_match = re.search(r"name=([^,\]]+)", s_str)
+            if sid_match and name_match:
+                parsed.append({
+                    "id": int(sid_match.group(1)),
+                    "name": name_match.group(1).strip()
+                })
+        except Exception:
+            continue
+    return parsed

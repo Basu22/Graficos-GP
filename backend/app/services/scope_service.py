@@ -5,45 +5,26 @@ from app.services.sprint_helpers import get_sprint_label, get_story_points
 
 async def get_scope_change(client: JiraClient, board_id: int, sprint_ids: list[int], sprints_info: list) -> ScopeChangeResponse:
     """
-    Scope Change = diferencia entre puntos comprometidos al inicio del sprint
-    vs. puntos totales al cierre (incluyendo issues agregados).
-    Aproximación: committed_initial = issues con fecha created <= sprint.startDate
-    scope_change = total_committed - committed_initial
+    Scope Change simplificado: reutiliza el cálculo del motor de hidratación central (metrics.py).
+    Esto garantiza consistencia absoluta entre todos los gráficos.
     """
+    from app.services.sprint_helpers import get_sprint_label
+
     points = []
+    # Filtrar solo los sprints solicitados y ordenarlos por fecha de inicio
+    target_sprints = sorted(
+        [s for s in sprints_info if s["id"] in sprint_ids], 
+        key=lambda s: s.get("startDate", "")
+    )
 
-    for sprint in sprints_info:
-        if sprint["id"] not in sprint_ids:
-            continue
-
-        issues = await client.get_issues_for_sprint(sprint["id"])
-        label = get_sprint_label(sprint)
-
-        start_date = sprint.get("startDate", "")
-        total_committed = sum(get_story_points(i) for i in issues)
-
-        # Issues que existían antes o al inicio del sprint
-        committed_initial = total_committed  # fallback
-        if start_date:
-            from dateutil import parser as dp
-            try:
-                sprint_start = dp.parse(start_date)
-                committed_initial = sum(
-                    get_story_points(i) for i in issues
-                    if dp.parse(i["fields"].get("created", start_date)) <= sprint_start
-                )
-            except Exception:
-                pass
-
-        scope_change = round(total_committed - committed_initial, 1)
-
+    for sprint in target_sprints:
         points.append(ScopeChangePoint(
             sprint_id=sprint["id"],
             sprint_name=sprint["name"],
-            sprint_label=label,
-            committed_initial=committed_initial,
-            scope_change=scope_change,
+            sprint_label=get_sprint_label(sprint),
+            committed_initial=sprint.get("committed", 0.0),
+            scope_change=sprint.get("scope_change", 0.0),
         ))
 
-    total_creep = round(sum(p.scope_change for p in points if p.scope_change > 0), 1)
+    total_creep = round(sum(p.scope_change for p in points), 1)
     return ScopeChangeResponse(data=points, total_scope_creep=total_creep)

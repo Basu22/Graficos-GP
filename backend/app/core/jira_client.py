@@ -148,6 +148,24 @@ class JiraClient:
         data = await self._get(url, params)
         return data.get("velocityStatEntries", {})
 
+    async def get_statuses_map(self) -> dict:
+        """Mapeo global de ID -> {name, category}"""
+        url = f"{self.base_url}/rest/api/2/status"
+        data = await self._get(url)
+        return {s["id"]: {"name": s["name"], "category": s.get("statusCategory", {}).get("key", "todo")} for s in data}
+
+    async def get_priorities_map(self) -> dict:
+        """Mapeo global de ID -> name"""
+        url = f"{self.base_url}/rest/api/2/priority"
+        data = await self._get(url)
+        return {p["id"]: p["name"] for p in data}
+
+    async def get_issuetypes_map(self) -> dict:
+        """Mapeo global de ID -> name"""
+        url = f"{self.base_url}/rest/api/2/issuetype"
+        data = await self._get(url)
+        return {t["id"]: t["name"] for t in data}
+
 
 async def get_jira_client():
     yield JiraClient()

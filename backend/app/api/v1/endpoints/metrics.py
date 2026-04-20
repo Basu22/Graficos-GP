@@ -62,27 +62,66 @@ async def _resolve_sprints(
     
     def get_sum_value(stat_dict):
         if not stat_dict: return 0.0
-        # Estos sumadores globales vienen directamente con "value" (ej: {'value': 25.0, 'text': '25.0'})
         try: return float(stat_dict.get("value", 0) or 0)
         except (ValueError, TypeError): return 0.0
 
+    def get_current_points(issue):
+        # Ayudante para la foto actual
+        stat = issue.get("currentEstimateStatistic")
+        if not stat: return 0.0
+        val = stat.get("statFieldValue")
+        if not val: return 0.0
+        try: return float(val.get("value", 0) or 0)
+        except (ValueError, TypeError): return 0.0
+
+    def get_initial_points(issue):
+        # Ayudante para la foto inicial real del sprint
+        stat = issue.get("estimateStatistic")
+        if not stat: return 0.0
+        val = stat.get("statFieldValue")
+        if not val: return 0.0
+        try: return float(val.get("value", 0) or 0)
+        except (ValueError, TypeError): return 0.0
+
     async def hydrate_sprint(sprint):
-        sprint_str_id = str(sprint["id"])
-        
-        if sprint_str_id in velocity_chart:
-            v_data = velocity_chart[sprint_str_id]
-            sprint["committed"] = float(v_data.get("estimated", {}).get("value", 0) or 0)
-            sprint["delivered"] = float(v_data.get("completed", {}).get("value", 0) or 0)
-        else:
-            # Rescate histórico para Sprints que Jira expulsó del gráfico de velocidad
-            try:
-                rep = await client.get_sprint_report(board_id, sprint["id"])
-                contents = rep.get("contents", {})
-                sprint["committed"] = get_sum_value(contents.get("allIssuesEstimateSum"))
-                sprint["delivered"] = get_sum_value(contents.get("completedIssuesEstimateSum"))
-            except Exception:
-                sprint["committed"] = 0.0
-                sprint["delivered"] = 0.0
+        try:
+            # Para las métricas de Velocity/Predictibilidad, siempre usamos el cálculo granular
+            # basado en la "Fórmula de Oro" (Completos+Pendientes+Eliminados - Deltas)
+            rep = await client.get_sprint_report(board_id, sprint["id"])
+            contents = rep.get("contents", {})
+            added_keys = contents.get("issueKeysAddedDuringSprint", {})
+
+            # 1. Mapear issues para calcular deltas
+            completed = contents.get("completedIssues", [])
+            pending = contents.get("issuesNotCompletedInCurrentSprint", [])
+            punted = contents.get("puntedIssues", [])
+
+            def calculate_scope_creep(issue_list):
+                creep = 0.0
+                for i in issue_list:
+                    key = i.get("key", "")
+                    curr = get_current_points(i)
+                    # Si es agregado o no tiene foto inicial, asumimos 0 inicial
+                    init = 0.0 if added_keys.get(key) else get_initial_points(i)
+                    creep += max(0, curr - init)
+                return creep
+
+            # 2. Totales Finales
+            comp_pts = get_sum_value(contents.get("completedIssuesEstimateSum"))
+            pend_pts = get_sum_value(contents.get("issuesNotCompletedEstimateSum"))
+            punted_pts = get_sum_value(contents.get("puntedIssuesEstimateSum"))
+            
+            # 3. Scope Creep Total
+            total_creep = calculate_scope_creep(completed) + calculate_scope_creep(pending)
+            
+            # 4. Formula de Oro
+            sprint["committed"] = max(0, (comp_pts + pend_pts + punted_pts) - total_creep)
+            sprint["delivered"] = comp_pts
+            sprint["scope_change"] = total_creep
+            
+        except Exception:
+            sprint["committed"] = 0.0
+            sprint["delivered"] = 0.0
         return sprint
 
     populated_filtered = await asyncio.gather(*(hydrate_sprint(s) for s in filtered))

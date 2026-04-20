@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 
 
 # ── Sprint base ──────────────────────────────────────────────────────────────
@@ -124,15 +124,24 @@ class SprintIssue(BaseModel):
     status: str
     status_category: str  # "done", "todo", "indeterminate"
     points: Optional[float] = 0.0
+    initial_points: Optional[float] = 0.0
+    added_during_sprint: bool = False
+    is_carry_over: bool = False
+    origin_sprint: Optional[str] = None
 
 
 class SprintReportResponse(BaseModel):
     sprint: SprintInfo
-    completed_issues: list[SprintIssue]
-    not_completed_issues: list[SprintIssue]
-    punted_issues: list[SprintIssue]  # Sacados del sprint
+    completed_issues: List[SprintIssue]
+    not_completed_issues: List[SprintIssue]
+    punted_issues: List[SprintIssue]
+    completed_outside_issues: List[SprintIssue] = []
     completed_points: float
     not_completed_points: float
+    punted_points: float = 0.0
+    initial_committed_points: float = 0.0
+    scope_change_points: float = 0.0
+    total_carry_over_points: float = 0.0
     # Los datos del Burndown se enviarán como crudos de Greenhopper por ahora 
     # para dejar que el frontend maneje la línea de tiempo.
     burn_data: Optional[dict] = None
