@@ -1,4 +1,5 @@
-import React, { useState, createContext, useContext } from 'react';
+import React, { useState, useEffect, createContext, useContext } from 'react';
+import { buildHealthTableData } from '../utils/healthTable';
 
 // ─── SISTEMA DE TEMAS ────────────────────────────────────────────────────────
 const ThemeCtx = createContext(true); // true = dark
@@ -67,7 +68,7 @@ function Badge({ tag, extra }) {
 }
 
 // ─── TABLA: PRODUCTOS × BANCOS ───────────────────────────────────────────────
-function BankTable({ tableRows, banks }) {
+function BankTable({ tableRows, banks, ingestaInfo }) {
   const P = useP();
   if (!tableRows || tableRows.length === 0) return null;
   const fmt = v => new Intl.NumberFormat('es-AR').format(v);
@@ -106,11 +107,37 @@ function BankTable({ tableRows, banks }) {
             <th style={{ textAlign: 'left', padding: '7px 10px', color: P.headerText, fontWeight: 800, fontSize: 9, textTransform: 'uppercase', letterSpacing: 0.6 }}>
               Producto
             </th>
-            {(banks || []).map(b => (
-              <th key={b} style={{ textAlign: 'right', padding: '7px 8px', color: P.headerText, fontWeight: 800, fontSize: 9, letterSpacing: 0.6 }}>
-                {b}
-              </th>
-            ))}
+            {(banks || []).map(b => {
+              const bankInfo = ingestaInfo?.[b];
+              const isReproceso = bankInfo?.tipo === 'reproceso';
+              return (
+                <th key={b} style={{ textAlign: 'right', padding: '7px 8px', color: P.headerText, fontWeight: 800, fontSize: 9, letterSpacing: 0.6 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <span>{b}</span>
+                      {isReproceso && (
+                        <span 
+                          title={`Reproceso de las ${bankInfo?.hora || ''}`}
+                          style={{ display: 'inline-block', width: 5, height: 5, borderRadius: '50%', background: '#8B5CF6' }} 
+                        />
+                      )}
+                    </div>
+                    {bankInfo && (
+                      <div style={{ 
+                        fontSize: 7, 
+                        fontWeight: 900, 
+                        color: isReproceso ? '#8B5CF6' : '#10B981', 
+                        opacity: 0.9, 
+                        textTransform: 'uppercase',
+                        letterSpacing: 0.3
+                      }}>
+                        {isReproceso ? 'Reproc.' : '1er Serv.'}
+                      </div>
+                    )}
+                  </div>
+                </th>
+              );
+            })}
             <th style={{ textAlign: 'right', padding: '7px 8px', color: P.headerText, fontWeight: 800, fontSize: 9, letterSpacing: 0.6 }}>
               Total
             </th>
@@ -150,6 +177,13 @@ function BankTable({ tableRows, banks }) {
 function HealthBanner({ healthReport, loadingHealth }) {
   const P = useP();
   const [expanded, setExpanded] = useState(false);
+  const [viewDate, setViewDate] = useState(null);
+
+  useEffect(() => {
+    if (healthReport && healthReport.allDays && healthReport.allDays.length > 0) {
+      setViewDate(healthReport.allDays[0]);
+    }
+  }, [healthReport]);
 
   if (loadingHealth) return (
     <div style={{ borderRadius: 14, padding: 16, marginBottom: 16, background: P.card, border: `1px solid ${P.border}` }}>
@@ -171,21 +205,39 @@ function HealthBanner({ healthReport, loadingHealth }) {
     </div>
   );
 
-  const { tableRows, banks, hasAnyIssue, latestDate, previousDate, latestFrom, latestSnippet, aiAnalysis } = healthReport;
+  const { _rawDays, allDays, latestFrom, latestSnippet } = healthReport;
+  const { tableRows, hasAnyIssue, latestDate, previousDate, banks, ingestaInfo } = buildHealthTableData(_rawDays, allDays, viewDate);
+
   const semaforo = hasAnyIssue ? '🔴' : '🟢';
   const bgCard   = hasAnyIssue ? 'rgba(239,68,68,0.06)' : 'rgba(16,185,129,0.06)';
   const bdrCard  = hasAnyIssue ? 'rgba(239,68,68,0.25)' : 'rgba(16,185,129,0.22)';
 
+  const handleNavigate = (offset) => {
+    if (!allDays || allDays.length === 0) return;
+    const idx = allDays.indexOf(latestDate);
+    if (idx === -1) return;
+    const newIdx = idx + offset;
+    if (newIdx >= 0 && newIdx < allDays.length) {
+      setViewDate(allDays[newIdx]);
+    }
+  };
+
+  const isLatest = allDays && allDays.length > 0 ? allDays.indexOf(latestDate) === 0 : true;
+  const isOldest = allDays && allDays.length > 0 ? allDays.indexOf(latestDate) === allDays.length - 1 : true;
+
+  // Formatear fecha para el titulo (ej: "Lunes 13 de Abril")
+  const formattedDate = latestDate ? new Date(latestDate + "T12:00:00").toLocaleDateString('es-AR', { weekday: 'long', day: 'numeric', month: 'long' }) : '';
+
   return (
-    <div style={{ borderRadius: 14, padding: 16, marginBottom: 16, background: bgCard, border: `1px solid ${bdrCard}` }}>
+    <div style={{ borderRadius: 14, padding: 16, marginBottom: 16, background: bgCard, border: `1px solid ${bdrCard}`, position: 'relative', transition: 'all 0.3s ease' }}>
       <div onClick={() => setExpanded(e => !e)}
         style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', cursor: 'pointer', marginBottom: expanded ? 14 : 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ fontSize: 16 }}>{semaforo}</span>
           <div>
             <div style={{ fontSize: 12, fontWeight: 800, color: P.text }}>Monitor de Salud · Oferta Minorista</div>
-            <div style={{ fontSize: 9, color: P.muted }}>
-              {latestDate} vs {previousDate || 'N/A'} · {latestFrom?.split('<')[0]?.trim()}
+            <div style={{ fontSize: 9, color: P.muted, textTransform: 'capitalize' }}>
+              {expanded ? formattedDate : `${latestDate} vs ${previousDate || 'N/A'} · ${latestFrom?.split('<')[0]?.trim() || ''}`}
             </div>
           </div>
         </div>
@@ -193,24 +245,41 @@ function HealthBanner({ healthReport, loadingHealth }) {
       </div>
 
       {expanded && (
+        <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+          <button onClick={() => handleNavigate(1)} disabled={isOldest} 
+            style={{ cursor: isOldest ? 'default' : 'pointer', opacity: isOldest ? 0.3 : 1, background: 'transparent', border: 'none', color: P.text, fontSize: 14 }}>
+            ◀
+          </button>
+          <div style={{ fontSize: 11, fontWeight: 700, color: P.text, minWidth: 100, textAlign: 'center' }}>
+            {latestDate}
+          </div>
+          <button onClick={() => handleNavigate(-1)} disabled={isLatest}
+            style={{ cursor: isLatest ? 'default' : 'pointer', opacity: isLatest ? 0.3 : 1, background: 'transparent', border: 'none', color: P.text, fontSize: 14 }}>
+            ▶
+          </button>
+
+
+
+          {!isLatest && (
+            <button onClick={() => setViewDate(allDays[0])}
+              style={{ cursor: 'pointer', background: P.sectionBg, border: `1px solid ${P.border}`, color: P.text, fontSize: 9, fontWeight: 700, padding: '2px 8px', borderRadius: 4, marginLeft: 8 }}>
+              Hoy
+            </button>
+          )}
+        </div>
+      )}
+
+      {expanded && (
         <>
-          <BankTable tableRows={tableRows} banks={banks} />
-          {(latestSnippet || aiAnalysis) && (
+          <BankTable tableRows={tableRows} banks={banks} ingestaInfo={ingestaInfo} />
+          {(latestSnippet) && (
             <div style={{ borderTop: `1px solid ${P.border}`, paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10, marginTop: 4 }}>
               {latestSnippet && (
                 <div style={{ background: P.sectionBg, borderRadius: 8, padding: '8px 12px', border: `1px solid ${P.border}` }}>
                   <div style={{ fontSize: 9, fontWeight: 800, color: '#10B981', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>
-                    �� Análisis · {latestFrom?.split('<')[0]?.trim() || 'Reporte'}
+                    🧠 Análisis · {latestFrom?.split('<')[0]?.trim() || 'Reporte'}
                   </div>
                   <div style={{ fontSize: 11, color: P.muted, lineHeight: 1.6 }}>{latestSnippet}</div>
-                </div>
-              )}
-              {aiAnalysis && (
-                <div style={{ background: 'rgba(59,130,246,0.07)', borderRadius: 8, padding: '8px 12px', border: '1px solid rgba(59,130,246,0.18)' }}>
-                  <div style={{ fontSize: 9, fontWeight: 800, color: '#3B82F6', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 }}>
-                    ✨ Análisis IA — cruce con el inbox
-                  </div>
-                  <div style={{ fontSize: 11, color: P.text, lineHeight: 1.6 }}>{aiAnalysis}</div>
                 </div>
               )}
             </div>

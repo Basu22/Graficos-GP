@@ -465,10 +465,7 @@ PRODUCT_DEFS = [
         r"oferta tarjeta[\s\-–]+nc\b", r"tarjeta[\s\-–]+nc\b", r"\bnc\b"]},
 ]
 
-# ─── Caché del resultado del análisis (TTL 120 min) ─────────────────────────────
-# Aumentamos el TTL y simplificamos para que sea muy estable
-_health_cache: dict = {"data": None, "ts": 0.0, "fingerprint": ""}
-HEALTH_CACHE_TTL = 7200  # 2 horas
+from app.services.health_store import load_store, save_store, upsert_days, get_latest_date
 
 
 def _clean_num(s: str) -> int:
@@ -528,24 +525,17 @@ def _extract_date_from_subject(subject: str) -> str | None:
         return f"{y}-{mo.zfill(2)}-{d.zfill(2)}"
     return None
 
-def _calc_diff(curr, prev) -> float | None:
-    if not prev: return None
-    return round(((curr - prev) / prev) * 100, 1)
+
 
 
 @router.post("/health-report/sync")
 async def sync_health_report():
     """
-    Invalida la caché del Monitor de Salud para que el próximo
-    llamado a /health-report/analyze recalcule desde cero.
-    Se expone como botón independiente "Sync Salud" en el frontend,
-    separado del Sync del Smart Inbox.
+    Ya no borra el store. Simplemente confirma la petición.
+    La sincronización real ocurre en /health-report/analyze.
     """
-    _health_cache["data"]        = None
-    _health_cache["ts"]          = 0.0
-    _health_cache["fingerprint"] = ""
-    logger.info("[Health] Caché invalidada manualmente via Sync Salud")
-    return {"ok": True, "message": "Caché del Monitor de Salud invalidada. El próximo análisis recalculará desde Gmail."}
+    logger.info("[Health] Petición de sincronización recibida (Store protegido)")
+    return {"ok": True, "message": "Historial protegido. Iniciando análisis de mails nuevos..."}
 
 
 @router.post("/health-report/analyze")
@@ -599,15 +589,51 @@ async def analyze_health_reports(emails: list[dict]):
             t = _walk(part)
             if t.strip(): return t
         return ''
+ 
+    def _classify_ingesta(mail_timestamp_iso: str) -> dict:
+        """Determina tipo de ingesta según la hora del mail (UTC-3)."""
+        try:
+            # Manejar ISO strings con Z o offset
+            if not mail_timestamp_iso: return {"hora": "00:00:00", "tipo": "primer_servicio"}
+            dt = _dt.datetime.fromisoformat(mail_timestamp_iso.replace('Z', '+00:00'))
+            
+            # Convertir a hora local Argentina (UTC-3)
+            # Nota: astimezone maneja el offset correctamente si dt tiene tzinfo
+            local_dt = dt.astimezone(_dt.timezone(_dt.timedelta(hours=-3)))
+            h = local_dt.hour
+            
+            if 15 <= h < 19:
+                tipo = "primer_servicio"
+            elif h >= 22 or h < 6:
+                tipo = "reproceso"
+            else:
+                tipo = "primer_servicio" # fallback
+            return {"hora": local_dt.strftime("%H:%M:%S"), "tipo": tipo}
+        except Exception as e:
+            logger.warning(f"[Health] Error clasificando ingesta: {e}")
+            return {"hora": "00:00:00", "tipo": "primer_servicio"}
 
     try:
         creds = get_google_creds()
         if creds:
             _svc = _build('gmail', 'v1', credentials=creds)
+
+            # Determinar fecha de búsqueda según el último registro en JSON
+            latest = get_latest_date()
+            if not latest:
+                # Si no hay data, traemos los últimos 90 días (≈ 3 meses)
+                dt_after = _dt.datetime.utcnow() - _dt.timedelta(days=90)
+            else:
+                # Si hay data, retrocedemos 5 días para asegurar no perder nada retrasado
+                dt_latest = _dt.datetime.strptime(latest, "%Y-%m-%d")
+                dt_after = dt_latest - _dt.timedelta(days=5)
+            
+            after_date = dt_after.strftime("%Y/%m/%d")
+            
             _res = _svc.users().messages().list(
                 userId='me',
-                q=f"from:{OPERATIVA_SENDER} subject:detalle de ofertas",
-                maxResults=50, # Reducimos a los últimos 50 para velocidad
+                q=f"from:{OPERATIVA_SENDER} subject:detalle de ofertas after:{after_date}",
+                maxResults=100, # Delta rápido
             ).execute()
             for _m in _res.get('messages', []):
                 try:
@@ -683,16 +709,7 @@ async def analyze_health_reports(emails: list[dict]):
         all_by_id[m['id']] = m
     all_mails = list(all_by_id.values())
 
-    # ── FASE C: Caché de 60 min con fingerprint de IDs ───────────────────────────
-    fingerprint = hashlib.md5("".join(sorted(all_by_id.keys())).encode()).hexdigest()
-    now_ts = time.time()
-    if (
-        _health_cache["data"] is not None
-        and _health_cache["fingerprint"] == fingerprint
-        and (now_ts - _health_cache["ts"]) < HEALTH_CACHE_TTL
-    ):
-        logger.info(f"[Health] Cache hit — fingerprint={fingerprint[:8]}")
-        return _health_cache["data"]
+    # ── FASE C: Caché de 60 min con fingerprint de IDs (Eliminada por store JSON) ──
 
     # ── FASE D: Filtrar y clasificar ──────────────────────────────────────────────
     detail_mails, summary_mails = [], []
@@ -716,6 +733,7 @@ async def analyze_health_reports(emails: list[dict]):
             continue
         content  = f"{subj} {mail.get('snippet','') or ''} {mail.get('body','') or ''}"
         products = _extract_products_from_text(content)
+        products["info_ingesta"] = _classify_ingesta(mail.get("date", ""))
         if fdate not in days:
             days[fdate] = {}
         days[fdate][bank] = products
@@ -735,77 +753,19 @@ async def analyze_health_reports(emails: list[dict]):
                         if bm:
                             prods = _extract_products_from_text(bm.group(1))
                             if prods:
+                                prods["info_ingesta"] = _classify_ingesta(sm.get("date", ""))
                                 day_data[bank] = prods
                     except re.error:
                         pass
                 if day_data:
                     days[dk] = day_data
 
-    sorted_days = sorted(days.keys(), reverse=True)
+    # Actualizar store JSON con los nuevos datos obtenidos
+    full_store = upsert_days(days)
+    sorted_days = sorted(full_store.keys(), reverse=True)
+
     if not sorted_days:
-        return {"error": "no_reports_found", "message": "No se encontraron reportes de oferta en los ultimos 30 dias."}
-
-    latest_date = sorted_days[0]
-    prev_date   = sorted_days[1] if len(sorted_days) > 1 else None
-    latest_day  = days[latest_date].copy()
-    prev_day    = days[prev_date].copy() if prev_date else {}
-
-    # ── FASE F: Fallback por banco — último dato conocido si falta el mail ────────
-    # Si un banco no tiene datos en la fecha más reciente o la anterior,
-    # usamos el último registro histórico disponible para ese banco.
-    bank_history: dict[str, dict] = {}
-    for d in sorted_days:
-        for bank, prod_data in days[d].items():
-            if bank not in bank_history and prod_data:
-                bank_history[bank] = prod_data
-
-    bank_prev_history: dict[str, dict] = {}
-    for d in sorted_days[1:]:
-        for bank, prod_data in days[d].items():
-            if bank not in bank_prev_history and prod_data:
-                bank_prev_history[bank] = prod_data
-
-    for bank in BANKS:
-        if not latest_day.get(bank) and bank in bank_history:
-            latest_day[bank] = bank_history[bank]
-            logger.info(f"[Health] {bank}: sin datos el {latest_date}, usando último registro disponible")
-        if not prev_day.get(bank) and bank in bank_prev_history:
-            prev_day[bank] = bank_prev_history[bank]
-            logger.info(f"[Health] {bank}: sin datos previos, usando último registro previo disponible")
-
-    # Qué bancos no tenían mail propio en latest_date (usan dato de otro día) → ⚠️ en UI
-    fallback_banks: set[str] = {
-        bank for bank in BANKS
-        if bank not in days.get(latest_date, {}) and latest_day.get(bank)
-    }
-
-    logger.info(f"[Health] Comparando {latest_date} vs {prev_date} | fallback={fallback_banks}")
-
-
-
-    # Construir tabla filas=Producto, columnas=Banco
-    table_rows = []
-    has_any_issue = False
-    for prod_def in PRODUCT_DEFS:
-        pk = prod_def["key"]
-        row = {"key": pk, "label": prod_def["label"], "banks": {}, "total_current": 0, "total_previous": 0}
-        for bank in BANKS:
-            curr = (latest_day.get(bank) or {}).get(pk, 0)
-            prev = (prev_day.get(bank)   or {}).get(pk, 0)
-            diff = _calc_diff(curr, prev)
-            row["banks"][bank] = {
-                "current":    curr,
-                "previous":   prev,
-                "diff":       diff,
-                "isFallback": bank in fallback_banks,  # ⚠️ dato del día anterior
-            }
-            row["total_current"]  += curr
-            row["total_previous"] += prev
-        row["total_diff"] = _calc_diff(row["total_current"], row["total_previous"])
-        if row["total_diff"] is not None and row["total_diff"] < -5:
-            has_any_issue = True
-        if row["total_current"] > 0 or row["total_previous"] > 0:
-            table_rows.append(row)
+        return {"error": "no_reports_found", "message": "No se encontraron reportes de oferta."}
 
     # ── Extraer el snippet narrativo del Reporte Diario más reciente ─────────────
     # Los reportes vienen primero de la Fase A2, con fallback a los que mandó el frontend
@@ -870,44 +830,18 @@ async def analyze_health_reports(emails: list[dict]):
         latest_from    = _all_reportes[0].get("from", "")
         latest_snippet = (_all_reportes[0].get("snippet") or "")[:400]
 
-    # Analisis IA (Opcional, con timeout para evitar 502)
-    ai_analysis = None
-    try:
-        settings = get_settings()
-        if settings.gemini_api_key and table_rows:
-            genai.configure(api_key=settings.gemini_api_key)
-            # Solo 1 intento con el modelo más rápido
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            # 5 segundos o nada, prioridad absoluta a la carga de la tabla
-            resp = model.generate_content(prompt, request_options={"timeout": 5.0})
-            ai_analysis = resp.text.strip()
-            logger.info("[Health] IA exitosa (Flash)")
-    except Exception as e:
-        logger.warning(f"[Health] IA omitida por estabilidad: {e}")
-
-    except Exception as e:
-        logger.warning(f"[Health] IA fallo inesperado general: {e}")
-
     result = {
-        "latestDate":    latest_date,
-        "previousDate":  prev_date,
         "latestFrom":    latest_from,
         "latestSnippet": latest_snippet,
-        "tableRows":     table_rows,
         "banks":         BANKS,
-        "hasAnyIssue":   has_any_issue,
-        "aiAnalysis":    ai_analysis,
+        "allDays":       sorted_days,
+        "_rawDays":      full_store,
         "_debug": {
             "detailMailsFound":  len(detail_mails),
             "summaryMailsFound": len(summary_mails),
             "totalMailsCombined": len(all_mails),
-            "daysWithData":      sorted_days[:6],
-            "cacheFingerprint":  fingerprint[:8],
+            "daysWithData":      sorted_days[:6]
         }
     }
-    # Guardar en caché con el fingerprint actual
-    _health_cache["data"]        = result
-    _health_cache["ts"]          = now_ts
-    _health_cache["fingerprint"] = fingerprint
-    logger.info(f"[Health] Resultado guardado en caché — fingerprint={fingerprint[:8]}")
     return result
+
