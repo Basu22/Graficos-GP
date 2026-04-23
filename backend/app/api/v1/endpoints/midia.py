@@ -465,7 +465,7 @@ PRODUCT_DEFS = [
         r"oferta tarjeta[\s\-–]+nc\b", r"tarjeta[\s\-–]+nc\b", r"\bnc\b"]},
 ]
 
-from app.services.health_store import load_store, save_store, upsert_days, get_latest_date
+from app.services.health_store import load_store, save_store, upsert_days, get_latest_date, save_daily_comment
 
 
 def _clean_num(s: str) -> int:
@@ -844,4 +844,30 @@ async def analyze_health_reports(emails: list[dict]):
         }
     }
     return result
+
+class CommentBody(BaseModel):
+    date: str
+    bank: str
+    comment: str
+
+@router.post("/health-report/comment")
+async def post_health_comment(body: CommentBody):
+    """Guarda un comentario analítico en el store."""
+    ok = save_daily_comment(body.date, body.bank, body.comment)
+    if not ok:
+        raise HTTPException(status_code=400, detail="Error al guardar comentario")
+    return {"ok": True}
+
+class GlobalAnalysisBody(BaseModel):
+    date: str
+    analysis: str
+
+@router.post("/health-report/global-analysis")
+async def post_global_analysis(body: GlobalAnalysisBody):
+    """Guarda el análisis global del día enviado por mail."""
+    from app.services.health_store import save_global_analysis
+    ok = save_global_analysis(body.date, body.analysis)
+    if not ok:
+        raise HTTPException(status_code=400, detail="Error al guardar análisis global")
+    return {"ok": True}
 

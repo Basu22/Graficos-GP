@@ -6,7 +6,9 @@ import { ReporteEjecutivo } from "./views/ReporteEjecutivo";
 import { SprintEnCurso } from "./views/SprintEnCurso";
 import { CalendarView } from "./views/CalendarView";
 import { TeamView } from "./views/TeamView";
+import { useSmartInbox } from "./hooks/useSmartInbox";
 import MiDia from "./views/MiDia";
+import OfferJourney from "./views/OfferJourney";
 
 export default function App() {
   const [teams, setTeams] = useState([]);
@@ -20,7 +22,56 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(systemDark);
   const T = THEMES[darkMode ? "dark" : "light"];
 
+  const [allMails, setAllMails] = useState([]);
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const { smartInbox, healthReport, loadingHealth, refreshHealthReport } = useSmartInbox(
+    allMails,
+    { userName: 'Basilio Ossvald', userEmail: 'bossvald@flink.com.ar' }
+  );
+
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`${API}/midia/data`);
+      const data = await res.json();
+      if (data.all_mails) setAllMails(data.all_mails);
+      if (data.events) {
+        const parsedEvents = data.events
+          .filter(ev => ev.start.dateTime)
+          .map(ev => {
+            const start = new Date(ev.start.dateTime);
+            const end = ev.end.dateTime ? new Date(ev.end.dateTime) : null;
+            const nowDate = new Date();
+            return {
+              id: ev.id,
+              dayOfWeek: start.getDay(),
+              dayOfMonth: start.getDate(),
+              time: start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              timeEnd: end ? end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : null,
+              title: ev.summary || "Sin título",
+              description: ev.description || "",
+              location: ev.location || "",
+              link: ev.hangoutLink || ev.htmlLink || null,
+              rawStart: ev.start.dateTime,
+              rawEnd: ev.end.dateTime || null,
+              attendees: ev.attendees || [],
+              isActive: end && nowDate >= start && nowDate <= end,
+              isPast: end && nowDate > end,
+              recurringEventId: ev.recurringEventId || null,
+            };
+          });
+        setEvents(parsedEvents);
+      }
+    } catch (e) {
+      console.error("Error fetching global data:", e);
+    }
+    setLoading(false);
+  };
+
   useEffect(() => {
+    fetchData();
     fetch(`${API}/sprints/teams`)
       .then((r) => r.json())
       .then((t) => {
@@ -83,6 +134,7 @@ export default function App() {
     calendar: `Calendario de Planificación — Equipo ${team}`,
     team: "Gestión del Equipo",
     midia: "Mi Día — Centro de Comando AI",
+    journey: "Journey de Ofertas — Análisis Histórico",
   };
 
   return (
@@ -125,6 +177,7 @@ export default function App() {
             <div className="nav-scroll">
               <div className="nav-container">
                 <button style={btnStyle(view === "midia")} onClick={() => setView("midia")}>✨ MI DIA</button>
+                <button style={btnStyle(view === "journey")} onClick={() => setView("journey")}>🛒 Ofertas</button>
                 <button style={btnStyle(view === "dashboard")} onClick={() => setView("dashboard")}>Performance</button>
                 <button style={btnStyle(view === "executive")} onClick={() => setView("executive")}>Ejecutivo</button>
                 <button style={btnStyle(view === "sprint")} onClick={() => setView("sprint")}>🟢 Sprint</button>
@@ -167,7 +220,25 @@ export default function App() {
         {team && view === "executive" && <ReporteEjecutivo team={team} filter={filter} T={T} />}
         {team && view === "sprint" && <SprintEnCurso team={team} T={T} />}
         {team && view === "calendar" && <CalendarView team={team} T={T} />}
-        {view === "midia" && <MiDia T={T} />}
+        {view === "midia" && (
+          <MiDia 
+            T={T} 
+            allMails={allMails} 
+            events={events} 
+            loadingGlobal={loading}
+            smartInbox={smartInbox}
+            healthReport={healthReport}
+            loadingHealth={loadingHealth}
+            onRefresh={fetchData}
+          />
+        )}
+        {view === "journey" && (
+          <OfferJourney 
+            healthReport={healthReport} 
+            T={T} 
+            onRefreshHealth={refreshHealthReport}
+          />
+        )}
         {view === "team" && <TeamView T={T} />}
       </div>
     </div>

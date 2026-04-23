@@ -78,7 +78,13 @@ function BankTable({ tableRows, banks, ingestaInfo }) {
     const { current, diff, isFallback } = bd;
     const isDown = diff !== null && diff < 0;
     const isUp   = diff !== null && diff > 0;
-    const col    = isDown ? '#EF4444' : isUp ? '#10B981' : P.text;
+    
+    let col = P.text;
+    if (isUp) col = '#10B981';
+    else if (isDown) {
+      const absDiff = Math.abs(diff);
+      col = absDiff <= 10 ? '#F59E0B' : '#EF4444';
+    }
     return (
       <td style={{ textAlign: 'right', padding: '5px 8px' }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: P.text, fontFamily: "'DM Mono', monospace", display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 3 }}>
@@ -147,7 +153,11 @@ function BankTable({ tableRows, banks, ingestaInfo }) {
           {tableRows.map((row, ri) => {
             const rowBg   = ri % 2 === 0 ? P.rowAlt : 'transparent';
             const tdiff   = row.total_diff;
-            const totalCol = tdiff !== null && tdiff < 0 ? '#EF4444' : tdiff > 0 ? '#10B981' : P.text;
+            let totalCol = P.text;
+            if (tdiff !== null && tdiff > 0) totalCol = '#10B981';
+            else if (tdiff !== null && tdiff < 0) {
+              totalCol = Math.abs(tdiff) <= 10 ? '#F59E0B' : '#EF4444';
+            }
             return (
               <tr key={row.key} style={{ background: rowBg, borderTop: `1px solid ${P.border}` }}>
                 <td style={{ padding: '6px 10px', fontWeight: 600, color: P.text, fontSize: 11, whiteSpace: 'nowrap' }}>

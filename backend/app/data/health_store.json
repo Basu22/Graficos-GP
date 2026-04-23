@@ -861,7 +861,8 @@
       "haberes": 207224,
       "cch": 44663,
       "nc": 2178,
-      "prestamos": 142976
+      "prestamos": 142976,
+      "analisis_diario": ""
     },
     "BSF": {
       "info_ingesta": {
@@ -872,7 +873,8 @@
       "nc": 83046,
       "haberes": 224649,
       "csh": 37217,
-      "cch": 48765
+      "cch": 48765,
+      "analisis_diario": ""
     },
     "BSC": {
       "info_ingesta": {
@@ -883,7 +885,11 @@
       "cch": 11297,
       "haberes": 41402,
       "nc": 6344,
-      "prestamos": 31010
+      "prestamos": 31010,
+      "analisis_diario": ""
+    },
+    "info_ingesta": {
+      "analisis_mail": "Hoy se registraron bajas en BER (todas las campañas) y BSF. En ambos casos, la afectación está relacionada con la tabla de contactabilidad, la cual depende del equipo de Monitoreo. Intentaremos reprocesar durante la noche para recuperar las ofertas."
     }
   },
   "2026-03-30": {
@@ -1113,7 +1119,8 @@
       "nc": 6567,
       "haberes": 41836,
       "cch": 11967,
-      "csh": 2469
+      "csh": 2469,
+      "analisis_diario": "Problemas en la carga, se reenvia Kafka y se reporocesa 23hs"
     }
   },
   "2026-03-25": {
@@ -1378,7 +1385,8 @@
       "cch": 96678,
       "haberes": 266177,
       "prestamos": 414999,
-      "csh": 47219
+      "csh": 47219,
+      "analisis_diario": "Se realizó un reproceso a las 18hs"
     },
     "BSC": {
       "info_ingesta": {
@@ -1390,6 +1398,9 @@
       "nc": 6568,
       "cch": 12185,
       "csh": 2571
+    },
+    "info_ingesta": {
+      "analisis_mail": "La caída que se observa en BSF del 12% se pudo recuperar a la tarde con el reproceso de la información por parte del equipo de monitoreo. En la tabla que se encuentra al final, está el numero real de ofertas de préstamos.\n"
     }
   },
   "2026-03-19": {
@@ -1459,7 +1470,8 @@
       "csh": 5297,
       "cch": 54014,
       "prestamos": 155891,
-      "nc": 2271
+      "nc": 2271,
+      "analisis_diario": ""
     },
     "BSF": {
       "info_ingesta": {
@@ -1482,6 +1494,9 @@
       "nc": 6568,
       "cch": 12513,
       "csh": 3938
+    },
+    "info_ingesta": {
+      "analisis_mail": "Hoy experimentamos una caída significativa en las ofertas de BERSA, debido al vencimiento del reporte de Veraz de 65,000 clientes. Este evento impactó aproximadamente 20,000 ofertas a lo largo de los distintos Journeys, siendo el de tarjetas CSH el más afectado en términos porcentuales (40%)."
     }
   },
   "2026-03-17": {
@@ -1780,7 +1795,8 @@
       "nc": 2276,
       "csh": 8761,
       "haberes": 147989,
-      "prestamos": 169997
+      "prestamos": 169997,
+      "analisis_diario": ""
     },
     "BSF": {
       "info_ingesta": {
@@ -1803,6 +1819,9 @@
       "csh": 3998,
       "prestamos": 37414,
       "nc": 6597
+    },
+    "info_ingesta": {
+      "analisis_mail": "El día de hoy, haberes de BERSA presenta una caida de 38%. Ya informamos al sector de Monitoreo para que nos confirme si hubo un problema en la carga de las interfaces que llegan de los bancos. La idea sería correr el proceso de las 23:00 para que las cantidades vuelvan a los valores normales."
     }
   },
   "2026-03-10": {
@@ -1872,7 +1891,8 @@
       "haberes": 240906,
       "prestamos": 171698,
       "csh": 8674,
-      "cch": 57728
+      "cch": 57728,
+      "analisis_diario": ""
     },
     "BSF": {
       "info_ingesta": {
@@ -1895,6 +1915,9 @@
       "nc": 6599,
       "cch": 13256,
       "haberes": 41867
+    },
+    "info_ingesta": {
+      "analisis_mail": "Hoy observamos un aumento en las ofertas de BER; sin embargo, este incremento no es real, ya que el domingo la plataforma no funcionó y prácticamente no se registraron ofertas en dichos productos."
     }
   },
   "2026-03-07": {
@@ -2113,7 +2136,8 @@
       "haberes": 167449,
       "prestamos": 421060,
       "csh": 49949,
-      "nc": 94750
+      "nc": 94750,
+      "analisis_diario": ""
     },
     "BSC": {
       "info_ingesta": {
@@ -2125,6 +2149,9 @@
       "nc": 6600,
       "prestamos": 37001,
       "haberes": 43781
+    },
+    "info_ingesta": {
+      "analisis_mail": "Hoy se registró una disminución en las ofertas de tarjetas de CCH (11%) y en los adelantos de haberes (38%) en BSF. En el caso de las tarjetas de crédito, esta caída se debe a que el banco envió un menor número de precalificados. Por su parte, los adelantos en Santa Fe suelen mostrar esta tendencia a inicios de mes y se espera que se normalicen en los próximos días."
     }
   },
   "2026-03-02": {
@@ -2321,7 +2348,8 @@
       "csh": 12585,
       "cch": 20193,
       "haberes": 65918,
-      "prestamos": 67536
+      "prestamos": 67536,
+      "analisis_diario": ""
     },
     "BER": {
       "info_ingesta": {
@@ -2332,7 +2360,8 @@
       "haberes": 240707,
       "prestamos": 166937,
       "cch": 57145,
-      "csh": 10222
+      "csh": 10222,
+      "analisis_diario": ""
     },
     "BSF": {
       "info_ingesta": {
@@ -2355,6 +2384,9 @@
       "cch": 12933,
       "prestamos": 37057,
       "nc": 6603
+    },
+    "info_ingesta": {
+      "analisis_mail": "El día de hoy notamos una caída en préstamos y TC CCH de BERSA (5% y 6% respectivamente) y en adelanto de haberes CCH en BSJ (14%). Ya está informado el equipo de monitoreo para que vuelvan a procesar sus tablas y se recuperen los valores en la corrida de la noche."
     }
   },
   "2026-02-25": {
@@ -2389,7 +2421,8 @@
       "nc": 94790,
       "csh": 50086,
       "prestamos": 438815,
-      "haberes": 271737
+      "haberes": 271737,
+      "analisis_diario": ""
     },
     "BSC": {
       "info_ingesta": {
@@ -2401,6 +2434,9 @@
       "prestamos": 37057,
       "cch": 12933,
       "csh": 3997
+    },
+    "info_ingesta": {
+      "analisis_mail": "El día de hoy vemos una fuerte caída en las ofertas de Tarjetas CSH de banco Santa Fe (16%). Entendemos que se debe al ajuste que realizaron desde el equipo de riesgo en la estrategia y que descarta a clientes que tienen una calificación de riesgo medio alto."
     }
   },
   "2026-02-24": {
@@ -2481,7 +2517,8 @@
       "nc": 94802,
       "prestamos": 453534,
       "cch": 95997,
-      "csh": 59773
+      "csh": 59773,
+      "analisis_diario": ""
     },
     "BSC": {
       "info_ingesta": {
@@ -2492,7 +2529,11 @@
       "prestamos": 37769,
       "csh": 4093,
       "cch": 13135,
-      "haberes": 44743
+      "haberes": 44743,
+      "analisis_diario": ""
+    },
+    "info_ingesta": {
+      "analisis_mail": "El día de hoy se observa una caída en la ofertas de TC CCH de los bancos BSF y BSC. Ya se alertó al equipo de Monitoreo para que controlen si el proceso que inserta las tablas de contactabilidad está funcionando correctamente. La idea sería volver a procesar a la noche para tratar de recuperar esas ofertas."
     }
   },
   "2026-02-22": {
@@ -2722,7 +2763,11 @@
       "haberes": 45189,
       "nc": 8077,
       "prestamos": 41019,
-      "csh": 6077
+      "csh": 6077,
+      "analisis_diario": ""
+    },
+    "info_ingesta": {
+      "analisis_mail": "Hoy se mantiene la baja que habíamos observado la semana pasada. Consideramos que esto se debe a un cambio en la estrategia de riesgo, dado que ha aumentado la categoría de \"rechazado capacidad\". Quedamos a la espera de una confirmación al respecto."
     }
   },
   "2026-02-17": {
@@ -2941,7 +2986,8 @@
       "prestamos": 467669,
       "cch": 93282,
       "nc": 119113,
-      "haberes": 271689
+      "haberes": 271689,
+      "analisis_diario": ""
     },
     "BSC": {
       "info_ingesta": {
@@ -2953,6 +2999,9 @@
       "nc": 9076,
       "haberes": 45227,
       "cch": 13553
+    },
+    "info_ingesta": {
+      "analisis_mail": "Hoy observamos una caída significativa en las calificaciones de todos los bancos (campañas afectadas por el motor de riesgo). Consideramos que esto se debe a un cambio en la estrategia de riesgo, dado que ha aumentado la categoría de \"rechazado capacidad\". Quedamos a la espera de una confirmación al respecto."
     }
   },
   "2026-02-12": {
@@ -3044,7 +3093,11 @@
       "nc": 9076,
       "cch": 15729,
       "csh": 8662,
-      "prestamos": 46034
+      "prestamos": 46034,
+      "analisis_diario": ""
+    },
+    "info_ingesta": {
+      "analisis_mail": "La caída observada ayer en los bancos BER y BSC (TC CSH) continúa presentándose hoy. El equipo de monitoreo está analizando las causas de la pérdida de estos clientes en la tabla de contactabilidad, la cual se utiliza para aplicar ciertos filtros sobre los clientes con oferta."
     }
   },
   "2026-02-10": {
@@ -3067,7 +3120,8 @@
       "prestamos": 210096,
       "cch": 65119,
       "haberes": 223836,
-      "nc": 5481
+      "nc": 5481,
+      "analisis_diario": ""
     },
     "BSF": {
       "info_ingesta": {
@@ -3090,6 +3144,9 @@
       "cch": 15823,
       "csh": 8676,
       "prestamos": 46255
+    },
+    "info_ingesta": {
+      "analisis_mail": "Hoy observamos una caída en la oferta de tarjetas de crédito del segmento CSH en los bancos BSC, BER y BSJ, con disminuciones del 43% y 16% y 9% respectivamente. En el caso de BSC, esta reducción se debe al vencimiento de los registros en Veraz. Por su parte, en BER y BSJ la caída está relacionada con el filtro aplicado mediante la tabla de contactabilidad. Ya contactamos al equipo de Monitoreo para que verifiquen si hubo algún inconveniente en la carga de dicha tabla."
     }
   },
   "2026-02-09": {
@@ -3274,6 +3331,9 @@
       "cch": 15926,
       "haberes": 42415,
       "csh": 15384
+    },
+    "info_ingesta": {
+      "analisis_mail": "Hoy se observa una disminución en la oferta de Tarjetas de Crédito y préstamos de BERSA, con caídas del 7% y 5% respectivamente. El equipo de Monitoreo está al tanto de esta situación y, una vez resuelto el inconveniente, se procederá a regenerar la oferta para que los indicadores vuelvan a sus niveles habituales."
     }
   },
   "2026-02-05": {
@@ -3320,6 +3380,9 @@
       "haberes": 42509,
       "cch": 15985,
       "csh": 15387
+    },
+    "info_ingesta": {
+      "analisis_mail": "Hoy se observa un incremento en las cantidades de ofertas que incluyen a clientes sin haberes, debido a un cambio puesto en producción el día de ayer, mediante el cual se comenzó a considerar la fecha de vigencia de la calificación para la generación de ofertas."
     }
   },
   "2026-02-04": {
@@ -3366,6 +3429,9 @@
       "haberes": 44087,
       "prestamos": 45816,
       "csh": 8645
+    },
+    "info_ingesta": {
+      "analisis_mail": "Hoy se encuentra regularizada la oferta de adelanto de haberes en los 4 bancos."
     }
   },
   "2026-02-03": {
@@ -3412,6 +3478,9 @@
       "cch": 15567,
       "csh": 8643,
       "prestamos": 45834
+    },
+    "info_ingesta": {
+      "analisis_mail": "La caída de préstamos de BSC se debe a la baja en la calificación de clientes/prospectos. El 28 de enero había calificados 52.872 clientes/prospectos y el 30 de enero pasaron a ser 45.859. La explicación es que vencieron 26.841 veraz el 29 de enero pasado. El equipo de @riesgo puede confirmar si nuestra suposición es correcta. Adicionalmente y como todos los meses, hubo una caída en las ofertas de Adelantos de haberes, es un comportamiento que se da a principio de mes y se debería ver regularizado en los próximos días."
     }
   },
   "2026-02-02": {
@@ -3642,6 +3711,9 @@
       "prestamos": 52872,
       "haberes": 44164,
       "cch": 15890
+    },
+    "info_ingesta": {
+      "analisis_mail": "También les comentamos que se ven recompuestas las OM para con BSF y BSJ y sobre los Vencimientos de Veraz renovados en 2026. Si necesitan mayor detalle, dejo al equipo de OM para que los ubiquen a bien de hacer un deep dive al respecto. Pero en la tabla de la imagen adjunta y en la gráfica de seguimiento, van a ver el impacto de manera clara y asertiva. Todo esto, se encuentra en nuestro Dashboard OM de Superset."
     }
   },
   "2026-01-28": {
@@ -3688,6 +3760,9 @@
       "csh": 15126,
       "haberes": 44415,
       "nc": 9168
+    },
+    "info_ingesta": {
+      "analisis_mail": "Se evidencia una disminución en BSC ya reportada al equipo de GDD/Monitoreo y de cara al reproceso de las 23 hs a bien de su fixeo. Se entiende que, y cito textual \"...creemos que esta relacionado con la migracion reciente de NIFI...\""
     }
   },
   "2026-01-27": {
@@ -3734,6 +3809,9 @@
       "cch": 14589,
       "haberes": 44620,
       "csh": 15439
+    },
+    "info_ingesta": {
+      "analisis_mail": "les informamos que estamos teniendo problemas con el pipeline que corre el proceso automático de acuerdo a problemas de plataforma. Sin embargo, logramos contar con el detalle de nuestro Dashboard OM de Superset. No vemos cambios sustanciales en los totales informados en el día de ayer. "
     }
   },
   "2026-01-26": {
@@ -4056,6 +4134,9 @@
       "cch": 14504,
       "prestamos": 51945,
       "csh": 15425
+    },
+    "info_ingesta": {
+      "analisis_mail": "en el día de la fecha y a partir de entonces, ya se encuentran deshabilitados los filtros de Tablas Adobe respecto de PP para los 4 bancos del grupo GP. Esto, coordinado con distintos stakeholders. Cualquier consulta, quedamos a disposición. El detalle, lo pueden encontrar en nuestro Dashboard de Superset en OM."
     }
   },
   "2026-01-19": {
@@ -4286,6 +4367,9 @@
       "haberes": 45562,
       "nc": 9176,
       "prestamos": 51946
+    },
+    "info_ingesta": {
+      "analisis_mail": "El día de hoy se encuentran normalizados los valores de las campañas que presentaban problemas ayer. Quedamos a disposición para cualquier consulta o accionable desde nuestro Dashboard de Superset. "
     }
   },
   "2026-01-14": {
@@ -4332,6 +4416,9 @@
       "prestamos": 51947,
       "csh": 15431,
       "cch": 14438
+    },
+    "info_ingesta": {
+      "analisis_mail": "El día de hoy hay una baja significativa en adelanto de haberes de BSC (20%) y préstamos de BSF (12%), estamos levantando el tema a los equipos correspondientes para tratar de regularizar el problema antes del cierre del día. Quedamos a disposición para cualquier consulta o accionable desde nuestro Dashboard de Superset. "
     }
   },
   "2026-01-13": {
@@ -5574,6 +5661,9 @@
       "csh": 17128,
       "prestamos": 56315,
       "cch": 15430
+    },
+    "info_ingesta": {
+      "analisis_mail": "NOTA: se sigue trabajando juntos a los demás participantes del Journey respecto de las caídas por Vtto. de Veraz. Confirmaremos la vuelta a los totales promedios ASAP y apenas nos indiquen a OM que ya se encuentran OK."
     }
   },
   "2025-12-17": {
@@ -5620,6 +5710,9 @@
       "nc": 10592,
       "prestamos": 51854,
       "cch": 13595
+    },
+    "info_ingesta": {
+      "analisis_mail": "NOTA: se sigue trabajando juntos a los demás participantes del Journey respecto de las caídas por Vtto. de Veraz. Confirmaremos la vuelta a los totales promedios ASAP y apenas nos indiquen a OM que ya se encuentran OK."
     }
   },
   "2025-12-16": {
@@ -5666,6 +5759,9 @@
       "csh": 17146,
       "haberes": 36341,
       "prestamos": 56402
+    },
+    "info_ingesta": {
+      "analisis_mail": "NOTA1: se detalla una caída de consideración, en BSF y BER, para PP y sobretodo en TC y de acuerdo a Vencimientos de Veraz que requerirían renovación que afectan el resultado de la generación de las ofertas minoristas. Se está trabajando junto a los demás participantes del Journey a bien de lograr una pronta solución a este asunto. \n\nNOTA2: también se evidencia un incremento particular en TC CCH para BSF de acuerdo a gestiones traccionadas fuera de OM (incremento de 31.870 casos respecto de ayer). Vamos a monitorear este detalle y alertaremos si vemos algún nuevo desvío."
     }
   },
   "2025-12-15": {
@@ -5712,6 +5808,9 @@
       "cch": 16000,
       "haberes": 36717,
       "csh": 17183
+    },
+    "info_ingesta": {
+      "analisis_mail": "Desde OM vemos una caída de consideración en NC respecto de BER. Vamos a pedir revisión a los demás participantes del Journey en Riesgos y GDD/Monitoreo, y validar el motivo de esta disminución. No vemos Issues en el debido proceso. "
     }
   },
   "2025-12-14": {
@@ -5850,6 +5949,9 @@
       "csh": 17192,
       "haberes": 42667,
       "cch": 15986
+    },
+    "info_ingesta": {
+      "analisis_mail": "Los % expuestos en el Dash corresponden a la caída de Journey comentado anteriormente, y no al comparable entre ayer y hoy. No los consideren como dato real, solo el detalle numérico en los totales."
     }
   },
   "2025-12-11": {
@@ -5896,6 +5998,9 @@
       "prestamos": 58966,
       "nc": 10665,
       "csh": 17215
+    },
+    "info_ingesta": {
+      "analisis_mail": " estamos traccionando accionables para recuperar las muestras faltantes y de cara al reproceso de las 23 hs relativas a BSJ, ya que Identificamos un Issue en la corrida del Journey de las 15.30 hs que ya estamos rectificando desde OM. Asimismo, alertamos al equipo de GDD / Monitoreo respecto de lo relativo a BSF para también fixear los faltantes de cara al mismo reproceso de hoy por la noche. Tomen esta muestra solo como \"tentativa\" y no definitiva, y la compartimos de todos modos a nivel diagnóstico."
     }
   },
   "2025-12-10": {
@@ -14739,7 +14844,7 @@
       "info_ingesta": {
         "hora": "16:16:58",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-21T18:08:19.648843-03:00"
+        "ultima_modificacion": "2026-04-21T18:36:43.756083-03:00"
       }
     },
     "BER": {
@@ -14751,7 +14856,7 @@
       "info_ingesta": {
         "hora": "16:06:53",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-21T18:08:19.648843-03:00"
+        "ultima_modificacion": "2026-04-21T18:36:43.756083-03:00"
       }
     },
     "BSJ": {
@@ -14763,7 +14868,7 @@
       "info_ingesta": {
         "hora": "15:56:47",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-21T18:08:19.648843-03:00"
+        "ultima_modificacion": "2026-04-21T18:36:43.756083-03:00"
       }
     },
     "BSC": {
@@ -14775,7 +14880,107 @@
       "info_ingesta": {
         "hora": "15:46:41",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-21T18:08:19.648843-03:00"
+        "ultima_modificacion": "2026-04-21T18:36:43.756083-03:00"
+      }
+    }
+  },
+  "2026-04-22": {
+    "BER": {
+      "haberes": 238666,
+      "prestamos": 97478,
+      "cch": 13753,
+      "csh": 1431,
+      "nc": 17,
+      "info_ingesta": {
+        "hora": "15:52:06",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-22T17:36:05.545185-03:00"
+      }
+    },
+    "BSJ": {
+      "haberes": 81039,
+      "prestamos": 24471,
+      "cch": 5230,
+      "csh": 59,
+      "nc": 3,
+      "info_ingesta": {
+        "hora": "15:42:05",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-22T17:36:05.545185-03:00"
+      }
+    },
+    "BSF": {
+      "haberes": 270494,
+      "prestamos": 190592,
+      "cch": 14630,
+      "csh": 14522,
+      "nc": 164,
+      "info_ingesta": {
+        "hora": "16:12:18",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-22T17:36:05.545185-03:00"
+      }
+    },
+    "BSC": {
+      "haberes": 41320,
+      "prestamos": 19879,
+      "cch": 4197,
+      "csh": 20,
+      "nc": 6,
+      "info_ingesta": {
+        "hora": "16:02:16",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-22T17:36:05.545185-03:00"
+      }
+    }
+  },
+  "2026-04-23": {
+    "BER": {
+      "haberes": 238371,
+      "prestamos": 44675,
+      "cch": 5665,
+      "csh": 138,
+      "nc": 14,
+      "info_ingesta": {
+        "hora": "16:16:42",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-23T17:55:07.245702-03:00"
+      }
+    },
+    "BSJ": {
+      "haberes": 79033,
+      "prestamos": 24471,
+      "cch": 5230,
+      "csh": 59,
+      "nc": 3,
+      "info_ingesta": {
+        "hora": "16:14:43",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-23T17:55:07.245702-03:00"
+      }
+    },
+    "BSF": {
+      "haberes": 270531,
+      "prestamos": 190592,
+      "cch": 14619,
+      "csh": 14519,
+      "nc": 164,
+      "info_ingesta": {
+        "hora": "16:12:32",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-23T17:55:07.245702-03:00"
+      }
+    },
+    "BSC": {
+      "haberes": 41180,
+      "prestamos": 19879,
+      "cch": 4197,
+      "csh": 20,
+      "nc": 6,
+      "info_ingesta": {
+        "hora": "15:46:12",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-23T17:55:07.245702-03:00"
       }
     }
   }

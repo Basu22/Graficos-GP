@@ -151,3 +151,41 @@ def get_latest_date() -> str:
     if not store:
         return ""
     return sorted(store.keys(), reverse=True)[0]
+
+def save_daily_comment(date_str: str, bank: str, comment_text: str) -> bool:
+    """
+    Guarda un comentario analítico para una fecha y banco específicos.
+    Los comentarios NO están sujetos a la ventana de escritura.
+    """
+    store = load_store()
+    if date_str not in store:
+        logger.warning(f"[HealthStore] No se puede comentar fecha inexistente: {date_str}")
+        return False
+        
+    if bank not in store[date_str]:
+        # Si el banco no existe en esa fecha, lo inicializamos para permitir el comentario
+        store[date_str][bank] = {"info_ingesta": {"tipo": "manual"}}
+        
+    store[date_str][bank]["analisis_diario"] = comment_text
+    save_store(store)
+    return True
+
+def save_global_analysis(date_str: str, analysis_text: str) -> bool:
+    """
+    Guarda el análisis global del día (analisis_mail) enviado por mail.
+    Se guarda en la raíz de la fecha dentro de info_ingesta.
+    """
+    store = load_store()
+    if date_str not in store:
+        return False
+    
+    # Aseguramos que info_ingesta exista a nivel de fecha
+    if "info_ingesta" not in store[date_str]:
+        store[date_str]["info_ingesta"] = {}
+    elif not isinstance(store[date_str]["info_ingesta"], dict):
+        # Por si acaso había algo que no fuera dict (aunque no debería)
+        store[date_str]["info_ingesta"] = {"_original": store[date_str]["info_ingesta"]}
+
+    store[date_str]["info_ingesta"]["analisis_mail"] = analysis_text
+    save_store(store)
+    return True

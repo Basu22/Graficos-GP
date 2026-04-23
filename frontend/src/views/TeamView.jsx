@@ -36,10 +36,12 @@ function PersonDetail({ person, T, onClose, onSaved }) {
   }, []);
 
   useEffect(() => {
+    setJiraName(person.jira_name || "");
     if (person.jira_name) {
       loadStats();
     } else {
       setLoading(false);
+      setStats(null); // Limpiar stats anteriores si no hay vinculación
     }
   }, [person.id, person.jira_name, period]);
 
