@@ -23,3 +23,4 @@ COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
 
 CMD ["nginx", "-g", "daemon off;"]
+# Cache burst: lun 27 abr 2026 10:07:19 -03
