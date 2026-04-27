@@ -1,6 +1,7 @@
-# 📋 Manual Funcional — Agility Dashboard
+# 📈 Manual Funcional — Agility Dashboard
 
-> **Versión:** 1.1 — Abril 2026  
+> **URL de Acceso (Producción):** `https://graficosagiles.site`  
+> **Última actualización:** Abril 2026  
 > **Audiencia:** Analistas, Coordinadores y Usuarios del Dashboard  
 > **⚠️ ACTUALIZACIÓN OBLIGATORIA:** Este documento debe actualizarse cada vez que se implemente una funcionalidad nueva o se modifique el comportamiento de alguna existente.
 
@@ -48,19 +49,33 @@ La vista **Mi DÍA** es el panel de control operativo diario. Se actualiza autom
 
 El botón **Sync Salud** en la sección de monitor analiza los correos y extrae los datos de ingesta para actualizarlos en el histórico.
 
-#### Lógica de ventanas de escritura
-El sistema solo permite actualizar datos en las siguientes ventanas horarias (hora Argentina, UTC-3):
+#### Lógica de Actualización y Prioridades
+El sistema clasifica automáticamente los datos según el **horario de recepción del mail** (hora Argentina, UTC-3), sin importar en qué momento realices la sincronización:
 
-| Ventana | Horario | Tipo |
+| Tipo | Horario del Mail | Descripción |
 |---|---|---|
-| **Primer Servicio** | 15:00 — 19:00 | Ingestas estándar de los bancos |
-| **Reproceso** | 22:00 — 06:00 del día siguiente | Re-envíos con datos corregidos |
-| **Congelado** | Fuera de ambas ventanas | El registro NO puede modificarse |
+| **Primer Servicio** | 15:00 — 19:00 | Datos estándar del día. |
+| **Reproceso** | 22:00 — 06:00 (D+1) | Datos corregidos. Tienen prioridad sobre el primer servicio. |
+| **Manual** | N/A | Ajustes realizados directamente por el analista. Tienen prioridad máxima. |
 
-> **Regla de Oro:** Un registro de tipo **reproceso** siempre pisa al de **primer_servicio**. Nunca al revés.
+> **Regla de Oro:** Un dato de tipo **Reproceso** siempre pisará a uno de **Primer Servicio**. Esto permite que si un banco envía una corrección a la madrugada, al sincronizar al día siguiente (a cualquier hora), el sistema tome automáticamente el dato más reciente y correcto.
 
 #### Indicadores de tipo de ingesta
 En la vista diaria, cada banco muestra si su dato provino de un "primer servicio" o de un "reproceso", permitiendo identificar cuándo fue necesario re-enviar información.
+
+### 3.3 Agenda y Gestión de Eventos
+
+El bloque central de **Mi DÍA** muestra tu agenda de Google Calendar para el día seleccionado.
+
+#### Confirmación de Asistencia (RSVP)
+Al hacer clic en un evento donde hayas sido invitado, verás un modal con opciones de respuesta rápida:
+- ✅ **Sí:** Confirma tu asistencia. El evento se resaltará con un borde verde en tu agenda.
+- ❌ **No:** Rechaza la invitación. El evento se ocultará o mostrará como cancelado.
+- 🤔 **Quizás:** Marca tu asistencia como tentativa.
+
+#### Videollamadas e Integración
+- **📹 Instant Meet:** Botón de acceso rápido en la barra superior para crear una sala de Google Meet al instante.
+- **Botón "Unirse":** Si el evento del calendario tiene un enlace a Google Meet o Teams, aparecerá un botón azul destacado para entrar a la reunión con un solo clic.
 
 ---
 

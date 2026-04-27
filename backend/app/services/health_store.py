@@ -85,6 +85,7 @@ def _is_record_frozen(existing_record: dict) -> bool:
 
 # Prioridades de ingesta
 TIPO_PRIORIDAD = {
+    "manual": 3,
     "reproceso": 2,
     "primer_servicio": 1,
     None: 0
@@ -111,26 +112,20 @@ def upsert_days(new_days: dict) -> dict:
         if date not in store:
             store[date] = {}
             
-        is_in_window = _is_within_write_window(date)
-        
         for bank, new_entry in bank_data.items():
             existing = store[date].get(bank)
             
-            # 1. Si el registro ya existe y estamos FUERA de la ventana -> CONGELADO
-            if existing and not is_in_window:
-                logger.debug(f"[HealthStore] {date}/{bank} congelado (fuera de ventana)")
-                continue
-                
-            # 2. Prioridades
+            # 1. Prioridades
             prio_new = TIPO_PRIORIDAD.get(_get_tipo(new_entry), 0)
             prio_existing = TIPO_PRIORIDAD.get(_get_tipo(existing), 0) if existing else -1
             
-            # Regla de oro: reproceso nunca es pisado por primer_servicio
+            # Regla de oro: reproceso nunca es pisado por primer_servicio. 
+            # Manual nunca es pisado por nadie.
             if existing and prio_new < prio_existing:
-                logger.debug(f"[HealthStore] {date}/{bank} ignorado por baja prioridad")
+                logger.debug(f"[HealthStore] {date}/{bank} ignorado por baja prioridad ({_get_tipo(new_entry)} < {_get_tipo(existing)})")
                 continue
             
-            # 3. Solo actualizamos si cambió algo o es mayor prioridad
+            # 2. Solo actualizamos si cambió algo o es mayor prioridad
             if existing is None or prio_new > prio_existing or (prio_new == prio_existing and existing != new_entry):
                 # Inyectar metadata de modificación
                 if "info_ingesta" not in new_entry:

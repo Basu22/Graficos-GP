@@ -1,245 +1,240 @@
 {
   "2026-04-20": {
     "BSJ": {
-      "info_ingesta": {
-        "hora": "17:11:11",
-        "tipo": "primer_servicio"
-      },
       "haberes": 81010,
-      "csh": 298,
       "prestamos": 31475,
       "cch": 7347,
-      "nc": 2
+      "csh": 298,
+      "nc": 2,
+      "info_ingesta": {
+        "hora": "16:12:40",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     },
     "BER": {
-      "info_ingesta": {
-        "hora": "17:21:17",
-        "tipo": "primer_servicio"
-      },
-      "csh": 1426,
-      "nc": 17,
       "haberes": 238674,
       "prestamos": 97478,
-      "cch": 13755
+      "cch": 13755,
+      "csh": 1426,
+      "nc": 17,
+      "info_ingesta": {
+        "hora": "16:10:38",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     },
     "BSF": {
-      "info_ingesta": {
-        "hora": "17:35:25",
-        "tipo": "primer_servicio"
-      },
       "haberes": 271974,
       "prestamos": 184234,
       "cch": 15831,
       "csh": 14543,
-      "nc": 193
+      "nc": 193,
+      "info_ingesta": {
+        "hora": "16:18:41",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     },
     "BSC": {
-      "info_ingesta": {
-        "hora": "16:59:05",
-        "tipo": "primer_servicio"
-      },
+      "haberes": 41641,
       "prestamos": 22141,
       "cch": 5748,
+      "csh": 32,
       "nc": 6,
-      "haberes": 41641,
-      "csh": 32
+      "info_ingesta": {
+        "hora": "15:48:22",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     }
   },
   "2026-04-19": {
     "BSJ": {
-      "info_ingesta": {
-        "hora": "17:31:05",
-        "tipo": "primer_servicio"
-      },
-      "csh": 287,
-      "cch": 6801,
+      "haberes": 81009,
       "prestamos": 31475,
+      "cch": 6801,
+      "csh": 287,
       "nc": 2,
-      "haberes": 81009
+      "info_ingesta": {
+        "hora": "16:14:21",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     },
     "BER": {
-      "info_ingesta": {
-        "hora": "17:39:10",
-        "tipo": "primer_servicio"
-      },
+      "haberes": 238783,
       "prestamos": 97478,
+      "cch": 13756,
       "csh": 1431,
       "nc": 17,
-      "cch": 13756,
-      "haberes": 238783
+      "info_ingesta": {
+        "hora": "16:24:26",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     },
     "BSF": {
-      "info_ingesta": {
-        "hora": "17:47:16",
-        "tipo": "primer_servicio"
-      },
       "haberes": 272221,
       "prestamos": 184234,
       "cch": 15831,
       "csh": 14549,
-      "nc": 193
+      "nc": 193,
+      "info_ingesta": {
+        "hora": "16:34:37",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     },
     "BSC": {
-      "info_ingesta": {
-        "hora": "17:57:25",
-        "tipo": "primer_servicio"
-      },
-      "prestamos": 22141,
-      "nc": 6,
       "haberes": 41677,
+      "prestamos": 22141,
       "cch": 5748,
-      "csh": 32
+      "csh": 32,
+      "nc": 6,
+      "info_ingesta": {
+        "hora": "16:44:41",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     }
   },
   "2026-04-17": {
     "BSF": {
-      "info_ingesta": {
-        "hora": "17:26:05",
-        "tipo": "primer_servicio"
-      },
-      "nc": 193,
-      "prestamos": 184234,
-      "csh": 14550,
       "haberes": 272191,
-      "cch": 15839
+      "prestamos": 184234,
+      "cch": 15839,
+      "info_ingesta": {
+        "hora": "16:15:23",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     }
   },
   "2026-04-16": {
     "BSJ": {
-      "info_ingesta": {
-        "hora": "17:09:09",
-        "tipo": "primer_servicio"
-      },
-      "cch": 6805,
-      "csh": 287,
-      "nc": 2,
+      "haberes": 81805,
       "prestamos": 31475,
-      "haberes": 81805
+      "cch": 6805,
+      "info_ingesta": {
+        "hora": "15:52:26",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     },
     "BER": {
-      "info_ingesta": {
-        "hora": "17:19:13",
-        "tipo": "primer_servicio"
-      },
+      "haberes": 239129,
       "prestamos": 97478,
       "cch": 13775,
-      "csh": 1438,
-      "nc": 17,
-      "haberes": 239129
+      "info_ingesta": {
+        "hora": "16:02:27",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     },
     "BSF": {
-      "info_ingesta": {
-        "hora": "17:25:15",
-        "tipo": "primer_servicio"
-      },
-      "csh": 14551,
-      "cch": 15850,
       "haberes": 272437,
       "prestamos": 184234,
-      "nc": 194
+      "cch": 15850,
+      "info_ingesta": {
+        "hora": "16:12:32",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     },
     "BSC": {
-      "info_ingesta": {
-        "hora": "16:57:03",
-        "tipo": "primer_servicio"
-      },
       "haberes": 41667,
-      "csh": 32,
-      "cch": 5734,
       "prestamos": 22141,
-      "nc": 6
+      "cch": 5734,
+      "info_ingesta": {
+        "hora": "15:42:21",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     }
   },
   "2026-04-15": {
     "BSJ": {
-      "info_ingesta": {
-        "hora": "17:00:17",
-        "tipo": "primer_servicio"
-      },
-      "nc": 2,
       "haberes": 81708,
+      "prestamos": 31653,
       "cch": 6807,
-      "csh": 290,
-      "prestamos": 31653
+      "info_ingesta": {
+        "hora": "15:51:39",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     },
     "BER": {
-      "info_ingesta": {
-        "hora": "17:18:26",
-        "tipo": "primer_servicio"
-      },
-      "csh": 1448,
+      "haberes": 238853,
       "prestamos": 97849,
       "cch": 13775,
-      "nc": 17,
-      "haberes": 238853
+      "info_ingesta": {
+        "hora": "16:01:45",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     },
     "BSF": {
-      "info_ingesta": {
-        "hora": "17:22:28",
-        "tipo": "primer_servicio"
-      },
-      "cch": 15858,
-      "csh": 14556,
       "haberes": 272883,
-      "nc": 194,
-      "prestamos": 184234
+      "prestamos": 184234,
+      "cch": 15858,
+      "info_ingesta": {
+        "hora": "16:11:48",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     },
     "BSC": {
-      "info_ingesta": {
-        "hora": "16:52:12",
-        "tipo": "primer_servicio"
-      },
-      "csh": 37,
-      "prestamos": 22196,
       "haberes": 41437,
-      "nc": 6,
-      "cch": 5735
+      "prestamos": 22196,
+      "cch": 5735,
+      "info_ingesta": {
+        "hora": "15:41:31",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     }
   },
   "2026-04-14": {
     "BSJ": {
-      "info_ingesta": {
-        "hora": "17:01:56",
-        "tipo": "primer_servicio"
-      },
-      "prestamos": 28802,
       "haberes": 83162,
-      "csh": 286,
-      "nc": 2,
-      "cch": 6652
+      "prestamos": 28802,
+      "cch": 6652,
+      "info_ingesta": {
+        "hora": "15:51:12",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     },
     "BER": {
-      "info_ingesta": {
-        "hora": "17:18:02",
-        "tipo": "primer_servicio"
-      },
-      "csh": 1421,
-      "nc": 17,
       "haberes": 239182,
+      "prestamos": 90799,
       "cch": 13582,
-      "prestamos": 90799
+      "info_ingesta": {
+        "hora": "16:01:19",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     },
     "BSF": {
-      "info_ingesta": {
-        "hora": "17:26:07",
-        "tipo": "primer_servicio"
-      },
-      "prestamos": 184234,
       "haberes": 272296,
+      "prestamos": 184234,
       "cch": 15875,
-      "nc": 193,
-      "csh": 14560
+      "info_ingesta": {
+        "hora": "16:11:24",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     },
     "BSC": {
-      "info_ingesta": {
-        "hora": "16:57:54",
-        "tipo": "primer_servicio"
-      },
-      "cch": 5683,
-      "csh": 32,
-      "nc": 6,
       "haberes": 38694,
-      "prestamos": 22015
+      "prestamos": 22015,
+      "cch": 5683,
+      "info_ingesta": {
+        "hora": "15:41:08",
+        "tipo": "primer_servicio",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
+      }
     }
   },
   "2026-04-13": {
@@ -14844,7 +14839,7 @@
       "info_ingesta": {
         "hora": "16:16:58",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-21T18:36:43.756083-03:00"
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
       }
     },
     "BER": {
@@ -14856,7 +14851,7 @@
       "info_ingesta": {
         "hora": "16:06:53",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-21T18:36:43.756083-03:00"
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
       }
     },
     "BSJ": {
@@ -14868,7 +14863,7 @@
       "info_ingesta": {
         "hora": "15:56:47",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-21T18:36:43.756083-03:00"
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
       }
     },
     "BSC": {
@@ -14880,7 +14875,7 @@
       "info_ingesta": {
         "hora": "15:46:41",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-21T18:36:43.756083-03:00"
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
       }
     }
   },
@@ -14894,7 +14889,7 @@
       "info_ingesta": {
         "hora": "15:52:06",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-22T17:36:05.545185-03:00"
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
       }
     },
     "BSJ": {
@@ -14906,7 +14901,7 @@
       "info_ingesta": {
         "hora": "15:42:05",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-22T17:36:05.545185-03:00"
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
       }
     },
     "BSF": {
@@ -14918,7 +14913,7 @@
       "info_ingesta": {
         "hora": "16:12:18",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-22T17:36:05.545185-03:00"
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
       }
     },
     "BSC": {
@@ -14930,21 +14925,21 @@
       "info_ingesta": {
         "hora": "16:02:16",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-22T17:36:05.545185-03:00"
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
       }
     }
   },
   "2026-04-23": {
     "BER": {
-      "haberes": 238371,
-      "prestamos": 44675,
-      "cch": 5665,
-      "csh": 138,
+      "haberes": 238709,
+      "prestamos": 134283,
+      "cch": 54853,
+      "csh": 285,
       "nc": 14,
       "info_ingesta": {
-        "hora": "16:16:42",
-        "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-23T17:55:07.245702-03:00"
+        "hora": "23:49:07",
+        "tipo": "reproceso",
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
       }
     },
     "BSJ": {
@@ -14956,7 +14951,7 @@
       "info_ingesta": {
         "hora": "16:14:43",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-23T17:55:07.245702-03:00"
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
       }
     },
     "BSF": {
@@ -14968,7 +14963,7 @@
       "info_ingesta": {
         "hora": "16:12:32",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-23T17:55:07.245702-03:00"
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
       }
     },
     "BSC": {
@@ -14980,7 +14975,7 @@
       "info_ingesta": {
         "hora": "15:46:12",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-23T17:55:07.245702-03:00"
+        "ultima_modificacion": "2026-04-24T12:19:16.747978-03:00"
       }
     }
   }

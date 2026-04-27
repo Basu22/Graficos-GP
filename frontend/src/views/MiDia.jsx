@@ -66,7 +66,10 @@ export default function MiDia({
   smartInbox = null, 
   healthReport = null, 
   loadingHealth = false,
-  onRefresh
+  onRefresh,
+  onRefreshInbox,
+  onRefreshCalendar,
+  onRefreshHealth
 }) {
 
   // Reloj
@@ -175,6 +178,11 @@ export default function MiDia({
   const [newAttendeeEmail, setNewAttendeeEmail] = useState("");
   const [generatingDescription, setGeneratingDescription] = useState(false);
   const [recurringDialog, setRecurringDialog] = useState({ open: false, onConfirm: null });
+  const [rsvpLoading, setRsvpLoading] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [contactSuggestions, setContactSuggestions] = useState([]);
+  const [addingAttendee, setAddingAttendee] = useState(false);
+  const [recurringScope, setRecurringScope] = useState('single');
   
   const PALETTE = getPalette(T);
 
@@ -295,6 +303,133 @@ export default function MiDia({
       alert('No se pudo crear la reunión: ' + e.message);
     }
     setCreatingMeeting(false);
+  };
+
+  const openEdit = () => {
+    if (!selectedEvent) return;
+    setEditData({
+      summary: selectedEvent.title,
+      description: selectedEvent.description,
+      startDateTime: selectedEvent.rawStart,
+      endDateTime: selectedEvent.rawEnd,
+    });
+    setConflicts([]);
+    setEditMode(true);
+  };
+
+  const checkConflicts = async (startIso, endIso) => {
+    if (!startIso || !endIso || !selectedEvent) return;
+    setCheckingConflicts(true);
+    try {
+      const res = await fetch(`${API}/midia/events/check-conflicts`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ start_iso: startIso, end_iso: endIso, exclude_event_id: selectedEvent.id })
+      });
+      const data = await res.json();
+      setConflicts(data.conflicts || []);
+    } catch (e) { console.error(e); }
+    setCheckingConflicts(false);
+  };
+
+  const saveEvent = async () => {
+    if (!selectedEvent) return;
+    setSavingEvent(true);
+    try {
+      const body = {};
+      if (editData.summary !== selectedEvent.title) body.summary = editData.summary;
+      if (editData.description !== selectedEvent.description) body.description = editData.description;
+      if (editData.startDateTime) body.start = { dateTime: editData.startDateTime, timeZone: 'America/Argentina/Buenos_Aires' };
+      if (editData.endDateTime) body.end = { dateTime: editData.endDateTime, timeZone: 'America/Argentina/Buenos_Aires' };
+      await fetch(`${API}/midia/events/${selectedEvent.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      alert('✅ Evento actualizado. Los participantes recibirán una notificación.');
+      setEditMode(false);
+      onRefresh();
+    } catch (e) { alert('Error guardando el evento'); }
+    setSavingEvent(false);
+  };
+
+  const cancelEvent = async () => {
+    if (!selectedEvent) return;
+    if (!confirm('¿Cancelar este evento? Se enviará un mail de cancelación a todos los participantes.')) return;
+    setCancellingEvent(true);
+    try {
+      await fetch(`${API}/midia/events/${selectedEvent.id}`, { method: 'DELETE' });
+      alert('✅ Evento cancelado. Se notificó a los participantes.');
+      setSelectedEvent(null);
+      onRefresh();
+    } catch (e) { alert('Error cancelando el evento'); }
+    setCancellingEvent(false);
+  };
+
+  const generateAIDescription = async () => {
+    if (!selectedEvent) return;
+    setGeneratingDescription(true);
+    try {
+      const res = await fetch(`${API}/midia/generate-event-description`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: editData.summary || selectedEvent.title, current_description: editData.description })
+      });
+      const data = await res.json();
+      setEditData(prev => ({ ...prev, description: data.description }));
+    } catch (e) { alert('Error generando descripción con IA'); }
+    setGeneratingDescription(false);
+  };
+
+  const handleAddAttendee = () => {
+    const email = newAttendeeEmail.trim().toLowerCase();
+    if (!email || !selectedEvent) return;
+    if (selectedEvent.attendees.some(a => a.email.toLowerCase() === email)) {
+      alert('Este mail ya está invitado.'); return;
+    }
+    
+    setSelectedEvent(prev => ({
+      ...prev,
+      attendees: [...prev.attendees, { email, responseStatus: 'needsAction' }]
+    }));
+    setNewAttendeeEmail('');
+  };
+
+  const handleRemoveAttendee = (email) => {
+    if (!selectedEvent) return;
+    setSelectedEvent(prev => ({
+      ...prev,
+      attendees: prev.attendees.filter(a => a.email !== email)
+    }));
+  };
+
+  const saveAttendees = async (scope = 'single') => {
+    if (!selectedEvent) return;
+    setSavingEvent(true);
+    try {
+      const res = await fetch(`${API}/midia/events/${selectedEvent.id}/attendees?scope=${scope}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(selectedEvent.attendees)
+      });
+      if (!res.ok) throw new Error();
+      alert('✅ Participantes actualizados. Google enviará los mails automáticamente.');
+      onRefresh();
+    } catch (e) {
+      alert('Error al guardar participantes. Reintentá en unos segundos.');
+    }
+    setSavingEvent(false);
+    setRecurringDialog({ open: false, onConfirm: null });
+  };
+
+  const handleSaveAttendeesClick = () => {
+    if (!selectedEvent) return;
+    // Si el evento es recurrente, mostrar el dialog antes de guardar
+    if (selectedEvent.recurringEventId) {
+      setRecurringDialog({
+        open: true,
+        onConfirm: (scope) => saveAttendees(scope)
+      });
+    } else {
+      saveAttendees('single');
+    }
   };
 
   // Filtrar eventos del día seleccionado
@@ -456,11 +591,13 @@ export default function MiDia({
           smartInbox={smartInbox}
           healthReport={healthReport}
           loadingHealth={loadingHealth}
-          onSync={onRefresh}
+          onSync={onRefreshInbox}
           onSyncHealth={async () => {
             try {
+              // 1. Pedir al backend que procese mails operativos (actualiza JSON)
               await fetch(`${API}/midia/health-report/sync`, { method: 'POST' });
-              onRefresh();
+              // 2. Solo refrescar el estado del healthReport en el frontend (sin recargar mails/agenda)
+              if (onRefreshHealth) await onRefreshHealth();
             } catch(e) { console.error('Sync Salud falló:', e); }
           }}
           isDark={T?.bg === '#0F172A' || T?.bg === '#0f172a'}
@@ -521,125 +658,6 @@ export default function MiDia({
         const pending = selectedEvent.attendees.filter(a => !a.responseStatus || a.responseStatus === 'needsAction' || a.responseStatus === 'tentative');
         const declined = selectedEvent.attendees.filter(a => a.responseStatus === 'declined');
 
-        const openEdit = () => {
-          setEditData({
-            summary: selectedEvent.title,
-            description: selectedEvent.description,
-            startDateTime: selectedEvent.rawStart,
-            endDateTime: selectedEvent.rawEnd,
-          });
-          setConflicts([]);
-          setEditMode(true);
-        };
-
-        const checkConflicts = async (startIso, endIso) => {
-          if (!startIso || !endIso) return;
-          setCheckingConflicts(true);
-          try {
-            const res = await fetch(`${API}/midia/events/check-conflicts`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ start_iso: startIso, end_iso: endIso, exclude_event_id: selectedEvent.id })
-            });
-            const data = await res.json();
-            setConflicts(data.conflicts || []);
-          } catch (e) { console.error(e); }
-          setCheckingConflicts(false);
-        };
-
-        const saveEvent = async () => {
-          setSavingEvent(true);
-          try {
-            const body = {};
-            if (editData.summary !== selectedEvent.title) body.summary = editData.summary;
-            if (editData.description !== selectedEvent.description) body.description = editData.description;
-            if (editData.startDateTime) body.start = { dateTime: editData.startDateTime, timeZone: 'America/Argentina/Buenos_Aires' };
-            if (editData.endDateTime) body.end = { dateTime: editData.endDateTime, timeZone: 'America/Argentina/Buenos_Aires' };
-            await fetch(`${API}/midia/events/${selectedEvent.id}`, {
-              method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(body)
-            });
-            alert('✅ Evento actualizado. Los participantes recibirán una notificación.');
-            setEditMode(false);
-            onRefresh();
-          } catch (e) { alert('Error guardando el evento'); }
-          setSavingEvent(false);
-        };
-
-        const cancelEvent = async () => {
-          if (!confirm('¿Cancelar este evento? Se enviará un mail de cancelación a todos los participantes.')) return;
-          setCancellingEvent(true);
-          try {
-            await fetch(`${API}/midia/events/${selectedEvent.id}`, { method: 'DELETE' });
-            alert('✅ Evento cancelado. Se notificó a los participantes.');
-            setSelectedEvent(null);
-            onRefresh();
-          } catch (e) { alert('Error cancelando el evento'); }
-          setCancellingEvent(false);
-        };
-
-        const generateAIDescription = async () => {
-          setGeneratingDescription(true);
-          try {
-            const res = await fetch(`${API}/midia/generate-event-description`, {
-              method: 'POST', headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ title: editData.summary || selectedEvent.title, current_description: editData.description })
-            });
-            const data = await res.json();
-            setEditData(prev => ({ ...prev, description: data.description }));
-          } catch (e) { alert('Error generando descripción con IA'); }
-          setGeneratingDescription(false);
-        };
-
-        const handleAddAttendee = () => {
-          const email = newAttendeeEmail.trim().toLowerCase();
-          if (!email) return;
-          if (selectedEvent.attendees.some(a => a.email.toLowerCase() === email)) {
-            alert('Este mail ya está invitado.'); return;
-          }
-          
-          setSelectedEvent(prev => ({
-            ...prev,
-            attendees: [...prev.attendees, { email, responseStatus: 'needsAction' }]
-          }));
-          setNewAttendeeEmail('');
-        };
-
-        const handleRemoveAttendee = (email) => {
-          setSelectedEvent(prev => ({
-            ...prev,
-            attendees: prev.attendees.filter(a => a.email !== email)
-          }));
-        };
-
-        const saveAttendees = async (scope = 'single') => {
-          setSavingEvent(true);
-          try {
-            const res = await fetch(`${API}/midia/events/${selectedEvent.id}/attendees?scope=${scope}`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(selectedEvent.attendees)
-            });
-            if (!res.ok) throw new Error();
-            alert('✅ Participantes actualizados. Google enviará los mails automáticamente.');
-            onRefresh();
-          } catch (e) {
-            alert('Error al guardar participantes. Reintentá en unos segundos.');
-          }
-          setSavingEvent(false);
-          setRecurringDialog({ open: false, onConfirm: null });
-        };
-
-        const handleSaveAttendeesClick = () => {
-          // Si el evento es recurrente, mostrar el dialog antes de guardar
-          if (selectedEvent.recurringEventId) {
-            setRecurringDialog({
-              open: true,
-              onConfirm: (scope) => saveAttendees(scope)
-            });
-          } else {
-            saveAttendees('single');
-          }
-        };
 
         const AttendeeCard = ({ att, showRemove }) => (
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8,

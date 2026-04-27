@@ -31,12 +31,20 @@ export default function App() {
     { userName: 'Basilio Ossvald', userEmail: 'bossvald@flink.com.ar' }
   );
 
-  const fetchData = async () => {
-    setLoading(true);
+  const fetchInbox = async () => {
     try {
-      const res = await fetch(`${API}/midia/data`);
+      const res = await fetch(`${API}/midia/mails`);
       const data = await res.json();
       if (data.all_mails) setAllMails(data.all_mails);
+    } catch (e) {
+      console.error("Error fetching inbox:", e);
+    }
+  };
+
+  const fetchCalendar = async () => {
+    try {
+      const res = await fetch(`${API}/midia/calendar`);
+      const data = await res.json();
       if (data.events) {
         const parsedEvents = data.events
           .filter(ev => ev.start.dateTime)
@@ -65,8 +73,13 @@ export default function App() {
         setEvents(parsedEvents);
       }
     } catch (e) {
-      console.error("Error fetching global data:", e);
+      console.error("Error fetching calendar:", e);
     }
+  };
+
+  const fetchData = async () => {
+    setLoading(true);
+    await Promise.all([fetchInbox(), fetchCalendar()]);
     setLoading(false);
   };
 
@@ -230,6 +243,9 @@ export default function App() {
             healthReport={healthReport}
             loadingHealth={loadingHealth}
             onRefresh={fetchData}
+            onRefreshInbox={fetchInbox}
+            onRefreshCalendar={fetchCalendar}
+            onRefreshHealth={refreshHealthReport}
           />
         )}
         {view === "journey" && (

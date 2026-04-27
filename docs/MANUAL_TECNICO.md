@@ -32,10 +32,11 @@
 | Componente | Tecnología |
 |---|---|
 | Entorno local | `start-dev-local.sh` (Uvicorn + Vite) |
-| Contenedores prod | Docker + Docker Compose |
-| Servidor prod | Raspberry Pi 3B+ |
-| Proxy inverso prod | Nginx |
+| Contenedores prod | Docker + Docker Compose (Unificado) |
+| Servidor prod | Raspberry Pi 4 (8GB RAM) |
+| Proxy inverso prod | Nginx (Container: `proxy_unificado`) |
 | Dominio externo | Cloudflare Tunnel → `graficosagiles.site` |
+| Coexistencia | Comparte proxy con proyecto 'Gastos Familia' |
 
 ---
 
@@ -146,23 +147,19 @@ El sistema usa una **base de datos flat-file JSON** (`backend/app/data/health_st
 ### 4.1 Escritura Atómica
 El archivo se escribe en dos pasos: primero a un `.tmp` y luego se hace un `os.replace()`. Esto garantiza que el archivo nunca quede en estado corrupto, ya que `rename` es una operación atómica en sistemas POSIX (Linux/macOS).
 
-### 4.2 Ventana de Escritura
-La función `_is_within_write_window(date_str)` valida que la hora actual (UTC-3) esté dentro del rango permitido para modificar un registro:
+### 4.2 Lógica de "Congelamiento" y Ventanas
+Aunque existen ventanas horarias para la recepción de mails, el sistema ya NO bloquea la escritura basándose en la hora en que el usuario hace clic en "Sincronizar". En su lugar, el sistema confía en el **Sistema de Prioridades** (ver 4.3).
 
-```
-Apertura: 15:00 del día D
-Cierre:   06:00 del día D+1  (= 15h de duración)
-```
-
-Si el registro ya existe y estamos fuera de esa ventana, el campo queda **congelado** y no puede ser modificado por una nueva sincronización.
+Un registro se considera "protegido" solo si lo que se intenta ingresar tiene una prioridad menor a lo que ya existe (ej: un mail de la tarde intentando pisar un reproceso de la madrugada).
 
 ### 4.3 Sistema de Prioridades
 Definidas como constantes en `TIPO_PRIORIDAD`:
 
 ```python
 TIPO_PRIORIDAD = {
-    "reproceso": 2,
-    "primer_servicio": 1,
+    "manual": 3,          # Comentarios o ediciones manuales (Nivel Máximo)
+    "reproceso": 2,       # Mails de 22:00 a 06:00
+    "primer_servicio": 1, # Mails de 15:00 a 19:00
     None: 0
 }
 ```
@@ -184,7 +181,11 @@ Los comentarios son independientes de la lógica de ventanas de escritura. La fu
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| `POST` | `/midia/health-report/analyze` | Recibe los emails del usuario y ejecuta el análisis de salud (extrae datos, llama a IA, actualiza el store) |
+| `GET`  | `/midia/mails` | Devuelve solo la lista de correos y su categorización (Sync Inbox) |
+| `GET`  | `/midia/calendar` | Devuelve solo los eventos del calendario (Sync Calendar) |
+| `POST` | `/midia/events/{id}/rsvp` | Envía la respuesta de asistencia (accepted, declined, tentative) a Google Calendar |
+| `POST` | `/midia/health-report/sync` | Dispara el query directo a Gmail para buscar reportes bancarios operativos |
+| `POST` | `/midia/health-report/analyze` | Ejecuta el análisis de salud sobre los mails (extracción, IA y actualización del store) |
 | `GET`  | `/midia/inbox-config` | Devuelve la configuración del Smart Inbox desde Google Sheets |
 | `POST` | `/midia/health-report/comment` | Guarda un comentario analítico (`analisis_diario`) en el store |
 
@@ -286,15 +287,28 @@ El mismo cálculo se aplica en el modal de edición de comentarios para contextu
 
 ---
 
-## 9. Despliegue
+## 9. Flujo de Trabajo con GitHub
 
-> ⚠️ Ver el archivo `RULE[rule-deployment.md]` para las reglas de modificación de los scripts de despliegue. **Están protegidos.**
+GitHub es el motor de sincronización. Debido a la sensibilidad de los datos de este proyecto (Jira, Google, IA), el manejo de secretos es estricto.
 
-| Script | Entorno | Uso |
-|---|---|---|
-| `start-dev-local.sh` | Local | Levanta Uvicorn (puerto 8000) + Vite dev server (puerto 5173) |
-| `deploy.sh` | Laptop → RPI | Orquesta el push y actualización en el servidor de producción |
-| `rpi-update.sh` | Raspberry Pi | Se ejecuta en el servidor para actualizar contenedores |
+### 9.1 El Ciclo de Desarrollo
+1. **Local:** Programación y pruebas en la Lenovo.
+2. **Push:** Subida del código (lógica, estilos, componentes).
+3. **Pull en RPi:** Actualización del servidor de producción.
+
+### 9.2 Manejo de Secretos y Google Auth
+Este proyecto requiere archivos de identidad que **JAMÁS deben estar en GitHub**:
+- `.env`: API Keys de Gemini y variables de entorno.
+- `backend/credentials.json`: Identidad de la App en Google Cloud.
+- `backend/token.json`: Sesión autorizada del usuario.
+- `backend/app/data/*.json`: El histórico de datos (health_store).
+
+> [!CAUTION]
+> Si estos archivos se filtran en GitHub, cualquier persona podría acceder a tu correo y calendario. Siempre verificar el `.gitignore` antes de un commit.
+
+---
+
+## 10. Despliegue
 
 ---
 
@@ -323,6 +337,9 @@ Las variables sensibles se gestionan en archivos `.env` (no versionados en git):
 | 1.3 | 2026-04-23 | Optimización UX Modal: flujo persistente, previsualizaciones completas y navegación. Integración de `Brush` con reseteo dinámico (`key` binding) y reubicación de leyenda/márgenes. |
 | 1.4 | 2026-04-23 | Implementación de `Reporte Ejecutivo Diario`: Tabla de datos reactiva sincronizada con Zoom (Brush) y filtros. Optimización de posicionamiento dinámico para iconos de mail (yPos visible). |
 | 1.5 | 2026-04-23 | Transposición de tablas (Bancos × Tiempo), orden cronológico ascendente, formatos de fecha corporativos (DD MMM YY / MMM YY), semáforo de deltas en tablas. Corrección de bug: `</div>` faltante en contenedor GRÁFICO PRINCIPAL. |
+| 1.6 | 2026-04-24 | Eliminación de restricción de ventana horaria para ejecución de Sync. Prioridad absoluta del tipo de mail sobre el tiempo de ingesta. Inclusión de prioridad `manual: 3` en `health_store.py`. |
+| 1.7 | 2026-04-24 | Desacoplamiento de Sincronización: Nuevos endpoints granulares (`/mails`, `/calendar`). Separación de flujo de refresco en frontend para evitar recargas innecesarias del calendario al sincronizar salud. |
+| 1.7.1 | 2026-04-24 | Hotfix: Corrección de `ReferenceError: rsvpLoading` en el modal de agenda de `MiDia.jsx`. Documentación de funcionalidad RSVP. |
 
 ---
 
@@ -357,3 +374,20 @@ Se añadió una capa de visualización tabular sincronizada con el gráfico:
 - **Formatos de fecha corporativos:** Se implementaron funciones para estandarizar las fechas en los headers (`DD MMM YY` y `MMM YY`).
 - **Sistema de Semáforo:** Las celdas de delta en las tablas siguen la misma lógica (Verde crecimiento positivo, Amarillo caída leve ≤ 10%, Rojo caída crítica > 10%).
 - **Corrección Estructural:** Se documenta la restauración del `</div>` del contenedor `GRÁFICO PRINCIPAL` que fue eliminado involuntariamente durante una iteración, destacando la necesidad de implementar buenas prácticas de semántica HTML en futuras iteraciones.
+
+---
+
+## 13. Troubleshooting y Errores Comunes
+
+### 13.1 Cloudflare: 502 Bad Gateway (Host Error)
+**Síntoma:** Al ingresar a `graficosagiles.site`, Cloudflare muestra una pantalla de error 502 indicando que el navegador y Cloudflare están operativos, pero el "Host" da error.
+**Diagnóstico:** El contenedor de `cloudflared` está funcionando correctamente y conectando con Cloudflare, pero no puede rutear el tráfico hacia el contenedor del frontend.
+**Causa Común (Conflicto de Instancias):** Si se instaló `cloudflared` nativamente en el sistema operativo de la Raspberry Pi y posteriormente se incluyó en `docker-compose.prod.yml`, ambas instancias intentarán responder al mismo túnel.
+- La instancia nativa recibe la regla de Cloudflare de rutear a `http://frontend:80`.
+- Al no estar dentro de la red de Docker, la instancia nativa no puede resolver el DNS interno `frontend`, por lo que la conexión es rechazada y devuelve un 502.
+**Solución Permanente:** Desactivar la instancia nativa del sistema operativo para que solo opere la versión en contenedores:
+```bash
+sudo systemctl stop cloudflared
+sudo systemctl disable cloudflared
+```
+**Alternativa:** En el dashboard de Cloudflare Zero Trust, configurar la ruta apuntando a la IP local de la Raspberry Pi (ej. `http://192.168.1.140:80`) en lugar del nombre del contenedor, para que cualquier instancia del túnel sepa cómo alcanzar el puerto expuesto.

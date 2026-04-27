@@ -15,15 +15,13 @@ from app.core.config import get_settings
 router = APIRouter(prefix="/midia", tags=["midia"])
 logger = logging.getLogger(__name__)
 
-@router.get("/data")
-async def get_midia_data():
+@router.get("/mails")
+async def get_midia_mails():
+    """Devuelve solo la lista de correos y su categorización."""
     try:
-        # Se volvió a ejecución secuencial porque google-api-python-client  
-        # no es thread-safe y bloquea el event loop. Con Batch API ya es rapidísimo (<2s).
+        from app.services.google_service import get_gmail_threads
         threads = await get_gmail_threads(max_results=300, days=30)
-        events = await get_calendar_today()
-
-        # Categorización básica para la vista de acordeones (fallback visual)
+        
         categorized = {"clientes": [], "tickets": [], "equipo": [], "notif": []}
         for t in threads:
             subj = t['subject'].lower()
@@ -36,17 +34,40 @@ async def get_midia_data():
                 categorized['equipo'].append(t)
             else:
                 categorized['notif'].append(t)
-
+                
         return {
-            "mail_groups":    categorized,
-            "all_mails":      threads,     # ← lista plana para processSmartInbox
-            "events":         events,
-            "google_connected": get_google_creds() is not None,
-            "mails_fetched":  len(threads),
+            "mail_groups": categorized,
+            "all_mails":   threads,
+            "count":       len(threads)
         }
     except Exception as e:
-        logger.error(f"Error en Mi Dia data: {e}")
-        return {"error": str(e), "google_connected": False}
+        logger.error(f"Error en Mi Dia mails: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/calendar")
+async def get_midia_calendar():
+    """Devuelve solo los eventos del calendario."""
+    try:
+        from app.services.google_service import get_calendar_today
+        events = await get_calendar_today()
+        return {"events": events}
+    except Exception as e:
+        logger.error(f"Error en Mi Dia calendar: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/data")
+async def get_midia_data():
+    """Endpoint consolidado (mantiene compatibilidad)."""
+    try:
+        mails_data = await get_midia_mails()
+        calendar_data = await get_midia_calendar()
+        return {
+            **mails_data,
+            **calendar_data,
+            "google_connected": True
+        }
+    except Exception:
+        return {"google_connected": False}
 
 @router.post("/generate-plan")
 async def generate_plan(mails: list[dict]):
@@ -724,6 +745,8 @@ async def analyze_health_reports(emails: list[dict]):
     logger.info(f"[Health] detail={len(detail_mails)} summary={len(summary_mails)} total={len(all_mails)}")
 
     # ── FASE E: Agrupar datos por fecha del asunto ────────────────────────────────
+    from app.services.health_store import TIPO_PRIORIDAD
+    
     days: dict[str, dict] = {}
     for mail in detail_mails:
         subj  = mail.get("subject") or ""
@@ -731,11 +754,24 @@ async def analyze_health_reports(emails: list[dict]):
         fdate = _extract_date_from_subject(subj) or (mail.get("date") or "")[:10]
         if not bank or not fdate:
             continue
+            
         content  = f"{subj} {mail.get('snippet','') or ''} {mail.get('body','') or ''}"
         products = _extract_products_from_text(content)
         products["info_ingesta"] = _classify_ingesta(mail.get("date", ""))
+        
         if fdate not in days:
             days[fdate] = {}
+            
+        # Lógica de protección: Si ya procesamos un mail para este banco/fecha, 
+        # solo lo reemplazamos si el nuevo tiene mayor o igual prioridad.
+        existing_products = days[fdate].get(bank)
+        if existing_products:
+            prio_new = TIPO_PRIORIDAD.get(products["info_ingesta"]["tipo"], 0)
+            prio_old = TIPO_PRIORIDAD.get(existing_products["info_ingesta"]["tipo"], 0)
+            if prio_new < prio_old:
+                logger.debug(f"[Health] Ignorando mail de menor prioridad para {fdate}/{bank}")
+                continue
+                
         days[fdate][bank] = products
         logger.debug(f"[Health] {fdate}/{bank} -> {products}")
 
