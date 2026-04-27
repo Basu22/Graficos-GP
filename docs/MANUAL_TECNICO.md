@@ -391,3 +391,22 @@ sudo systemctl stop cloudflared
 sudo systemctl disable cloudflared
 ```
 **Alternativa:** En el dashboard de Cloudflare Zero Trust, configurar la ruta apuntando a la IP local de la Raspberry Pi (ej. `http://192.168.1.140:80`) en lugar del nombre del contenedor, para que cualquier instancia del túnel sepa cómo alcanzar el puerto expuesto.
+
+---
+
+## 14. Mantenimiento y Despliegue Seguro (Zero Downtime)
+
+Este proyecto convive con 'Gastos Familia' en una **Infraestructura Unificada**. Para evitar afectar al otro proyecto durante un despliegue, seguir estas reglas:
+
+### 14.1 Despliegue Quirúrgico
+**NUNCA** ejecutar `docker compose up -d` a secas en la carpeta de infraestructura de la Raspberry. 
+El script `deploy.sh` de la PC ya está configurado para actualizar solo lo necesario:
+`docker compose up -d --build dash-backend dash-frontend`
+
+### 14.2 Evitar el `down`
+El comando `docker compose down` apaga el Proxy y el Túnel, dejando fuera de línea a TODOS los proyectos. Evitar su uso en producción.
+
+### 14.3 Recarga de Configuración
+Para aplicar cambios en `nginx.conf`, usar:
+`docker restart proxy_unificado`
+

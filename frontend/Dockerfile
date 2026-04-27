@@ -1,18 +1,25 @@
-FROM node:20-slim
+# Etapa 1: Construcción
+FROM node:20-slim as build
 
 WORKDIR /app
 
-# Copiamos archivos de dependencias
+# Dependencias
 COPY package*.json ./
-
-# Instalamos (esto puede tardar en la Pi, paciencia)
 RUN npm install
 
-# Copiamos el resto del código
+# Código fuente
 COPY . .
 
-# Exponemos el puerto de Vite
-EXPOSE 5173
+# Generar los archivos estáticos (dist/)
+# Usamos /api como base para que el Proxy lo capture
+ENV VITE_API_URL=/api
+RUN npm run build
 
-# Comando para correr Vite en modo desarrollo pero accesible desde afuera
-CMD ["npm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Etapa 2: Servidor de Producción (Nginx)
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Exponemos el puerto 80 estándar
+EXPOSE 80
+
+CMD ["nginx", "-g", "daemon off;"]
