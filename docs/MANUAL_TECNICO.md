@@ -23,24 +23,46 @@
 | Componente | Tecnología | Versión |
 |---|---|---|
 | Framework | React | 18 |
-| Build Tool | Vite | 5+ |
+| Build Tool | Vite | 5+ (Build Producción) |
+| Servidor | Nginx | Alpine (Modo Producción) |
 | Gráficos | Recharts | 2.x |
-| Estilos | Vanilla CSS (inline styles) | — |
-| Peticiones HTTP | Fetch API nativa | — |
 
-### Infraestructura
-| Componente | Tecnología |
-|---|---|
-| Entorno local | `start-dev-local.sh` (Uvicorn + Vite) |
-| Contenedores prod | Docker + Docker Compose (Unificado) |
-| Servidor prod | Raspberry Pi 4 (8GB RAM) |
-| Proxy inverso prod | Nginx (Container: `proxy_unificado`) |
-| Dominio externo | Cloudflare Tunnel → `graficosagiles.site` |
-| Coexistencia | Comparte proxy con proyecto 'Gastos Familia' |
+### Infraestructura Unificada
+| Componente | Tecnología | Rol |
+|---|---|---|
+| Contenedores | Docker + Docker Compose | Orquestación compartida |
+| Servidor | Raspberry Pi 4 (8GB RAM) | Host físico |
+| Proxy Unificado | Nginx (Container: `proxy_unificado`) | Orquestador de puertos 80/8080 |
+| Túnel Seguro | Cloudflare Tunnel | Exposición vía LAN IP: `192.168.1.185` |
 
 ---
 
-## 2. Estructura del Proyecto
+## 2. Arquitectura de Despliegue (Zero Downtime)
+
+El proyecto utiliza un sistema de **Túnel Outbound** para evitar abrir puertos en el router del hogar.
+
+```
+Internet (graficosagiles.site)
+    │
+    ▼
+Cloudflare Tunnel (tunnel_unificado)
+    │
+    ▼ [Conexión vía LAN IP: 192.168.1.185:80]
+    │
+Nginx Proxy (proxy_unificado) :80
+    │
+    └── proxy_pass http://dash-frontend:80
+          │
+          └── Nginx Interno (dash_frontend)
+                └── Archivos estáticos (dist/)
+```
+
+> [!IMPORTANT]
+> Se configuró la IP física de la Raspberry (`192.168.1.185`) como origen en el panel de Cloudflare. Esto garantiza estabilidad total frente a posibles micro-cortes o fallos en el DNS interno de Docker.
+
+---
+
+## 3. Estructura del Proyecto
 
 ```
 Graficos-GP/
@@ -409,4 +431,9 @@ El comando `docker compose down` apaga el Proxy y el Túnel, dejando fuera de l�
 ### 14.3 Recarga de Configuración
 Para aplicar cambios en `nginx.conf`, usar:
 `docker restart proxy_unificado`
+
+### 14.4 Persistencia de IP Local (Túnel)
+La estabilidad del dominio externo depende de que la IP local de la Raspberry (`192.168.1.185`) no cambie.
+- **Acción:** Asegurar que el router tenga una **Reservación DHCP (Static IP)** para la dirección MAC de la Raspberry.
+- **Si la IP cambia:** Se debe actualizar la URL de origen en el panel de Cloudflare Zero Trust bajo la sección *Public Hostnames*.
 

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import { EmailThreadModal } from './EmailThreadModal';
 import { buildHealthTableData } from '../utils/healthTable';
 
 // ─── SISTEMA DE TEMAS ────────────────────────────────────────────────────────
@@ -11,6 +12,7 @@ const TAG_STYLES = {
   'JIRA-FYI': { bg: 'rgba(100,116,139,0.08)', border: 'rgba(100,116,139,0.2)', text: '#64748b', icon: 'ℹ️' },
   INICIATIVA: { bg: 'rgba(168,85,247,0.10)',  border: 'rgba(168,85,247,0.3)', text: '#A855F7', icon: '🔭' },
   HEALTH:     { bg: 'rgba(16,185,129,0.10)',  border: 'rgba(16,185,129,0.3)', text: '#10B981', icon: '📊' },
+  SOPORTE:    { bg: 'rgba(236,72,153,0.10)',  border: 'rgba(236,72,153,0.3)', text: '#EC4899', icon: '🛠️' },
   INFO:       { bg: 'rgba(100,116,139,0.06)', border: 'rgba(100,116,139,0.15)', text: '#94a3b8', icon: '📬' },
 };
 
@@ -300,22 +302,83 @@ function HealthBanner({ healthReport, loadingHealth }) {
   );
 }
 
+// ─── HOOK: ARCHIVADO LOCAL ───────────────────────────────────────────────────
+const LS_KEY = 'si_archived_ids';
+
+function useArchivedThreads() {
+  const [archived, setArchived] = useState(() => {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      return raw ? new Set(JSON.parse(raw)) : new Set();
+    } catch { return new Set(); }
+  });
+
+  const archive = useCallback((id) => {
+    setArchived(prev => {
+      const next = new Set(prev);
+      next.add(id);
+      localStorage.setItem(LS_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }, []);
+
+  const unarchive = useCallback((id) => {
+    setArchived(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      localStorage.setItem(LS_KEY, JSON.stringify([...next]));
+      return next;
+    });
+  }, []);
+
+  return { archived, archive, unarchive };
+}
+
 // ─── CARD DE MAIL ────────────────────────────────────────────────────────────
-function InboxCard({ item }) {
-  const P = useP();
-  const [open, setOpen] = useState(false);
+function InboxCard({ item, onOpenThread, onArchive }) {
+  const isDark = useContext(ThemeCtx);
+  const P = getP(isDark);
+  const [hoverArchive, setHoverArchive] = useState(false);
   const tag  = item._tag || 'INFO';
   const s    = TAG_STYLES[tag] || TAG_STYLES.INFO;
   const isStale = item.isStale;
 
+  const handleArchive = (e) => {
+    e.stopPropagation();
+    onArchive(item.threadId || item.id);
+  };
+
   return (
-    <div onClick={() => setOpen(o => !o)} style={{
+    <div onClick={() => onOpenThread(item)} style={{
       background: isStale ? `linear-gradient(90deg, rgba(249,115,22,0.07) 0%, ${P.card} 100%)` : P.card,
       border: `1px solid ${isStale ? 'rgba(249,115,22,0.35)' : P.border}`,
       borderLeft: isStale ? '3px solid #F97316' : `3px solid ${s.border}`,
       borderRadius: 12, padding: '12px 14px', marginBottom: 8, cursor: 'pointer', transition: 'all 0.2s ease',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap' }}>
+      boxShadow: '0 2px 4px rgba(0,0,0,0.02)', position: 'relative'
+    }}
+    onMouseOver={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+    onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}
+    >
+      {/* Botón archivar */}
+      <button
+        onClick={handleArchive}
+        onMouseOver={() => setHoverArchive(true)}
+        onMouseOut={() => setHoverArchive(false)}
+        title="Archivar este mail del inbox"
+        style={{
+          position: 'absolute', top: 8, right: 8,
+          background: hoverArchive ? 'rgba(239,68,68,0.15)' : 'transparent',
+          border: `1px solid ${hoverArchive ? 'rgba(239,68,68,0.4)' : 'transparent'}`,
+          color: hoverArchive ? '#EF4444' : P.muted,
+          borderRadius: 6, width: 20, height: 20, fontSize: 10, fontWeight: 800,
+          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          transition: 'all 0.15s ease', lineHeight: 1, padding: 0, zIndex: 2
+        }}
+      >
+        ✕
+      </button>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6, flexWrap: 'wrap', paddingRight: 24 }}>
         <Badge tag={tag} extra={item._isCeremony ? 'Ceremonia' : null} />
         {isStale && <Badge tag="BLOQUEO" extra="Estancado" />}
         {item.ticketId && (
@@ -327,44 +390,44 @@ function InboxCard({ item }) {
             {item.ticketId} ↗
           </a>
         )}
-        <span style={{ fontSize: 9, color: P.muted, marginLeft: 'auto', fontFamily: "'DM Mono', monospace" }}>
-          {item.date ? new Date(item.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
-        </span>
+        <div style={{ marginLeft: 'auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 2 }}>
+          <span style={{ fontSize: 9, color: P.muted, fontFamily: "'DM Mono', monospace" }}>
+            {item.date ? new Date(item.date).toLocaleDateString('es-AR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}
+          </span>
+          <span style={{ fontSize: 12, opacity: 0.5 }}>📬</span>
+        </div>
       </div>
+      
       <div style={{ fontSize: 12, fontWeight: 600, color: isStale ? '#FB923C' : P.text,
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: open ? 'normal' : 'nowrap', marginBottom: 4 }}>
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginBottom: 4, paddingRight: 24 }}>
         {item.subject || item.title || 'Sin asunto'}
       </div>
-      <div style={{ fontSize: 10, color: P.muted }}>
-        {item.from || item.originalRequest?.from || ''}
-      </div>
-      {open && (item.snippet || item.originalRequest?.snippet) && (
-        <div style={{ marginTop: 10, padding: '8px 12px', background: P.sectionBg, borderRadius: 8,
-          fontSize: 11, color: P.muted, lineHeight: 1.6, borderTop: `1px solid ${P.border}` }}>
-          {item.snippet || item.originalRequest?.snippet}
+      
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div style={{ fontSize: 10, color: P.muted, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {item.from || item.originalRequest?.from || ''}
         </div>
-      )}
-      {item.responseStatus && open && (
-        <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{
-            fontSize: 9, fontWeight: 800, padding: '2px 8px', borderRadius: 5,
+        
+        {item.responseStatus && (
+          <div style={{ 
+            fontSize: 8, fontWeight: 800, padding: '1px 6px', borderRadius: 4, marginLeft: 8,
             color: item.responseStatus === 'WAITING' ? '#F59E0B' : '#10B981',
             background: item.responseStatus === 'WAITING' ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)',
             border: `1px solid ${item.responseStatus === 'WAITING' ? 'rgba(245,158,11,0.3)' : 'rgba(16,185,129,0.3)'}`,
+            whiteSpace: 'nowrap'
           }}>
-            {item.responseStatus === 'WAITING' ? '⏳ Esperando respuesta' : `✓ Respondido — ${item.respondingTeam}`}
-          </span>
-          {item.totalMessages > 1 && <span style={{ fontSize: 9, color: P.muted }}>{item.totalMessages} mensajes en el hilo</span>}
-        </div>
-      )}
+            {item.responseStatus === 'WAITING' ? '⏳ ACCIÓN' : '✓ OK'}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
 
 // ─── SECCIÓN COLAPSABLE ──────────────────────────────────────────────────────
-function Section({ title, items, tagStyle, collapsible = true }) {
+function Section({ title, items, tagStyle, collapsible = true, onOpenThread, onArchive }) {
   const P = useP();
-  const [collapsed, setCollapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(true);
   if (!items || items.length === 0) return null;
   const s = tagStyle;
 
@@ -383,15 +446,109 @@ function Section({ title, items, tagStyle, collapsible = true }) {
         </span>
         {collapsible && <span style={{ fontSize: 10, color: P.muted, marginLeft: 'auto' }}>{collapsed ? '▸' : '▾'}</span>}
       </div>
-      {!collapsed && items.map((item, i) => <InboxCard key={item.id || i} item={item} />)}
+      {!collapsed && items.map((item, i) => (
+        <InboxCard key={item.id || i} item={item} onOpenThread={onOpenThread} onArchive={onArchive} />
+      ))}
+    </div>
+  );
+}
+
+// ─── VISTA ARCHIVADOS ────────────────────────────────────────────────────────
+function ArchivedView({ smartInbox, archived, onUnarchive, onOpenThread, P, isDark }) {
+  // Aplanar todos los items y quedarse con los archivados
+  const allItems = [
+    ...(smartInbox.urgent      || []),
+    ...(smartInbox.blocked     || []),
+    ...(smartInbox.initiatives || []),
+    ...(smartInbox.jira        || []),
+    ...(smartInbox.jiraFyi     || []),
+    ...(smartInbox.ceremonies  || []),
+    ...(smartInbox.info        || []),
+  ];
+  const archivedItems = allItems.filter(item => archived.has(item.threadId || item.id));
+
+  if (archivedItems.length === 0) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        gap: 8, paddingTop: 48, color: P.muted, textAlign: 'center' }}>
+        <span style={{ fontSize: 32 }}>🗂</span>
+        <div style={{ fontSize: 12, fontWeight: 700 }}>Sin mails archivados</div>
+        <div style={{ fontSize: 10, opacity: 0.6 }}>Cuando archives un mail, aparecerá acá.</div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 9, color: P.muted, fontWeight: 600, textTransform: 'uppercase',
+        letterSpacing: 1, marginBottom: 12, opacity: 0.7 }}>
+        {archivedItems.length} mail{archivedItems.length !== 1 ? 's' : ''} archivado{archivedItems.length !== 1 ? 's' : ''}
+      </div>
+      {archivedItems.map((item, i) => {
+        const tag = item._tag || 'INFO';
+        const s   = TAG_STYLES[tag] || TAG_STYLES.INFO;
+        const id  = item.threadId || item.id;
+        return (
+          <div key={id || i} onClick={() => onOpenThread(item)} style={{
+            background: P.card, border: `1px solid ${P.border}`,
+            borderLeft: `3px solid ${s.border}`, borderRadius: 12,
+            padding: '10px 12px', marginBottom: 8, cursor: 'pointer',
+            transition: 'all 0.2s ease', opacity: 0.75, position: 'relative'
+          }}
+          onMouseOver={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+          onMouseOut={e =>  { e.currentTarget.style.opacity = '0.75'; e.currentTarget.style.transform = 'translateY(0)'; }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, paddingRight: 70 }}>
+              <Badge tag={tag} />
+            </div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: P.text,
+              overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              marginBottom: 3, paddingRight: 70 }}>
+              {item.subject || item.title || 'Sin asunto'}
+            </div>
+            <div style={{ fontSize: 9, color: P.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {item.from || ''}
+            </div>
+
+            {/* Botón restaurar */}
+            <button
+              onClick={e => { e.stopPropagation(); onUnarchive(id); }}
+              title="Volver al Inbox"
+              style={{
+                position: 'absolute', top: '50%', right: 10, transform: 'translateY(-50%)',
+                fontSize: 9, fontWeight: 800, cursor: 'pointer',
+                padding: '3px 8px', borderRadius: 6,
+                background: 'rgba(16,185,129,0.12)',
+                border: '1px solid rgba(16,185,129,0.35)',
+                color: '#10B981', whiteSpace: 'nowrap', transition: 'all 0.15s ease'
+              }}
+            >
+              ↩ Restaurar
+            </button>
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 // ─── COMPONENTE PRINCIPAL ─────────────────────────────────────────────────────
 export default function SmartInboxColumn({ smartInbox, healthReport, loadingHealth, isDark = true, onSync, onSyncHealth }) {
-
+  const [selectedThread, setSelectedThread] = useState(null);
+  const [activeTab, setActiveTab] = useState('inbox');
+  const [syncing, setSyncing] = useState(false);
+  const { archived, archive, unarchive } = useArchivedThreads();
   const P = getP(isDark);
+
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      await onSync();
+    } finally {
+      setSyncing(false);
+    }
+  };
+
 
   if (!smartInbox) {
     return (
@@ -406,14 +563,28 @@ export default function SmartInboxColumn({ smartInbox, healthReport, loadingHeal
     );
   }
 
-  const { urgent = [], blocked = [], jira = [], jiraFyi = [], initiatives = [], ceremonies = [], info = [] } = smartInbox;
+  // Filtrar archivados
+  const filterArchived = (list) => list.filter(item => !archived.has(item.threadId || item.id));
+
+  const raw = smartInbox;
+  const urgent     = filterArchived(raw.urgent     || []);
+  const blocked    = filterArchived(raw.blocked    || []);
+  const jira       = filterArchived(raw.jira       || []);
+  const jiraFyi    = filterArchived(raw.jiraFyi    || []);
+  const initiatives= filterArchived(raw.initiatives|| []);
+  const ceremonies = filterArchived(raw.ceremonies || []);
+  const support    = filterArchived(raw.support    || []);
+  const info       = filterArchived(raw.info       || []);
+
   const urgentTotal = urgent.length;
-  const hasContent  = urgentTotal > 0 || blocked.length > 0 || jira.length > 0 || initiatives.length > 0 || ceremonies.length > 0;
+  const hasContent  = urgentTotal > 0 || blocked.length > 0 || jira.length > 0 || initiatives.length > 0 || ceremonies.length > 0 || support.length > 0;
+  const archivedCount = archived.size;
 
   return (
     <ThemeCtx.Provider value={isDark}>
       <style>{`
         @keyframes si-stale-pulse { 0%,100%{opacity:1} 50%{opacity:.75} }
+        @keyframes si-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .si-scroll::-webkit-scrollbar { width: 5px; }
         .si-scroll::-webkit-scrollbar-track { background: transparent; }
         .si-scroll::-webkit-scrollbar-thumb { background: rgba(128,128,128,0.2); border-radius: 10px; }
@@ -429,81 +600,136 @@ export default function SmartInboxColumn({ smartInbox, healthReport, loadingHeal
         overflow: 'hidden',
       }}>
         {/* ── HEADER ── */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.5,
-              background: isDark
-                ? 'linear-gradient(90deg, #f1f5f9, #94a3b8)'
-                : 'linear-gradient(90deg, #0f172a, #475569)',
-              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Smart Inbox
-            </h3>
-            <span style={{ fontSize: 9, color: P.muted, fontWeight: 600 }}>Oferta Minorista</span>
-            {urgentTotal > 0 && (
-              <span style={{ fontSize: 9, fontWeight: 800, background: '#EF4444', color: '#fff', padding: '2px 8px', borderRadius: 10 }}>
-                {urgentTotal} urgentes
-              </span>
-            )}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <h3 style={{ margin: 0, fontSize: 13, fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1.5,
+                background: isDark
+                  ? 'linear-gradient(90deg, #f1f5f9, #94a3b8)'
+                  : 'linear-gradient(90deg, #0f172a, #475569)',
+                WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                Smart Inbox
+              </h3>
+              <span style={{ fontSize: 9, color: P.muted, fontWeight: 600 }}>Oferta Minorista</span>
+              {activeTab === 'inbox' && urgentTotal > 0 && (
+                <span style={{ fontSize: 9, fontWeight: 800, background: '#EF4444', color: '#fff', padding: '2px 8px', borderRadius: 10 }}>
+                  {urgentTotal} urgentes
+                </span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                id="btn-sync-inbox"
+                onClick={handleSync}
+                disabled={syncing}
+                style={{ fontSize: 10, color: syncing ? P.muted : P.text, background: syncing ? P.sectionBg : 'transparent', border: `1px solid ${P.border}`,
+                  borderRadius: 8, padding: '4px 10px', cursor: syncing ? 'default' : 'pointer', fontWeight: 600,
+                  display: 'flex', alignItems: 'center', gap: 5 }}
+                title="Recarga el Smart Inbox (mails de equipo, clientes, etc.)"
+              >
+                <span style={{ display: 'inline-block', animation: syncing ? 'si-spin 1s linear infinite' : 'none' }}>🔄</span>
+                {syncing ? 'Sincronizando...' : 'Sync Inbox'}
+              </button>
+              <button
+                id="btn-sync-salud"
+                onClick={onSyncHealth}
+                style={{ fontSize: 10, color: '#10B981', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)',
+                  borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontWeight: 600 }}
+                title="Actualiza el Monitor de Salud (query directo a Gmail operativo)"
+              >
+                🏥 Sync Salud
+              </button>
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <button
-              id="btn-sync-inbox"
-              onClick={onSync}
-              style={{ fontSize: 10, color: P.muted, background: 'transparent', border: `1px solid ${P.border}`,
-                borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontWeight: 600 }}
-              title="Recarga el Smart Inbox (mails de equipo, clientes, etc.)"
-            >
-              🔄 Sync Inbox
-            </button>
-            <button
-              id="btn-sync-salud"
-              onClick={onSyncHealth}
-              style={{ fontSize: 10, color: '#10B981', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.3)',
-                borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontWeight: 600 }}
-              title="Actualiza el Monitor de Salud (query directo a Gmail operativo)"
-            >
-              🏥 Sync Salud
-            </button>
+
+          {/* ── TABS ── */}
+          <div style={{ display: 'flex', gap: 4, borderBottom: `1px solid ${P.border}`, paddingBottom: 0 }}>
+            {[{id:'inbox', label:'📬 Inbox'}, {id:'archived', label:`🗂 Archivados`, count: archivedCount}].map(tab => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  style={{
+                    fontSize: 10, fontWeight: 700, cursor: 'pointer',
+                    padding: '5px 12px', border: 'none', borderRadius: '8px 8px 0 0',
+                    background: isActive ? P.sectionBg : 'transparent',
+                    color: isActive ? P.text : P.muted,
+                    borderBottom: isActive ? `2px solid ${isDark ? '#F1F5F9' : '#0F172A'}` : '2px solid transparent',
+                    transition: 'all 0.15s ease', display: 'flex', alignItems: 'center', gap: 5
+                  }}
+                >
+                  {tab.label}
+                  {tab.count > 0 && (
+                    <span style={{ fontSize: 8, fontWeight: 900, background: '#A855F7',
+                      color: '#fff', padding: '1px 5px', borderRadius: 8 }}>
+                      {tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
         {/* ── SCROLL AREA ── */}
         <div className="si-scroll" style={{ flex: 1, overflowY: 'auto', paddingRight: 4, paddingBottom: 24, minHeight: 0 }}>
-          {hasContent ? (
-            <>
-              <HealthBanner healthReport={healthReport} loadingHealth={loadingHealth} />
 
-              {urgent.length > 0 && (
-                <Section title="🚨 Urgente — Acción Requerida" items={urgent} tagStyle={TAG_STYLES.URGENTE} />
-              )}
-              {blocked.length > 0 && (
-                <Section title="🔒 Bloqueos Activos" items={blocked} tagStyle={TAG_STYLES.BLOQUEO} />
-              )}
-              {initiatives.length > 0 && (
-                <Section title="🔭 Iniciativas en Seguimiento" items={initiatives} tagStyle={TAG_STYLES.INICIATIVA} />
-              )}
-              {jira.length > 0 && (
-                <Section title="🎯 Jira — Solo para estar al tanto" items={jira} tagStyle={TAG_STYLES.JIRA} />
-              )}
-              {jiraFyi.length > 0 && (
-                <Section title="ℹ️ Jira FYI" items={jiraFyi} tagStyle={TAG_STYLES['JIRA-FYI']} />
-              )}
-              {ceremonies.length > 0 && (
-                <Section title="📅 Ceremonias" items={ceremonies} tagStyle={TAG_STYLES.INFO} />
-              )}
-              {info.length > 0 && (
-                <div style={{ marginTop: 8, padding: '8px 0' }}>
-                  <span style={{ fontSize: 10, color: P.muted, fontWeight: 600 }}>
-                    📬 Información ({info.length} items filtrados)
-                  </span>
-                </div>
-              )}
-            </>
+          {activeTab === 'inbox' ? (
+            hasContent ? (
+              <>
+                <HealthBanner healthReport={healthReport} loadingHealth={loadingHealth} />
+                {urgent.length > 0 && (
+                  <Section title="🚨 Urgente — Acción Requerida" items={urgent} tagStyle={TAG_STYLES.URGENTE} onOpenThread={setSelectedThread} onArchive={archive} />
+                )}
+                {blocked.length > 0 && (
+                  <Section title="🔒 Bloqueos Activos" items={blocked} tagStyle={TAG_STYLES.BLOQUEO} onOpenThread={setSelectedThread} onArchive={archive} />
+                )}
+                {initiatives.length > 0 && (
+                  <Section title="🔭 Iniciativas en Seguimiento" items={initiatives} tagStyle={TAG_STYLES.INICIATIVA} onOpenThread={setSelectedThread} onArchive={archive} />
+                )}
+                {jira.length > 0 && (
+                  <Section title="🎯 Jira — Solo para estar al tanto" items={jira} tagStyle={TAG_STYLES.JIRA} onOpenThread={setSelectedThread} onArchive={archive} />
+                )}
+                {jiraFyi.length > 0 && (
+                  <Section title="ℹ️ Jira FYI" items={jiraFyi} tagStyle={TAG_STYLES['JIRA-FYI']} onOpenThread={setSelectedThread} onArchive={archive} />
+                )}
+                {ceremonies.length > 0 && (
+                  <Section title="📅 Ceremonias" items={ceremonies} tagStyle={TAG_STYLES.INFO} onOpenThread={setSelectedThread} onArchive={archive} />
+                )}
+                {support.length > 0 && (
+                  <Section title="🛠️ Soporte — Mesa de Ayuda" items={support} tagStyle={TAG_STYLES.SOPORTE} onOpenThread={setSelectedThread} onArchive={archive} />
+                )}
+                {info.length > 0 && (
+                  <Section title="📬 Otras Conversaciones" items={info} tagStyle={TAG_STYLES.INFO} onOpenThread={setSelectedThread} onArchive={archive} />
+                )}
+              </>
+            ) : (
+              <HealthBanner healthReport={healthReport} loadingHealth={loadingHealth} />
+            )
           ) : (
-            <HealthBanner healthReport={healthReport} loadingHealth={loadingHealth} />
+            /* ── VISTA ARCHIVADOS ── */
+            <ArchivedView
+              smartInbox={smartInbox}
+              archived={archived}
+              onUnarchive={unarchive}
+              onOpenThread={setSelectedThread}
+              P={P}
+              isDark={isDark}
+            />
           )}
         </div>
       </div>
+
+      {/* MODAL DE HILO COMPLETO */}
+      {selectedThread && (
+        <EmailThreadModal 
+          thread={selectedThread} 
+          onClose={() => setSelectedThread(null)}
+          theme={P}
+          isDark={isDark}
+        />
+      )}
     </ThemeCtx.Provider>
   );
 }

@@ -60,80 +60,107 @@ def get_google_creds():
     
     return creds
 
-async def get_gmail_threads(max_results=50, days=30):
+async def get_gmail_threads(max_results=300, days=30):
     """
-    Trae los últimos `max_results` mensajes de Gmail del período `days` días.
-    Utiliza Batch HTTP Requests de Google API, que permite enviar decenas de 
-    peticiones en un solo request HTTP. Evita problemas de concurrencia y vuela. 🚀
+    Trae los hilos de Gmail con metadata (sin body) optimizados para la lista.
+    Implementa cache en disco y fetch incremental para maxima velocidad.
     """
     creds = get_google_creds()
     if not creds: return []
 
     service = build('gmail', 'v1', credentials=creds)
-    query = f"newer_than:{days}d"
 
-    # Step 1: Traer la lista de IDs
-    results = service.users().messages().list(
-        userId='me',
-        q=query,
-        maxResults=max_results,
-    ).execute()
+    # ─── CACHE EN DISCO ─────────────────────────────────────────────────────
+    CACHE_FILE = "gmail_cache.json"
+    cached_data = []
+    last_sync_ts = 0
+
+    if os.path.exists(CACHE_FILE):
+        try:
+            with open(CACHE_FILE, "r") as f:
+                cache_obj = json.load(f)
+                cached_data = cache_obj.get("threads", [])
+                last_sync_ts = cache_obj.get("last_ts", 0)
+        except Exception:
+            pass
+
+    # Fetch solo lo nuevo desde el ultimo mail en cache
+    q = f"after:{int(last_sync_ts)}" if last_sync_ts > 0 else f"newer_than:{days}d"
+
+    try:
+        results = service.users().messages().list(
+            userId='me',
+            q=q,
+            maxResults=max_results,
+        ).execute()
+    except Exception as e:
+        logger.error(f"Error listando mensajes: {e}")
+        return cached_data  # Si falla la red, devolvemos el cache
 
     messages = results.get('messages', [])
-    if not messages:
-        return []
+    detailed_new = []
 
-    detailed = []
-    
-    # Step 2: Callback que se ejecuta por cada mensaje decodificado del Batch
     def handle_batch_response(request_id, response, exception):
         if exception:
             logger.warning(f"Error procesando mail en batch: {exception}")
             return
-        
         try:
             headers = response['payload']['headers']
             subject = next((h['value'] for h in headers if h['name'] == 'Subject'), 'Sin asunto')
             sender  = next((h['value'] for h in headers if h['name'] == 'From'), 'Desconocido')
-            
             import datetime
             ts = int(response.get('internalDate', 0)) / 1000
             date_iso = datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc).isoformat()
-            
-            detailed.append({
+            detailed_new.append({
                 "id":       response['id'],
                 "threadId": response.get('threadId', response['id']),
                 "subject":  subject,
                 "from":     sender,
                 "snippet":  response.get('snippet', ''),
                 "date":     date_iso,
+                "ts":       ts,
                 "labels":   response.get('labelIds', []),
             })
         except Exception as e:
             logger.warning(f"Error leyendo headers de {response.get('id')}: {e}")
 
-    # Step 3: Construimos el batch request (en chunks de 15 para respetar el rate limit per-second de Google)
-    chunk_size = 15
-    for i in range(0, len(messages), chunk_size):
-        chunk = messages[i:i+chunk_size]
-        batch = service.new_batch_http_request(callback=handle_batch_response)
-        for msg_stub in chunk:
-            req = service.users().messages().get(
-                userId='me',
-                id=msg_stub['id'],
-                format='metadata',
-                metadataHeaders=['Subject', 'From', 'Date']
-            )
-            batch.add(req)
-        
-        # Ejecutar chunk liberando el Event Loop para no bloquear otros endpoints
-        import asyncio
-        batch.execute()
-        await asyncio.sleep(0.1)
+    if messages:
+        chunk_size = 50  # metadata es liviana, podemos chunks mas grandes
+        for i in range(0, len(messages), chunk_size):
+            chunk = messages[i:i+chunk_size]
+            batch = service.new_batch_http_request(callback=handle_batch_response)
+            for msg_stub in chunk:
+                req = service.users().messages().get(
+                    userId='me',
+                    id=msg_stub['id'],
+                    format='metadata',
+                    metadataHeaders=['Subject', 'From', 'Date']
+                )
+                batch.add(req)
+            import asyncio
+            batch.execute()
+            await asyncio.sleep(0.05)
 
-    # Reordenar por fecha descendente
-    detailed.sort(key=lambda x: x.get('date', ''), reverse=True)
-    return detailed
+    # Combinar, deduplicar por threadId y ordenar
+    all_combined = detailed_new + cached_data
+    seen_threads = {}
+    unique_list = []
+    for m in sorted(all_combined, key=lambda x: x.get('ts', 0), reverse=True):
+        tid = m['threadId']
+        if tid not in seen_threads:
+            seen_threads[tid] = True
+            unique_list.append(m)
+
+    final_list = unique_list[:max_results]
+    new_last_ts = int(max((m.get('ts', 0) for m in final_list), default=last_sync_ts))
+
+    try:
+        with open(CACHE_FILE, "w") as f:
+            json.dump({"threads": final_list, "last_ts": new_last_ts}, f)
+    except Exception as e:
+        logger.error(f"Error guardando cache: {e}")
+
+    return final_list
 
 async def get_calendar_week():
     """Trae todos los eventos de la semana laboral actual (Lun-Vie)."""

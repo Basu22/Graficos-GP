@@ -185,191 +185,270 @@ export function applySheetConfig(motorRows, filterRows = []) {
   return parsed;
 }
 
-// ─── HELPERS ─────────────────────────────────────────────────────
-const isMeetingNoise = (email) => {
-  const s = normalize(email.subject || '');
-  const f = normalize(email.from    || '');
-  if (_compiled.ceremonies.some(fn => fn(s))) return false;
-  return _compiled.meetResp.some(fn => fn(s)) || f.includes('zoom') || f.includes('google meet');
+// ─── HELPERS DE ASUNTO ──────────────────────────────────────────
+const cleanSubject = (s = '') => {
+  return normalize(s)
+    .replace(/^(re|rv|fw|fwd|re\[\d+\]|fwd\[\d+\]|aw|antw|resp|enc|tr|ref):\s*/gi, '')
+    .replace(/\[.*?\]/g, '') // Quita [JIRA-123] o similares para agrupar mejor
+    .trim();
 };
 
-const groupByThread = (emails) => {
+const groupBySmartThread = (emails) => {
   const map = new Map();
   for (const e of emails) {
-    const key = e.threadId || normalize(e.subject || '').slice(0, 60);
+    const key = cleanSubject(e.subject);
     if (!map.has(key)) map.set(key, []);
     map.get(key).push(e);
   }
   return map;
 };
 
-const detectTeamResponse = (emails) => {
-  for (const e of emails) {
-    const f = normalize(e.from || '');
-    const team = DEFAULT_CONFIG.INITIATIVE_TEAMS.find(t => f.includes(t));
-    if (team) return { hasResponse: true, respondingTeam: team, responseEmail: e };
+// Patrones para detectar inicio de mensaje citado
+const QUOTE_BREAK_POINTS = [
+  /(On|El|Escribió|Escribio).*?\d{1,2}.*?\d{4}.*?(wrote|escribió|escribio):/i,
+  /(On|El|Escribió|Escribio).*?\d{1,2}.*? (wrote|escribió|escribio):/i,
+  /[A-Z][a-záéíóúñ]+,\s+[A-Z][a-záéíóúñ].*? (escribió|escribio|wrote):/i,
+  /\*?(De|From):\*?\s+[A-Z]/i,
+  /\n\s*-+ Mensaje reenviado -+/i,
+  /Para: Gomez, Miguel/i,
+  /De: Fabiola Linares/i
+];
+
+// Podadora pura: solo limpia el texto actual, sin guillotina
+const applyPodadora = (s = '') => s
+  .replace(/[>|]{1,}/g, '')
+  .replace(/\[cid:.*?\]/g, '')
+  .replace(/&lt;.*?&gt;/g, '')
+  .replace(/<.*?>/g, '')
+  .replace(/_{10,}/g, '')
+  .replace(/\*+/g, '')
+  .replace(/(Obtener Outlook para|Enviado desde mi|Sent from my|Get Outlook for).*$/gim, '')
+  .replace(/(Saludos|Atentamente|Cordial saludo|Gracias|Best regards),?.*$/gim, '')
+  .replace(/(Agustin Amicone|Fabiola Linares|Miguel Gomez|Customer Service DA Hub|Price Waterhouse|Bouchard 557|C1106ABG|LinkedIn \| Instagram|En PwC trabajamos de manera flexible|Piensa antes de imprimir|Senior Associate|Advisory Email|Phone:).*$/gis, '')
+  .replace(/Notice: This e-mail message and any files.*$/gis, '')
+  .replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g, '')
+  .replace(/\+?\d[\d\s-]{8,}\d/g, '')
+  .replace(/\s+/g, ' ')
+  .trim();
+
+// Parsea el mensaje en: texto principal + mensaje citado (si lo hay)
+const parseMessage = (s = '') => {
+  if (!s) return { mainText: '', quotedFrom: null, quotedText: null };
+
+  let splitIndex = s.length;
+  let hitPattern = null;
+
+  for (const bp of QUOTE_BREAK_POINTS) {
+    const match = s.match(bp);
+    if (match && match.index < splitIndex) {
+      splitIndex = match.index;
+      hitPattern = match[0];
+    }
   }
-  return { hasResponse: false, respondingTeam: null, responseEmail: null };
+
+  if (splitIndex === s.length) {
+    // No hay mensaje citado, solo limpiar
+    return { mainText: applyPodadora(s), quotedFrom: null, quotedText: null };
+  }
+
+  const mainPart  = applyPodadora(s.substring(0, splitIndex));
+  const quotedRaw = s.substring(splitIndex);
+
+  // Extraer el nombre del autor buscando justo antes de "escribió:"
+  const escribioIdx = quotedRaw.search(/(?:escribió|escribio|wrote):/i);
+  let quotedFrom = 'Mensaje anterior';
+  if (escribioIdx > 0) {
+    const beforeWrote = quotedRaw.substring(0, escribioIdx);
+    // Busca "Apellido, Nombre" cerca del final del fragmento
+    const nameMatch = beforeWrote.match(/([A-ZÁÉÍÓÚÑ][a-záéíóúñ]+(?:,\s+[A-ZÁÉÍÓÚÑ][a-záéíóúñ\s]+?)?)\s*\(?[<(&]/);
+    if (nameMatch) quotedFrom = nameMatch[1].trim();
+  }
+
+  // Extraer el texto del mensaje citado (lo que va después de "escribió:")
+  const bodyMatch = quotedRaw.match(/(?:escribió|escribio|wrote):\s*(.+)/is);
+  const quotedText = bodyMatch 
+    ? applyPodadora(bodyMatch[1]).substring(0, 280) // Máximo 280 chars de contexto
+    : applyPodadora(quotedRaw).substring(0, 280);
+
+  console.log(`💬 Citado detectado de: "${quotedFrom}"`);
+  return { mainText: mainPart, quotedFrom: quotedFrom.trim(), quotedText };
+};
+
+// Compatibilidad hacia atrás: cleanSnippet ahora extrae solo el texto principal
+const cleanSnippet = (s = '') => parseMessage(s).mainText;
+
+const isMeetingNoise = (email) => {
+  const s = normalize(email.subject || '');
+  const f = normalize(email.from    || '');
+  
+  // Patrones ultra-comunes de ruido de calendario y notificaciones automáticas
+  const noisePatterns = [
+    'aceptado:', 'rechazado:', 'tentativo:', 'provisional:', 'delegado:', 'aceptada:', 'rechazada:',
+    'accepted:', 'declined:', 'tentative:', 'provisional:', 'delegated:',
+    'accepted your', 'declined your', 'tentative your', 'invitacion de calendario',
+    'updated invitation', 'new invitation', 'has accepted', 'has declined',
+    'invitation:', 'canceled:', 'cancelado:', 'cancelada:', 'notas:', 'delivery status notification',
+    'invitación:', 'invitacion:', 'rechazado (ausente):', 'respuesta automática:', 'automatic reply:'
+  ];
+
+  const isResp = noisePatterns.some(p => s.includes(p)) || 
+                 f.includes('calendar-notification') || 
+                 f.includes('google.com/calendar') ||
+                 f.includes('gemini-notes@google.com') ||
+                 f.includes('mailer-daemon@') ||
+                 f.includes('no-reply@') ||
+                 f.includes('noreply@') ||
+                 f.includes('openai.com') ||
+                 f.includes('miro.com') ||
+                 f.includes('wellhub.com') ||
+                 f.includes('sync2cal.com');
+
+  if (isResp) return true;
+
+  // Si no es una respuesta automática, pero es una ceremonia, la dejamos pasar
+  if (_compiled.ceremonies.some(fn => fn(s))) return false;
+
+  return f.includes('zoom') || f.includes('google meet');
 };
 
 // ─── PROCESADOR PRINCIPAL ────────────────────────────────────────
 export function processSmartInbox(emails = [], options = {}) {
-  const { userName = 'Basilio Ossvald', userEmail = 'bossvald@flink.com.ar' } = options;
-  const userN = normalize(userName.split(' ')[0]);
-
-  const urgentes   = [];
-  const bloqueados = [];
-  const jiraItems  = [];
-  const healthMails= [];
-  const initiatives= [];
-  const onboarding = [];
-  const infoItems  = [];
+  const { userEmail = 'bossvald@flink.com.ar' } = options;
   const sla = _compiled.sla;
 
-  for (const email of emails) {
-    // ── 0. PIPELINE DE FILTROS (Sheet pestaña Filtros) ───────────
+  // 1. Filtrado inicial (descartar lo que no sirve)
+  const usefulEmails = emails.filter(email => {
     const filterResult = applyFilters(email);
-    if (filterResult === 'IGNORAR')   continue;   // descartado completamente
-    if (filterResult === 'SILENCIAR') {
-      infoItems.push({ ...email, _tag: 'INFO', _reason: 'silenced' });
-      continue;
+    if (filterResult === 'IGNORAR') {
+      console.log(`🚫 SmartInbox: Ignorando "${email.subject}" por regla de filtro.`);
+      return false;
     }
-    if (filterResult === 'REBOTAR') {
-      healthMails.push(email);                      // hoy solo HEALTH usa REBOTAR
-      continue;
-    }
+    if (isMeetingNoise(email)) return false;
+    return true;
+  });
 
-    const sn   = normalize(email.subject  || '');
-    const fn   = normalize(email.from     || '');
-    const cn   = normalize((email.snippet || '') + ' ' + (email.body || ''));
-    const full = `${sn} ${fn} ${cn}`;
+  // 2. Agrupamiento por hilo inteligente
+  const threads = groupBySmartThread(usefulEmails);
+  
+  const result = {
+    urgentes: [], bloqueados: [], jira: [], jiraFyi: [],
+    initiatives: [], health: [], support: [], infoItems: [],
+    urgentCount: 0
+  };
 
-    // ── 1. Ruido residual de reuniones (no capturado por filtros) ─
-    if (isMeetingNoise(email)) {
-      infoItems.push({ ...email, _tag: 'INFO', _reason: 'meeting_noise' });
-      continue;
-    }
+  for (const [subjectKey, threadEmails] of threads.entries()) {
+    // Ordenar mensajes del hilo por fecha
+    const sorted = [...threadEmails].sort((a, b) => new Date(a.date) - new Date(b.date));
+    const latest = sorted[sorted.length - 1];
+    const first  = sorted[0];
+    
+    // Determinar quién tiene el turno
+    const lastSender = normalize(latest.from || '');
+    const userEm     = normalize(userEmail);
+    const isWaitingMyAction = !lastSender.includes(userEm);
 
-    // ── 2. Reportes de salud (Health Monitor) ────────────────────
-    const isHealth = _compiled.healthSnd.some(p => p.test(fn))
-      || _compiled.healthSubj.some(p => p.test(sn));
-    if (isHealth) { healthMails.push(email); continue; }
-
-    // ── 3. URGENTE ────────────────────────────────────────────────
-    if (_compiled.urgent.some(p => p.test(full)) || full.includes(`@${userN}`)) {
-      urgentes.push({
-        ...email, _tag: 'URGENTE',
-        _timeBucket: getTimeBucket(email.date),
-        isStale: calcIsStale(email.date, true, sla.URGENTE),
-        ticketId: extractTicketId(email.subject),
-      });
-      continue;
-    }
-
-    // ── 4. BLOQUEO ────────────────────────────────────────────────
-    if (_compiled.blocker.some(p => p.test(full))) {
-      bloqueados.push({
-        ...email, _tag: 'BLOQUEO',
-        _timeBucket: getTimeBucket(email.date),
-        isStale: calcIsStale(email.date, true, sla.BLOQUEO),
-        ticketId: extractTicketId(email.subject),
-      });
-      continue;
-    }
-
-    // ── 5. JIRA / Ceremonias ──────────────────────────────────────
-    const isJira = fn.includes('jira') || fn.includes('atlassian')
-      || sn.includes('jira') || _compiled.epics.some(p => p.test(full));
-    const isCeremony = _compiled.ceremonies.some(fn2 => fn2(sn));
-    if (isJira || isCeremony) {
-      const ticketId = extractTicketId(email.subject);
-      const requiresAction = _compiled.jiraAct.some(p => p.test(full)) || full.includes(`@${userN}`);
-      jiraItems.push({
-        ...email,
-        _tag: requiresAction ? 'JIRA' : 'JIRA-FYI',
-        _type: requiresAction ? 'action' : 'fyi',
-        _isCeremony: isCeremony && !isJira,
-        _timeBucket: getTimeBucket(email.date),
-        isStale: calcIsStale(email.date, requiresAction, sla.JIRA),
-        ticketId, link: buildJiraLink(ticketId),
-      });
-      continue;
-    }
-
-    // ── 6. Onboarding ─────────────────────────────────────────────
-    if (_compiled.onboard.some(p => p.test(sn) || p.test(cn))) {
-      onboarding.push(email);
-      continue;
-    }
-
-    // ── 7. Iniciativas ────────────────────────────────────────────
-    const isIni = _compiled.iniTags.some(p => p.test(sn) || p.test(cn))
-      || _compiled.iniCtacts.some(p => p.test(fn));
-    if (isIni) { initiatives.push(email); continue; }
-
-    infoItems.push({ ...email, _tag: 'INFO', _reason: 'unclassified' });
-  }
-
-  // Hilos de iniciativas
-  const threads = groupByThread(initiatives);
-  const initiativeCards = [];
-  for (const [threadKey, threadEmails] of threads.entries()) {
-    const sorted   = [...threadEmails].sort((a, b) => new Date(a.date||0) - new Date(b.date||0));
-    const original = sorted[0];
-    const { hasResponse, respondingTeam, responseEmail } = detectTeamResponse(sorted.slice(1));
-    const tag = (_compiled.iniTags.find(p => p.test(normalize(original.subject||'')))?.raw) || 'iniciativa';
-    const isWaiting = !hasResponse;
-    initiativeCards.push({
-      threadId: threadKey, tag,
-      _tag: 'INICIATIVA',
-      subject: original.subject, from: original.from, date: original.date,
-      snippet: original.snippet,
-      originalRequest: { id: original.id, from: original.from, snippet: original.snippet, date: original.date },
-      responseStatus: isWaiting ? 'WAITING' : 'RESPONDED',
-      respondingTeam: respondingTeam || null,
-      lastResponse: responseEmail ? { from: responseEmail.from, snippet: responseEmail.snippet, date: responseEmail.date } : null,
+    // Metadata del hilo
+    const threadData = {
+      id: latest.id,
+      threadId: latest.threadId || subjectKey,
+      subject: first.subject,
+      from: latest.from,
+      date: latest.date,
+      snippet: cleanSnippet(latest.snippet), // Google snippet: ya viene limpio y sin texto citado
       totalMessages: sorted.length,
-      _timeBucket: getTimeBucket(original.date),
-      isStale: calcIsStale(original.date, isWaiting, sla.INICIATIVA),
-    });
+      messages: sorted.map(m => { 
+        const parsed = parseMessage(m.body || m.snippet);
+        return {
+          from: m.from, 
+          snippet: parsed.mainText,
+          quotedFrom: parsed.quotedFrom,
+          quotedText: parsed.quotedText,
+          date: m.date 
+        };
+      }),
+      responseStatus: isWaitingMyAction ? 'WAITING' : 'RESPONDED',
+      _timeBucket: getTimeBucket(latest.date),
+      isStale: calcIsStale(latest.date, isWaitingMyAction, 3), // 3 días SLA default
+    };
+
+    const fullText = sorted.map(e => `${e.subject} ${e.from} ${e.snippet}`).join(' ');
+
+    // ── 3. Clasificación del Hilo ─────────────────────────────────
+    
+    // Health (siempre aparte)
+    if (_compiled.healthSnd.some(p => p.test(normalize(latest.from))) || 
+        _compiled.healthSubj.some(p => p.test(normalize(latest.subject)))) {
+      result.health.push(threadData);
+      continue;
+    }
+
+    // Urgente / Bloqueo
+    if (_compiled.urgent.some(p => p.test(normalize(fullText)))) {
+      threadData._tag = 'URGENTE';
+      threadData.isStale = calcIsStale(latest.date, isWaitingMyAction, sla.URGENTE);
+      result.urgentes.push(threadData);
+      continue;
+    }
+
+    if (_compiled.blocker.some(p => p.test(normalize(fullText)))) {
+      threadData._tag = 'BLOQUEO';
+      threadData.isStale = calcIsStale(latest.date, isWaitingMyAction, sla.BLOQUEO);
+      result.bloqueados.push(threadData);
+      continue;
+    }
+
+    // Jira
+    const isJira = threadEmails.some(e => normalize(e.from).includes('jira') || normalize(e.from).includes('atlassian'));
+    if (isJira) {
+      const ticketId = extractTicketId(first.subject);
+      const requiresAction = isWaitingMyAction || fullText.includes('bossvald'); 
+      threadData._tag = requiresAction ? 'JIRA' : 'JIRA-FYI';
+      threadData.ticketId = ticketId;
+      threadData.link = buildJiraLink(ticketId);
+      if (requiresAction) result.jira.push(threadData);
+      else result.jiraFyi.push(threadData);
+      continue;
+    }
+
+    // Iniciativas (aquí caen los Pedidos Experian)
+    const isIni = _compiled.iniTags.some(p => p.test(normalize(fullText))) || 
+                  _compiled.iniCtacts.some(p => p.test(normalize(latest.from)));
+    
+    // Mesa de Ayuda dedicada
+    if (normalize(latest.from).includes('mimesadeayuda@gbsj.com.ar')) {
+      threadData._tag = 'SOPORTE';
+      result.support.push(threadData);
+      continue;
+    }
+
+    if (isIni) {
+      threadData._tag = 'INICIATIVA';
+      result.initiatives.push(threadData);
+      continue;
+    }
+
+    // Todo lo demás a Info
+    result.infoItems.push({ ...threadData, _tag: 'INFO' });
   }
 
-  // Onboarding
-  const onboardingStatus = onboarding.length > 0 ? detectOnboardingStatus(onboarding) : null;
+  // Ordenamientos finales
+  result.urgentes.sort((a, b) => new Date(b.date) - new Date(a.date));
+  result.initiatives.sort((a, b) => (a.responseStatus === 'WAITING' ? -1 : 1));
 
-  // Ordenamientos
-  urgentes.sort((a, b) => new Date(b.date||0) - new Date(a.date||0));
-  bloqueados.sort((a, b) => new Date(a.date||0) - new Date(b.date||0));
-  jiraItems.sort((a, b) => {
-    if (a._type === 'action' && b._type !== 'action') return -1;
-    if (a._type !== 'action' && b._type === 'action') return  1;
-    return new Date(b.date||0) - new Date(a.date||0);
-  });
-  initiativeCards.sort((a, b) => {
-    if (a.responseStatus === 'WAITING' && b.responseStatus !== 'WAITING') return -1;
-    if (a.responseStatus !== 'WAITING' && b.responseStatus === 'WAITING') return  1;
-    return 0;
-  });
-
+  // Mapeo final para que el Frontend (SmartInboxColumn.jsx) entienda los nombres
   return {
-    urgentes, bloqueados, jira: jiraItems, health: healthMails,
-    initiatives: initiativeCards, infoItems,
-    onboarding: onboardingStatus,
-    dailyKPIs: null,
-    urgentCount: urgentes.length + bloqueados.length,
+    urgent:      result.urgentes,
+    blocked:     result.bloqueados,
+    jira:        result.jira,
+    jiraFyi:     result.jiraFyi,
+    initiatives: result.initiatives,
+    health:      result.health,
+    support:     result.support,
+    info:        result.infoItems,
+    urgentCount: result.urgentCount,
     _meta: {
-      totalProcessed: emails.length,
-      processedAt: new Date().toISOString(),
-      filtersApplied: {
-        ignorar:  _filters.ignorar.length,
-        silenciar:_filters.silenciar.length,
-        rebotar:  _filters.rebotar.length,
-      },
-      counts: {
-        urgentes: urgentes.length, bloqueados: bloqueados.length,
-        jira: jiraItems.length, health: healthMails.length,
-        initiatives: initiativeCards.length, info: infoItems.length,
-      },
+      totalProcessed: usefulEmails.length,
+      threadsCount: threads.size
     }
   };
 }

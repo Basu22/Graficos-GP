@@ -22,7 +22,12 @@ export default function App() {
   const [darkMode, setDarkMode] = useState(systemDark);
   const T = THEMES[darkMode ? "dark" : "light"];
 
-  const [allMails, setAllMails] = useState([]);
+  const [allMails, setAllMails] = useState(() => {
+    try {
+      const saved = localStorage.getItem("agility_inbox_v1");
+      return saved ? JSON.parse(saved) : [];
+    } catch { return []; }
+  });
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -31,9 +36,15 @@ export default function App() {
     { userName: 'Basilio Ossvald', userEmail: 'bossvald@flink.com.ar' }
   );
 
+  useEffect(() => {
+    if (allMails && allMails.length > 0) {
+      localStorage.setItem("agility_inbox_v1", JSON.stringify(allMails));
+    }
+  }, [allMails]);
+
   const fetchInbox = async () => {
     try {
-      const res = await fetch(`${API}/midia/mails`);
+      const res = await fetch(`${API}/midia/mails?t=${Date.now()}`);
       const data = await res.json();
       if (data.all_mails) setAllMails(data.all_mails);
     } catch (e) {

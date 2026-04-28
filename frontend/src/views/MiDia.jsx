@@ -4,6 +4,7 @@ import { useHolidays } from "../hooks/useHolidays";
 import { useSmartInbox } from "../hooks/useSmartInbox";
 import SmartInboxColumn from "../components/SmartInboxColumn";
 import GmailCalendarWidget from "../components/GmailCalendarWidget";
+import TaskManager from "../components/TaskManager";
 
 // Tokens del tema — reactivos al toggle dark/light
 function getPalette(T) {
@@ -603,54 +604,8 @@ export default function MiDia({
           isDark={T?.bg === '#0F172A' || T?.bg === '#0f172a'}
         />
 
-        {/* COLUMNA 3: PLAN IA */}
-        <div style={{ 
-          background: PALETTE.card, padding: "24px", borderRadius: 20, 
-          boxShadow: PALETTE.shadow, border: `1px solid ${PALETTE.border}`,
-          display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden",
-          color: PALETTE.text
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-            <h3 style={{ fontSize: 13, fontWeight: 800, margin: 0, textTransform: "uppercase", letterSpacing: 1 }}>PLAN SEMANAL IA ✨</h3>
-            <button onClick={generateAIPlan} disabled={generatingAi} style={{ background: PALETTE.primary, color: "#fff", border: "none", padding: "6px 14px", borderRadius: 8, fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-              {generatingAi ? "GEN..." : "GENERAR"}
-            </button>
-          </div>
-          <div style={{ flex: 1, overflowY: "auto", paddingRight: 5 }}>
-            {generatingAi ? <div style={{ height: 400 }}><Shimmer /></div> : !aiPlan ? (
-              <div style={{ textAlign: "center", padding: 40 }}>
-                <span style={{ fontSize: 40 }}>✨</span>
-                <p style={{ fontSize: 12, color: PALETTE.textMuted }}>Deja que la IA organice tu semana basándose en tus mails.</p>
-              </div>
-            ) : (
-              <div style={{ animation: "fadeIn 0.5s ease-out" }}>
-                <div style={{ fontSize: 11, color: PALETTE.textMuted, marginBottom: 15, textAlign: "right" }}>Actualizado: {lastAiUpdate}</div>
-                {aiPlan.map(day => (
-                  <div key={day.dayIndex} style={{ marginBottom: 20 }}>
-                    <div style={{ background: "#f1f5f9", padding: "8px 12px", borderRadius: 8, marginBottom: 12 }}>
-                      <p style={{ fontSize: 11, fontWeight: 700, margin: 0, color: PALETTE.primary }}>RESUMEN: {day.summary}</p>
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                      {day.tasks.map((task, idx) => (
-                        <div key={idx} style={{ padding: 16, borderRadius: 12, background: PALETTE.bg, border: `1px solid ${PALETTE.border}`, position: "relative" }}>
-                          <div style={{ position: "absolute", top: 12, right: 12, fontSize: 8, fontWeight: 800, padding: "2px 6px", borderRadius: 4, background: PALETTE.priority[task.priority], color: "#fff", textTransform: "uppercase" }}>{task.priority}</div>
-                          <div style={{ display: "flex", gap: 12 }}>
-                            <span style={{ fontSize: 20 }}>{task.icon}</span>
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 4 }}>{task.title}</div>
-                              <div style={{ fontSize: 11, color: "#475569", marginBottom: 8 }}>{task.detail}</div>
-                              <div style={{ fontSize: 9, fontWeight: 700, color: PALETTE.textMuted }}>ORIGEN: {task.origin}</div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        {/* COLUMNA 3: GESTOR DE TAREAS */}
+        <TaskManager T={T} />
       </div>
       {/* MODAL DE EVENTO — 80% x 80% */}
       {selectedEvent && (() => {

@@ -44,6 +44,75 @@ async def get_midia_mails():
         logger.error(f"Error en Mi Dia mails: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+@router.get("/thread/{thread_id}")
+async def get_full_thread(thread_id: str):
+    """
+    Trae el hilo COMPLETO de Gmail por threadId.
+    Usa la Threads API (no Messages API) para garantizar todos los mensajes,
+    sin importar cuántos sean ni qué tan antiguos.
+    """
+    try:
+        import base64, datetime
+        creds = get_google_creds()
+        if not creds:
+            raise HTTPException(status_code=401, detail="Sin credenciales Google")
+
+        service = build('gmail', 'v1', credentials=creds)
+
+        thread = service.users().threads().get(
+            userId='me',
+            id=thread_id,
+            format='full'
+        ).execute()
+
+        def _get_body(payload):
+            if not payload: return ""
+            parts = payload.get('parts', [])
+            if not parts:
+                data = payload.get('body', {}).get('data', '')
+                return base64.urlsafe_b64decode(data + '==').decode('utf-8', errors='ignore') if data else ""
+            for part in parts:
+                if part.get('mimeType') == 'text/plain':
+                    data = part.get('body', {}).get('data', '')
+                    return base64.urlsafe_b64decode(data + '==').decode('utf-8', errors='ignore') if data else ""
+                if part.get('parts'):
+                    res = _get_body(part)
+                    if res: return res
+            return ""
+
+        messages = []
+        for msg in thread.get('messages', []):
+            headers = msg.get('payload', {}).get('headers', [])
+            subject = next((h['value'] for h in headers if h['name'] == 'Subject'), '')
+            sender  = next((h['value'] for h in headers if h['name'] == 'From'), '')
+            ts = int(msg.get('internalDate', 0)) / 1000
+            date_iso = datetime.datetime.fromtimestamp(ts, tz=datetime.timezone.utc).isoformat()
+            body = _get_body(msg.get('payload', {}))
+
+            messages.append({
+                "id":       msg['id'],
+                "threadId": thread_id,
+                "subject":  subject,
+                "from":     sender,
+                "snippet":  msg.get('snippet', ''),
+                "body":     body,
+                "date":     date_iso,
+                "labels":   msg.get('labelIds', []),
+            })
+
+        # Ordenar cronológicamente
+        messages.sort(key=lambda x: x.get('date', ''))
+
+        return {
+            "threadId": thread_id,
+            "totalMessages": len(messages),
+            "messages": messages
+        }
+
+    except Exception as e:
+        logger.error(f"Error trayendo thread {thread_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
 @router.get("/calendar")
 async def get_midia_calendar():
     """Devuelve solo los eventos del calendario."""
