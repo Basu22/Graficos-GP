@@ -7,7 +7,7 @@
       "info_ingesta": {
         "hora": "16:12:40",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BER": {
@@ -29,7 +29,7 @@
       "info_ingesta": {
         "hora": "16:18:41",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSC": {
@@ -39,7 +39,7 @@
       "info_ingesta": {
         "hora": "15:48:22",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     }
   },
@@ -63,7 +63,7 @@
       "info_ingesta": {
         "hora": "16:24:26",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSF": {
@@ -73,7 +73,7 @@
       "info_ingesta": {
         "hora": "16:34:37",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSC": {
@@ -97,7 +97,7 @@
       "info_ingesta": {
         "hora": "16:15:23",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     }
   },
@@ -14847,7 +14847,7 @@
       "info_ingesta": {
         "hora": "16:06:53",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSJ": {
@@ -14883,7 +14883,7 @@
       "info_ingesta": {
         "hora": "15:56:15",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSJ": {
@@ -14893,7 +14893,7 @@
       "info_ingesta": {
         "hora": "15:56:15",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSF": {
@@ -14903,7 +14903,7 @@
       "info_ingesta": {
         "hora": "16:12:18",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSC": {
@@ -14913,7 +14913,7 @@
       "info_ingesta": {
         "hora": "16:02:16",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     }
   },
@@ -14927,7 +14927,7 @@
       "info_ingesta": {
         "hora": "23:49:07",
         "tipo": "reproceso",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSJ": {
@@ -14937,7 +14937,7 @@
       "info_ingesta": {
         "hora": "16:14:43",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSF": {
@@ -14947,7 +14947,7 @@
       "info_ingesta": {
         "hora": "16:12:32",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSC": {
@@ -14957,7 +14957,7 @@
       "info_ingesta": {
         "hora": "15:46:12",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     }
   },
@@ -14971,7 +14971,7 @@
       "info_ingesta": {
         "hora": "16:10:33",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BER": {
@@ -14983,7 +14983,7 @@
       "info_ingesta": {
         "hora": "16:00:27",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSJ": {
@@ -14995,7 +14995,7 @@
       "info_ingesta": {
         "hora": "15:50:16",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSC": {
@@ -15007,7 +15007,7 @@
       "info_ingesta": {
         "hora": "15:40:11",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     }
   },
@@ -15021,7 +15021,7 @@
       "info_ingesta": {
         "hora": "16:10:57",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BER": {
@@ -15033,7 +15033,7 @@
       "info_ingesta": {
         "hora": "16:00:52",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSJ": {
@@ -15045,7 +15045,7 @@
       "info_ingesta": {
         "hora": "15:50:41",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSC": {
@@ -15057,7 +15057,7 @@
       "info_ingesta": {
         "hora": "15:40:35",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     }
   },
@@ -15071,7 +15071,7 @@
       "info_ingesta": {
         "hora": "16:52:43",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BER": {
@@ -15083,7 +15083,7 @@
       "info_ingesta": {
         "hora": "16:42:37",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSJ": {
@@ -15095,7 +15095,7 @@
       "info_ingesta": {
         "hora": "16:32:31",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSC": {
@@ -15107,7 +15107,7 @@
       "info_ingesta": {
         "hora": "16:22:24",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     }
   },
@@ -15121,7 +15121,7 @@
       "info_ingesta": {
         "hora": "16:12:07",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSJ": {
@@ -15133,7 +15133,7 @@
       "info_ingesta": {
         "hora": "16:02:06",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BER": {
@@ -15145,7 +15145,7 @@
       "info_ingesta": {
         "hora": "15:54:00",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSC": {
@@ -15157,7 +15157,7 @@
       "info_ingesta": {
         "hora": "15:41:57",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     }
   },
@@ -15171,7 +15171,7 @@
       "info_ingesta": {
         "hora": "15:46:08",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSC": {
@@ -15183,7 +15183,7 @@
       "info_ingesta": {
         "hora": "15:56:15",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSF": {
@@ -15195,7 +15195,7 @@
       "info_ingesta": {
         "hora": "16:06:22",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BER": {
@@ -15207,7 +15207,7 @@
       "info_ingesta": {
         "hora": "16:36:01",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     }
   },
@@ -15221,7 +15221,7 @@
       "info_ingesta": {
         "hora": "16:17:29",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSF": {
@@ -15233,7 +15233,7 @@
       "info_ingesta": {
         "hora": "16:53:06",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BER": {
@@ -15245,7 +15245,7 @@
       "info_ingesta": {
         "hora": "16:43:00",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     },
     "BSC": {
@@ -15257,7 +15257,7 @@
       "info_ingesta": {
         "hora": "17:03:15",
         "tipo": "primer_servicio",
-        "ultima_modificacion": "2026-04-29T19:37:34.787590-03:00"
+        "ultima_modificacion": "2026-04-29T20:05:25.470101-03:00"
       }
     }
   }

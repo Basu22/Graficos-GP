@@ -1,45 +1,9 @@
 [
   {
-    "id": "2d1688b6-92b1-463b-8c7a-1f00d8521a1a",
-    "title": "Sprint 60",
-    "start_date": "2026-04-30",
-    "end_date": "2026-05-13",
-    "type": "manual_sprint",
-    "person": "",
-    "team": "Back",
-    "color": "#3B82F6",
-    "notes": "",
-    "impact": 0.0
-  },
-  {
     "id": "13f8f04a-df57-4e41-8d6a-fb72f2425670",
     "title": "Sprint 61",
     "start_date": "2026-05-14",
     "end_date": "2026-05-27",
-    "type": "manual_sprint",
-    "person": "",
-    "team": "Back",
-    "color": "#3B82F6",
-    "notes": "",
-    "impact": 0.0
-  },
-  {
-    "id": "e68f5958-5d1d-492c-b571-e61d96948d57",
-    "title": "Sprint 58",
-    "start_date": "2026-04-01",
-    "end_date": "2026-04-15",
-    "type": "manual_sprint",
-    "person": "",
-    "team": "Back",
-    "color": "#3B82F6",
-    "notes": "",
-    "impact": 0.0
-  },
-  {
-    "id": "5eebc35e-8454-40a9-ad45-54f814b0df43",
-    "title": "Sprint 59",
-    "start_date": "2026-04-16",
-    "end_date": "2026-04-29",
     "type": "manual_sprint",
     "person": "",
     "team": "Back",
@@ -69,6 +33,18 @@
     "team": null,
     "color": null,
     "notes": null,
+    "impact": 0.0
+  },
+  {
+    "id": "a75d0178-7ec1-4f0f-a69d-bf68ec0cf340",
+    "title": "SP",
+    "start_date": "2026-04-01",
+    "end_date": "2026-04-15",
+    "type": "manual_sprint",
+    "person": "",
+    "team": null,
+    "color": "#3B82F6",
+    "notes": "",
     "impact": 0.0
   }
 ]

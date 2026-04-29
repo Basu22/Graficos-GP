@@ -140,6 +140,34 @@ export function CalendarView({ T, team }) {
         unique.push(e);
       }
     });
+    // Inyectar ceremonias automáticas de Sprint Manual
+    events.forEach(s => {
+      if (s.type === "manual_sprint") {
+        if (dateStr === s.start_date) {
+          unique.push({
+            id: `ceremony-plan-${s.id}`,
+            title: "📊 Ceremonia: Planificación",
+            type: "custom",
+            impact: 0.5,
+            start_date: s.start_date,
+            color: "#3B82F6",
+            isVirtual: true
+          });
+        }
+        if (dateStr === s.end_date) {
+          unique.push({
+            id: `ceremony-review-${s.id}`,
+            title: "🏁 Ceremonia: Review + Retro",
+            type: "custom",
+            impact: 0.5,
+            start_date: s.end_date,
+            color: "#8B5CF6",
+            isVirtual: true
+          });
+        }
+      }
+    });
+
     return unique;
   }
 
@@ -178,9 +206,15 @@ export function CalendarView({ T, team }) {
       const avail = availability[dStr] || { available: 0, total: 0, present: [], absent: [] };
 
       summary.totalDays++;
-      if (isWeek) summary.weekends++;
-      else if (isHol) summary.holidays++;
-      else summary.businessDays++;
+      if (isWeek) {
+        summary.weekends++;
+      } else if (isHol) {
+        summary.holidays++;
+      } else {
+        // Lógica de medios días para Inicio y Fin de sprint
+        const isStartOrEnd = dStr === startDate || dStr === endDate;
+        summary.businessDays += isStartOrEnd ? 0.5 : 1.0;
+      }
 
       summary.dailyDetail.push({
         date: dStr,
