@@ -237,10 +237,16 @@ export function CalendarView({ T, team }) {
       if (payload.type === "manual_sprint" && !payload.impact) {
         payload.impact = 0.0;
       }
+      
+      // Si es sprint manual, lo hacemos global (sin equipo)
+      const savePayload = payload.type === "manual_sprint" 
+        ? payload 
+        : { ...payload, team };
+
       if (selectedEvent?.id && !selectedEvent.id.startsWith("holiday-") && !selectedEvent.id.startsWith("sprint-")) {
-        await fetch(`${API}/calendar/events/${selectedEvent.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, team }) });
+        await fetch(`${API}/calendar/events/${selectedEvent.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(savePayload) });
       } else {
-        await fetch(`${API}/calendar/events`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...payload, team }) });
+        await fetch(`${API}/calendar/events`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(savePayload) });
       }
       setShowModal(false); setSelectedEvent(null);
       setForm({ title: "", type: "vacation", person: "", start_date: "", end_date: "", notes: "", color: "", impact: 0.0 });
