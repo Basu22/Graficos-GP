@@ -7,20 +7,13 @@ import uuid
 
 router = APIRouter(prefix="/people", tags=["people"])
 
-PEOPLE_FILE = Path(__file__).parent.parent.parent.parent / "data" / "people.json"
+from app.utils.storage import load_json, save_json
 
 def _load() -> list:
-    if not PEOPLE_FILE.exists():
-        PEOPLE_FILE.parent.mkdir(parents=True, exist_ok=True)
-        PEOPLE_FILE.write_text("[]")
-    try:
-        return json.loads(PEOPLE_FILE.read_text())
-    except:
-        return []
+    return load_json("people.json")
 
 def _save(data: list):
-    PEOPLE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    PEOPLE_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2))
+    save_json("people.json", data)
 
 class Absence(BaseModel):
     id: Optional[str] = None
@@ -32,7 +25,8 @@ class Absence(BaseModel):
 class PersonIn(BaseModel):
     id: Optional[str] = None
     name: str
-    team: str       # Back | Datos
+    teams: list[str]       # ["Back", "Datos"]
+    capacity_by_team: dict # {"Back": 0.7, "Datos": 0.3}
     role: str
     birthday: Optional[str] = None
     absences: Optional[list] = []
@@ -42,7 +36,7 @@ class PersonIn(BaseModel):
 async def get_people(team: Optional[str] = None):
     people = _load()
     if team:
-        people = [p for p in people if p.get("team","").lower() == team.lower()]
+        people = [p for p in people if team.lower() in [t.lower() for t in p.get("teams", [])]]
     return people
 
 @router.post("/")
@@ -102,25 +96,64 @@ async def get_availability(start: str, end: str, team: Optional[str] = None):
     from datetime import date, timedelta
     people = _load()
     if team:
-        people = [p for p in people if p.get("team","").lower() == team.lower()]
+        # Filtrar personas que pertenecen al equipo solicitado
+        people = [p for p in people if team.lower() in [t.lower() for t in p.get("teams", [])]]
 
     result = []
     cur = date.fromisoformat(start)
     end_d = date.fromisoformat(end)
 
+    events = load_json("calendar_events.json")
+
     while cur <= end_d:
         ds = cur.isoformat()
-        unavailable = []
+        
+        # Calcular impacto de eventos generales del calendario
+        day_event_impact = 0.0
+        for e in events:
+            # Si el evento coincide con la fecha y el equipo (o es global)
+            if e.get("start_date") <= ds <= (e.get("end_date") or e.get("start_date")):
+                # Si el evento tiene equipo, debe coincidir. Si no, es para todos.
+                if not e.get("team") or (team and e.get("team").lower() == team.lower()):
+                    day_event_impact += e.get("impact") or 0.0
+
+        unavailable_count = 0.0
+        unavailable_details = []
+        
+        present_names = []
+        absent_names = []
+        
+        total_capacity = 0.0
         for p in people:
+            # Si se filtró por equipo, sumamos solo la capacidad asignada a ese equipo
+            p_cap = 1.0
+            if team:
+                # Buscamos la capacidad específica en el dict (case insensitive)
+                teams_dict = {t.lower(): v for t, v in p.get("capacity_by_team", {}).items()}
+                p_cap = teams_dict.get(team.lower(), 1.0)
+            
+            total_capacity += p_cap
+            
+            is_absent = False
             for ab in p.get("absences", []):
                 if ab["start_date"] <= ds <= ab["end_date"]:
-                    unavailable.append({"name": p["name"], "role": p["role"], "type": ab["type"]})
+                    unavailable_count += p_cap
+                    unavailable_details.append({"name": p["name"], "role": p["role"], "type": ab["type"]})
+                    absent_names.append(p["name"])
+                    is_absent = True
                     break
+            
+            if not is_absent:
+                present_names.append(p["name"])
+                    
         result.append({
             "date": ds,
-            "available": len(people) - len(unavailable),
-            "total": len(people),
-            "unavailable": unavailable,
+            "available": max(0.0, round(total_capacity - unavailable_count - (total_capacity * day_event_impact), 2)),
+            "total": round(total_capacity, 2),
+            "unavailable": unavailable_details,
+            "present": present_names,
+            "absent": absent_names,
+            "event_impact": round(day_event_impact, 2)
         })
         cur += timedelta(days=1)
     return result
@@ -143,7 +176,12 @@ async def get_person_stats_endpoint(
         raise HTTPException(404, "Person not found")
 
     jira_name = person.get("jira_name") or person.get("name")
-    team_name = team or person.get("team", "")
+    
+    # Si no se pasa team, tomamos el primero de la lista
+    team_name = team
+    if not team_name:
+        teams = person.get("teams", [])
+        team_name = teams[0] if teams else ""
 
     try:
         from app.core.jira_client import JiraClient

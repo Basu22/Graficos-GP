@@ -1,0 +1,15 @@
+{
+  "roles": [
+    "Developer",
+    "Tech Lead",
+    "Scrum Master",
+    "QA",
+    "Data Engineer",
+    "Data Analyst",
+    "Product Owner",
+    "Functional Analyst",
+    "Analista Funcional",
+    "Business Analyst",
+    "Otro"
+  ]
+}

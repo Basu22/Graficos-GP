@@ -9,6 +9,7 @@ import { TeamView } from "./views/TeamView";
 import { useSmartInbox } from "./hooks/useSmartInbox";
 import MiDia from "./views/MiDia";
 import OfferJourney from "./views/OfferJourney";
+import { ConfigView } from "./views/ConfigView";
 
 export default function App() {
   const [teams, setTeams] = useState([]);
@@ -157,6 +158,7 @@ export default function App() {
     sprint: `Sprint en Curso — Equipo ${team}`,
     calendar: `Calendario de Planificación — Equipo ${team}`,
     team: "Gestión del Equipo",
+    config: "Configuración del Sistema",
     midia: "Mi Día — Centro de Comando AI",
     journey: "Journey de Ofertas — Análisis Histórico",
   };
@@ -207,6 +209,7 @@ export default function App() {
                 <button style={btnStyle(view === "sprint")} onClick={() => setView("sprint")}>🟢 Sprint</button>
                 <button style={btnStyle(view === "calendar")} onClick={() => setView("calendar")}>📅 Cal</button>
                 <button style={btnStyle(view === "team")} onClick={() => setView("team")}>👥 Team</button>
+                <button style={btnStyle(view === "config")} onClick={() => setView("config")}>⚙️</button>
               </div>
             </div>
 
@@ -267,6 +270,7 @@ export default function App() {
           />
         )}
         {view === "team" && <TeamView T={T} />}
+        {view === "config" && <ConfigView T={T} />}
       </div>
     </div>
   );

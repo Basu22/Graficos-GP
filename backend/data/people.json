@@ -1,1 +1,58 @@
-[]
+[
+  {
+    "id": "2809d8e3-dba7-4303-862f-fa7a08160d9c",
+    "name": "Carlos Quinteros",
+    "teams": [
+      "Back"
+    ],
+    "capacity_by_team": {
+      "Back": 1
+    },
+    "role": "Tech Lead",
+    "birthday": "",
+    "absences": [],
+    "jira_name": "Carlos Quinteros"
+  },
+  {
+    "id": "78e7d32f-a40b-4020-bc88-43d4d17a2ab8",
+    "name": "Maria Teresa Bravo",
+    "teams": [
+      "Back"
+    ],
+    "capacity_by_team": {
+      "Back": 1
+    },
+    "role": "Developer",
+    "birthday": "",
+    "absences": [],
+    "jira_name": "Maria Teresa Bravo"
+  },
+  {
+    "id": "d9b999fb-98d3-4d67-bece-799804f3fcd9",
+    "name": "Alejandro Lo Preiato",
+    "teams": [
+      "Back"
+    ],
+    "capacity_by_team": {
+      "Back": 1
+    },
+    "role": "QA",
+    "birthday": "",
+    "absences": [],
+    "jira_name": "Alejandro Humberto Lo Preiato"
+  },
+  {
+    "id": "9630811c-86ec-4d3b-87f4-10f3119523df",
+    "name": "Axel Gimenez",
+    "teams": [
+      "Back"
+    ],
+    "capacity_by_team": {
+      "Back": 1
+    },
+    "role": "Developer",
+    "birthday": "",
+    "absences": [],
+    "jira_name": null
+  }
+]

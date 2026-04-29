@@ -9,23 +9,13 @@ import httpx
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
-# Archivo JSON para persistir eventos
-EVENTS_FILE = Path(__file__).parent.parent.parent.parent / "data" / "calendar_events.json"
-
+from app.utils.storage import load_json, save_json
 
 def _load_events() -> list:
-    if not EVENTS_FILE.exists():
-        EVENTS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        EVENTS_FILE.write_text("[]")
-    try:
-        return json.loads(EVENTS_FILE.read_text())
-    except Exception:
-        return []
-
+    return load_json("calendar_events.json")
 
 def _save_events(events: list):
-    EVENTS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    EVENTS_FILE.write_text(json.dumps(events, ensure_ascii=False, indent=2))
+    save_json("calendar_events.json", events)
 
 
 class EventIn(BaseModel):
@@ -38,6 +28,7 @@ class EventIn(BaseModel):
     team: Optional[str] = None
     color: Optional[str] = None
     notes: Optional[str] = None
+    impact: Optional[float] = 0.0   # Impacto en capacidad (0.0 a 1.0)
 
 
 @router.get("/events")
@@ -159,83 +150,8 @@ async def get_holidays(year: int):
 
 @router.get("/sprints-for-calendar")
 async def get_sprints_for_calendar(year: int, team: Optional[str] = None):
-    """Devuelve sprints del año como eventos de calendario"""
-    from app.core.jira_client import JiraClient
-    from app.core.config import get_settings
-    settings = get_settings()
-    client = JiraClient()
-    try:
-        board_id = await client.get_board_id()
-        sprints = await client.get_sprints(board_id, state="closed,active,future", team=team)
-        events = []
-        from dateutil import parser as dp
-        for s in sprints:
-            try:
-                start = dp.parse(s["startDate"]).date()
-                end = dp.parse(s.get("completeDate") or s.get("endDate")).date()
-                if start.year != year and end.year != year:
-                    continue
-                events.append({
-                    "id": f"sprint-{s['id']}",
-                    "title": s["name"],
-                    "start_date": start.isoformat(),
-                    "end_date": end.isoformat(),
-                    "type": "sprint",
-                    "color": "#3B82F6",
-                    "state": s.get("state", "closed"),
-                })
-            except Exception:
-                pass
-        return events
-    except Exception:
-        return []
+    """Devuelve una lista vacía para ignorar Jira y usar solo sprints manuales."""
+    return []
 
 
-# ── Endpoints de personas y disponibilidad desde Confluence ──────────────────
-
-@router.get("/team-people")
-async def get_team_people_endpoint(team: Optional[str] = None):
-    """Personas del equipo desde Confluence con vacaciones y cumpleaños."""
-    from app.services.confluence_service import get_team_people
-    people = await get_team_people()
-    if team:
-        people = [p for p in people if team.lower() in p.get("team","").lower()]
-    return people
-
-
-@router.get("/availability")
-async def get_availability(date: str, team: Optional[str] = None):
-    """Disponibilidad del equipo para una fecha dada (YYYY-MM-DD)."""
-    from app.services.confluence_service import get_availability_by_date
-    return await get_availability_by_date(date, team)
-
-
-@router.get("/availability-range")
-async def get_availability_range(start: str, end: str, team: Optional[str] = None):
-    """Disponibilidad día a día entre dos fechas."""
-    from app.services.confluence_service import get_team_people
-    from datetime import date as date_type, timedelta
-
-    people = await get_team_people()
-    if team:
-        people = [p for p in people if team.lower() in p.get("team","").lower()]
-
-    result = []
-    cur = date_type.fromisoformat(start)
-    end_d = date_type.fromisoformat(end)
-
-    while cur <= end_d:
-        ds = cur.isoformat()
-        unavailable = [
-            p["name"] for p in people
-            if any(v["start"] <= ds <= v["end"] for v in p["vacations"])
-        ]
-        result.append({
-            "date": ds,
-            "available": len(people) - len(unavailable),
-            "total": len(people),
-            "unavailable_names": unavailable,
-        })
-        cur += timedelta(days=1)
-
-    return result
+# Endpoints de personas movidos a people.py

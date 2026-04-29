@@ -2,7 +2,6 @@ import { useState, useEffect } from "react";
 import { API, THEMES, JIRA_BASE } from "../constants";
 
 const TEAMS = ["Back", "Datos"];
-const ROLES = ["Developer", "Tech Lead", "Scrum Master", "QA", "Data Engineer", "Data Analyst", "Product Owner", "DevOps", "Otro"];
 const ABSENCE_TYPES = {
   vacation: { label: "Vacaciones", color: "#22C55E", icon: "🏖️" },
   medical:  { label: "Lic. Médica", color: "#EF4444", icon: "🏥" },
@@ -27,6 +26,7 @@ function PersonDetail({ person, T, onClose, onSaved }) {
   const [savingName, setSavingName] = useState(false);
   const [period, setPeriod] = useState("last_3");
   const [openSprints, setOpenSprints] = useState({});
+  const [openTickets, setOpenTickets] = useState({});
 
   const cardS = { background: card, borderRadius: 12, padding: "16px 20px", border: `1px solid ${border}` };
   const inp = { padding: "7px 10px", borderRadius: 6, border: `1px solid ${border}`, background: input || bg, color: text, fontSize: 12, outline: "none", width: "100%", boxSizing: "border-box" };
@@ -47,13 +47,15 @@ function PersonDetail({ person, T, onClose, onSaved }) {
 
   async function loadJiraUsers() {
     try {
-      const data = await fetch(`${API}/people/jira-users?team=${person.team}`).then(r => r.json());
+      const primaryTeam = (person.teams || [])[0] || "Back";
+      const data = await fetch(`${API}/people/jira-users?team=${primaryTeam}`).then(r => r.json());
       setJiraUsers(Array.isArray(data) ? data : []);
     } catch (e) {}
   }
   async function loadStats() {
     setLoading(true);
-    let url = `${API}/people/${person.id}/stats?team=${person.team}`;
+    const primaryTeam = (person.teams || [])[0] || "Back";
+    let url = `${API}/people/${person.id}/stats?team=${primaryTeam}`;
     if (period === "last_3") url += "&last_n=3";
     else if (period.startsWith("Q")) {
       const q = period.substring(1, 2);
@@ -91,7 +93,15 @@ function PersonDetail({ person, T, onClose, onSaved }) {
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 18, fontWeight: 800, color: text }}>{person.name}</div>
               <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 4, flexWrap: "wrap" }}>
-                <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, fontWeight: 700, background: teamColor + "20", color: teamColor }}>{person.team}</span>
+                {(person.teams || []).map(t => {
+                  const tColor = t === "Back" ? "#8B5CF6" : "#06B6D4";
+                  const cap = person.capacity_by_team?.[t] || 1.0;
+                  return (
+                    <span key={t} style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, fontWeight: 700, background: tColor + "20", color: tColor }}>
+                      {t} {cap < 1 ? `(${cap})` : ""}
+                    </span>
+                  );
+                })}
                 <span style={{ fontSize: 11, color: muted }}>{person.role}</span>
                 {person.birthday && <span style={{ fontSize: 11, color: "#EC4899" }}>🎂 {person.birthday}</span>}
               </div>
@@ -143,9 +153,9 @@ function PersonDetail({ person, T, onClose, onSaved }) {
                   <div style={{ fontSize: 13, fontWeight: 700, color: text }}>{stats.active_sprint?.name || "Sin sprint activo"}</div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 10 }}>
                     {[
-                      { label: "SP asignados", val: stats.active_sprint?.sp_total, color: "#3B82F6" },
-                      { label: "SP efectivos", val: stats.active_sprint?.sp_done, color: "#22C55E" },
-                      { label: "Completado", val: `${stats.active_sprint?.completion}%`, color: "#8B5CF6" },
+                      { label: "SP asignados", val: stats.active_sprint?.sp_total ?? 0, color: "#3B82F6" },
+                      { label: "SP efectivos", val: stats.active_sprint?.sp_done ?? 0, color: "#22C55E" },
+                      { label: "Completado", val: `${stats.active_sprint?.completion ?? 0}%`, color: "#8B5CF6" },
                       { label: "Cycle time prom", val: stats.avg_cycle_time ? `${stats.avg_cycle_time}d` : "—", color: "#F59E0B" },
                     ].map((k, i) => (
                       <div key={i} style={{ ...cardS, textAlign: "center" }}>
@@ -154,25 +164,80 @@ function PersonDetail({ person, T, onClose, onSaved }) {
                       </div>
                     ))}
                   </div>
-                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                    {stats.active_sprint?.tickets?.map((t, i) => (
-                      <div key={i} style={{ ...cardS, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                        <a href={`${JIRA_BASE}/browse/${t.key}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", textDecoration: "none" }}>{t.key}</a>
-                        <span style={{ flex: 1, fontSize: 12, color: text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.summary}</span>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: STATUS_COLOR[t.status_cat] || muted }}>{STATUS_LABEL[t.status_cat] || t.status}</span>
-                        {t.sp > 0 && (
-                          <span style={{ fontSize: 11, fontWeight: 800, color: "#8B5CF6", background: "#8B5CF620", padding: "2px 6px", borderRadius: 4 }}>
-                            {t.total_sp > 0 && t.sp !== t.total_sp 
-                              ? `Esfuerzo: ${t.sp}/${t.total_sp} SP | ${Math.round((t.sp / t.total_sp) * 100)}%` 
-                              : `${t.sp} SP`}
-                          </span>
-                        )}
-                        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                          {t.cycle_time && <span style={{ fontSize: 10, color: t.cycle_time < 5 ? "#22C55E" : t.cycle_time < 10 ? "#F59E0B" : "#EF4444", fontWeight: 700 }}>⏳ CT: {t.cycle_time}d</span>}
-                          {t.lead_time && <span style={{ fontSize: 10, color: muted }}>📅 LT: {t.lead_time}d</span>}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {stats.active_sprint?.tickets?.map((t, i) => {
+                      const isOpen = openTickets[t.key] === true;
+                      const personTotalHours = (t.subtasks_detail || [])
+                        .filter(st => st.assignee?.toLowerCase() === person.name?.toLowerCase() || (person.jira_name && st.assignee?.toLowerCase() === person.jira_name?.toLowerCase()))
+                        .reduce((acc, st) => acc + (st.hours || 0), 0);
+
+                      return (
+                        <div key={i} style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                          <div 
+                            style={{ ...cardS, padding: "10px 14px", display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", cursor: "pointer", borderLeft: isOpen ? `4px solid #3B82F6` : `1px solid ${border}` }}
+                            onClick={() => setOpenTickets(prev => ({ ...prev, [t.key]: !isOpen }))}
+                          >
+                            <span style={{ fontSize: 10, color: muted }}>{isOpen ? "▼" : "▶"}</span>
+                            <a href={`${JIRA_BASE}/browse/${t.key}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", textDecoration: "none" }}>{t.key}</a>
+                            <span style={{ flex: 1, fontSize: 12, color: text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: isOpen ? 700 : 400 }}>{t.summary}</span>
+                            <span style={{ fontSize: 10, fontWeight: 700, color: STATUS_COLOR[t.status_cat] || muted }}>{STATUS_LABEL[t.status_cat] || t.status}</span>
+                            
+                            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                              {personTotalHours > 0 && (
+                                <span style={{ fontSize: 11, fontWeight: 800, color: "#06B6D4", background: "#06B6D420", padding: "2px 8px", borderRadius: 4, display: "flex", alignItems: "center", gap: 4 }}>
+                                  🕒 {personTotalHours}h
+                                </span>
+                              )}
+                              {t.sp > 0 && (
+                                <span style={{ fontSize: 11, fontWeight: 800, color: "#8B5CF6", background: "#8B5CF620", padding: "2px 8px", borderRadius: 4 }}>
+                                  {t.total_sp > 0 && t.sp !== t.total_sp 
+                                    ? `${t.sp}/${t.total_sp} SP` 
+                                    : `${t.sp} SP`}
+                                </span>
+                              )}
+                            </div>
+                            
+                            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                              {t.cycle_time && <span style={{ fontSize: 10, color: t.cycle_time < 5 ? "#22C55E" : t.cycle_time < 10 ? "#F59E0B" : "#EF4444", fontWeight: 700 }}>⏳ {t.cycle_time}d</span>}
+                            </div>
+                          </div>
+
+                          {isOpen && t.subtasks_detail?.length > 0 && (
+                            <div style={{ marginLeft: 24, padding: "8px 12px", borderLeft: `2px solid ${border}`, display: "flex", flexDirection: "column", gap: 4, background: bg + "50", borderRadius: "0 0 8px 8px", marginBottom: 8 }}>
+                              {t.subtasks_detail.map((st, si) => {
+                                const isMe = st.assignee?.toLowerCase() === person.name?.toLowerCase() || (person.jira_name && st.assignee?.toLowerCase() === person.jira_name?.toLowerCase());
+                                return (
+                                  <div key={si} style={{ 
+                                    padding: "6px 10px", 
+                                    borderRadius: 6, 
+                                    background: isMe ? "#3B82F615" : "transparent",
+                                    border: isMe ? `1px solid #3B82F640` : `1px solid transparent`,
+                                    display: "flex", 
+                                    alignItems: "center", 
+                                    gap: 10 
+                                  }}>
+                                    <span style={{ fontSize: 14, filter: isMe ? "none" : "grayscale(1) opacity(0.5)" }}>{isMe ? "👤" : "⚙️"}</span>
+                                    <div style={{ flex: 1, minWidth: 0 }}>
+                                      <div style={{ fontSize: 11, color: text, fontWeight: isMe ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis" }}>{st.summary}</div>
+                                      <div style={{ fontSize: 9, color: muted }}>{st.assignee || "Sin asignar"} • <span style={{ color: STATUS_COLOR[st.status_cat] }}>{st.status}</span></div>
+                                    </div>
+                                    {st.hours > 0 && (
+                                      <div style={{ textAlign: "right" }}>
+                                        <div style={{ fontSize: 10, fontWeight: 800, color: "#06B6D4" }}>🕒 {st.hours}h</div>
+                                        <div style={{ fontSize: 8, color: faint }}>Tempo</div>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                          {isOpen && (!t.subtasks_detail || t.subtasks_detail.length === 0) && (
+                            <div style={{ marginLeft: 32, padding: 8, fontSize: 10, color: muted, fontStyle: "italic" }}>Sin subtareas registradas</div>
+                          )}
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -223,23 +288,69 @@ function PersonDetail({ person, T, onClose, onSaved }) {
                                 {sprintTickets.length === 0 ? (
                                   <div style={{ fontSize: 11, color: muted, fontStyle: "italic" }}>No hay tickets con esfuerzo registrado en este sprint.</div>
                                 ) : (
-                                  sprintTickets.map((t, j) => (
-                                    <div key={j} style={{ padding: "8px 12px", border: `1px solid ${border}`, borderRadius: 8, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", background: bg }}>
-                                      <a href={`${JIRA_BASE}/browse/${t.key}`} target="_blank" rel="noreferrer" style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", textDecoration: "none" }}>{t.key}</a>
-                                      <span style={{ flex: 1, fontSize: 11, color: text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.summary}</span>
-                                      {t.sp > 0 && (
-                                        <span style={{ fontSize: 10, fontWeight: 800, color: "#8B5CF6", background: "#8B5CF620", padding: "2px 6px", borderRadius: 4 }}>
-                                          {t.total_sp > 0 && t.sp !== t.total_sp 
-                                            ? `Esfuerzo: ${t.sp}/${t.total_sp} SP` 
-                                            : `${t.sp} SP`}
-                                        </span>
-                                      )}
-                                      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                                        {t.cycle_time && <span style={{ fontSize: 10, color: t.cycle_time < 5 ? "#22C55E" : t.cycle_time < 10 ? "#F59E0B" : "#EF4444", fontWeight: 700 }}>⏳ CT: {t.cycle_time}d</span>}
-                                        {t.lead_time && <span style={{ fontSize: 10, color: muted }}>📅 LT: {t.lead_time}d</span>}
+                                  sprintTickets.map((t, j) => {
+                                    const isOpen = openTickets[t.key] === true;
+                                    const personTotalHours = (t.subtasks_detail || [])
+                                      .filter(st => st.assignee?.toLowerCase() === person.name?.toLowerCase() || (person.jira_name && st.assignee?.toLowerCase() === person.jira_name?.toLowerCase()))
+                                      .reduce((acc, st) => acc + (st.hours || 0), 0);
+
+                                    return (
+                                      <div key={j} style={{ display: "flex", flexDirection: "column", gap: 1 }}>
+                                        <div 
+                                          style={{ padding: "8px 12px", border: `1px solid ${border}`, borderRadius: 8, display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", background: bg, cursor: "pointer", borderLeft: isOpen ? `4px solid #3B82F6` : `1px solid ${border}` }}
+                                          onClick={() => setOpenTickets(prev => ({ ...prev, [t.key]: !isOpen }))}
+                                        >
+                                          <span style={{ fontSize: 9, color: muted }}>{isOpen ? "▼" : "▶"}</span>
+                                          <a href={`${JIRA_BASE}/browse/${t.key}`} target="_blank" rel="noreferrer" onClick={e => e.stopPropagation()} style={{ fontSize: 11, fontWeight: 700, color: "#3B82F6", textDecoration: "none" }}>{t.key}</a>
+                                          <span style={{ flex: 1, fontSize: 11, color: text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", fontWeight: isOpen ? 700 : 400 }}>{t.summary}</span>
+                                          
+                                          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                            {personTotalHours > 0 && (
+                                              <span style={{ fontSize: 10, fontWeight: 800, color: "#06B6D4", background: "#06B6D420", padding: "2px 6px", borderRadius: 4, display: "flex", alignItems: "center", gap: 3 }}>
+                                                🕒 {personTotalHours}h
+                                              </span>
+                                            )}
+                                            {t.sp > 0 && (
+                                              <span style={{ fontSize: 10, fontWeight: 800, color: "#8B5CF6", background: "#8B5CF620", padding: "2px 6px", borderRadius: 4 }}>
+                                                {t.total_sp > 0 && t.sp !== t.total_sp 
+                                                  ? `${t.sp}/${t.total_sp} SP` 
+                                                  : `${t.sp} SP`}
+                                              </span>
+                                            )}
+                                          </div>
+
+                                          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                            {t.cycle_time && <span style={{ fontSize: 10, color: t.cycle_time < 5 ? "#22C55E" : t.cycle_time < 10 ? "#F59E0B" : "#EF4444", fontWeight: 700 }}>⏳ {t.cycle_time}d</span>}
+                                          </div>
+                                        </div>
+
+                                        {isOpen && t.subtasks_detail?.length > 0 && (
+                                          <div style={{ marginLeft: 20, padding: "6px 10px", borderLeft: `2px solid ${border}`, display: "flex", flexDirection: "column", gap: 4, background: card + "50", borderRadius: "0 0 6px 6px", marginBottom: 6 }}>
+                                            {t.subtasks_detail.map((st, si) => {
+                                              const isMe = st.assignee?.toLowerCase() === person.name?.toLowerCase() || (person.jira_name && st.assignee?.toLowerCase() === person.jira_name?.toLowerCase());
+                                              return (
+                                                <div key={si} style={{ 
+                                                  padding: "4px 8px", 
+                                                  borderRadius: 4, 
+                                                  background: isMe ? "#3B82F615" : "transparent",
+                                                  border: isMe ? `1px solid #3B82F630` : `1px solid transparent`,
+                                                  display: "flex", 
+                                                  alignItems: "center", 
+                                                  gap: 8 
+                                                }}>
+                                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                                    <div style={{ fontSize: 10, color: text, fontWeight: isMe ? 700 : 400, overflow: "hidden", textOverflow: "ellipsis" }}>{st.summary}</div>
+                                                    <div style={{ fontSize: 9, color: muted }}>{st.assignee || "Sin asignar"} • {st.status}</div>
+                                                  </div>
+                                                  {st.hours > 0 && <div style={{ fontSize: 9, fontWeight: 800, color: "#06B6D4" }}>{st.hours}h</div>}
+                                                </div>
+                                              );
+                                            })}
+                                          </div>
+                                        )}
                                       </div>
-                                    </div>
-                                  ))
+                                    );
+                                  })
                                 )}
                               </div>
                             </>
@@ -320,20 +431,37 @@ export function TeamView({ T }) {
   const [showAbsenceModal, setShowAbsenceModal] = useState(false);
   const [editPerson, setEditPerson] = useState(null);
   const [editAbsencePerson, setEditAbsencePerson] = useState(null);
-  const [personForm, setPersonForm] = useState({ name: "", team: "Back", role: "Developer", birthday: "" });
+  const [personForm, setPersonForm] = useState({ name: "", teams: ["Back"], capacity_by_team: { "Back": 1.0 }, role: "Developer", birthday: "" });
   const [absenceForm, setAbsenceForm] = useState({ type: "vacation", start_date: "", end_date: "", notes: "" });
+  const [inlineEditId, setInlineEditId] = useState(null);
+  const [inlineForm, setInlineForm] = useState({});
+  const [roles, setRoles] = useState([]);
 
   const today = new Date().toISOString().slice(0, 10);
   const inp = { padding: "8px 10px", borderRadius: 6, border: `1px solid ${border}`, background: input || bg, color: text, fontSize: 12, boxSizing: "border-box", outline: "none", width: "100%" };
   const cardStyle = { background: card, borderRadius: 12, padding: "20px 24px", border: `1px solid ${border}`, boxShadow: "0 1px 4px rgba(0,0,0,0.08)" };
 
-  useEffect(() => { loadPeople(); }, []);
+  useEffect(() => { 
+    loadPeople(); 
+    loadRoles();
+  }, []);
 
+  async function loadRoles() {
+    try {
+      const data = await fetch(`${API}/config/roles`).then(r => r.json());
+      setRoles(Array.isArray(data) ? data : []);
+    } catch (e) {
+      console.error("Error cargando roles:", e);
+      setRoles(["Developer", "Otro"]); // Fallback
+    }
+  }
   async function loadPeople() {
     try {
       const data = await fetch(`${API}/people/`).then(r => r.json());
       setPeople(Array.isArray(data) ? data : []);
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error("Error cargando personas:", e);
+    }
   }
 
   async function savePerson() {
@@ -374,10 +502,9 @@ export function TeamView({ T }) {
   const absentToday = people.filter(p => p.absences?.some(a => a.start_date <= today && today <= a.end_date));
   const filteredPeople = people.filter(p => {
     if (filterTeam === "Todos") return true;
-    if (filterTeam === "Back") return p.team === "Back";
-    if (filterTeam === "Datos") return p.team === "Datos";
     if (filterTeam === "Ausentes") return p.absences?.some(a => a.start_date <= today && today <= a.end_date);
-    return true;
+    // Verificar si el equipo seleccionado está en la lista de equipos de la persona
+    return p.teams?.some(t => t.toLowerCase() === filterTeam.toLowerCase());
   });
 
   return (
@@ -386,8 +513,8 @@ export function TeamView({ T }) {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: 16 }}>
         {[
           { id: "Todos", label: "Total personas", value: people.length, color: "#3B82F6", icon: "👥" },
-          { id: "Back", label: "Equipo Back", value: people.filter(p => p.team === "Back").length, color: "#8B5CF6", icon: "⚙️" },
-          { id: "Datos", label: "Equipo Datos", value: people.filter(p => p.team === "Datos").length, color: "#06B6D4", icon: "📊" },
+          { id: "Back", label: "Equipo Back", value: people.filter(p => p.teams?.includes("Back")).length, color: "#8B5CF6", icon: "⚙️" },
+          { id: "Datos", label: "Equipo Datos", value: people.filter(p => p.teams?.includes("Datos")).length, color: "#06B6D4", icon: "📊" },
           { id: "Ausentes", label: "Ausentes hoy", value: absentToday.length, color: absentToday.length > 0 ? "#EF4444" : "#22C55E", icon: "🏖️" },
         ].map((k, i) => (
           <div key={i} onClick={() => setFilterTeam(k.id)} style={{ ...cardStyle, display: "flex", alignItems: "center", gap: 16, cursor: "pointer", border: filterTeam === k.id ? `2px solid ${k.color}` : `1px solid ${border}`, background: filterTeam === k.id ? k.color + "11" : card, transition: "all 0.2s" }}>
@@ -415,10 +542,83 @@ export function TeamView({ T }) {
         <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: selectedPerson ? "0 0 calc(100% - 600px)" : 1, transition: "flex 0.4s cubic-bezier(0.4, 0, 0.2, 1)", minWidth: 0 }}>
           {filteredPeople.length === 0 && <div style={{ ...cardStyle, textAlign: "center", padding: 48, color: muted }}>No hay personas cargadas aún.</div>}
           {filteredPeople.map(person => {
+            const isEditing = inlineEditId === person.id;
             const absentNow = person.absences?.find(a => a.start_date <= today && today <= a.end_date);
-            const teamColor = person.team === "Back" ? "#8B5CF6" : "#06B6D4";
+            const teams = person.teams || [];
+            const primaryTeam = teams[0] || "Back";
+            const teamColor = primaryTeam === "Back" ? "#8B5CF6" : "#06B6D4";
+
+            if (isEditing) {
+              return (
+                <div key={person.id} style={{ ...cardStyle, border: `2px solid #3B82F6`, position: "relative" }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    <div>
+                      <label style={{ fontSize: 11, color: muted, fontWeight: 600 }}>Nombre completo</label>
+                      <input value={inlineForm.name} onChange={(e) => setInlineForm(f => ({ ...f, name: e.target.value }))} style={inp} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, color: muted, fontWeight: 600 }}>Equipos y Capacidad</label>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+                        {TEAMS.map(t => {
+                          const isChecked = inlineForm.teams?.includes(t);
+                          return (
+                            <div key={t} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                              <input type="checkbox" checked={isChecked} onChange={(e) => {
+                                const nextTeams = e.target.checked 
+                                  ? [...(inlineForm.teams || []), t]
+                                  : inlineForm.teams?.filter(x => x !== t);
+                                const nextCap = { ...inlineForm.capacity_by_team };
+                                if (e.target.checked && !nextCap[t]) nextCap[t] = 1.0;
+                                if (!e.target.checked) delete nextCap[t];
+                                setInlineForm(f => ({ ...f, teams: nextTeams, capacity_by_team: nextCap }));
+                              }} />
+                              <span style={{ fontSize: 12, color: text, flex: 1 }}>{t}</span>
+                              {isChecked && (
+                                <input type="number" step="0.1" min="0" max="1" 
+                                  value={inlineForm.capacity_by_team?.[t] || 0}
+                                  onChange={(e) => {
+                                    const val = parseFloat(e.target.value);
+                                    setInlineForm(f => ({ ...f, capacity_by_team: { ...f.capacity_by_team, [t]: val } }));
+                                  }}
+                                  style={{ ...inp, width: 60, textAlign: "center", padding: "4px" }} 
+                                />
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                      <div>
+                        <label style={{ fontSize: 11, color: muted, fontWeight: 600 }}>Rol</label>
+                        <select value={inlineForm.role} onChange={(e) => setInlineForm(f => ({ ...f, role: e.target.value }))} style={inp}>
+                          {roles.map(r => <option key={r} value={r}>{r}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: muted, fontWeight: 600 }}>Cumpleaños</label>
+                        <input type="date" value={inlineForm.birthday} onChange={(e) => setInlineForm(f => ({ ...f, birthday: e.target.value }))} style={inp} />
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 4 }}>
+                      <button onClick={() => setInlineEditId(null)} style={{ padding: "6px 14px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: muted, fontSize: 12, fontWeight: 600, cursor: "pointer" }}>✕ Cancelar</button>
+                      <button 
+                        onClick={async () => {
+                          await fetch(`${API}/people/${person.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...inlineForm, id: person.id, absences: person.absences || [], jira_name: person.jira_name }) });
+                          setInlineEditId(null);
+                          await loadPeople();
+                        }}
+                        style={{ padding: "6px 14px", borderRadius: 8, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
+                        ✅ Guardar
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
             return (
-              <div key={person.id} style={{ ...cardStyle, cursor: "pointer", border: selectedPerson?.id === person.id ? `2px solid ${teamColor}` : `1px solid ${border}` }} onClick={() => setSelectedPerson(person)}>
+              <div key={person.id} style={{ ...cardStyle, cursor: "pointer", border: selectedPerson?.id === person.id ? `2px solid ${teamColor}` : `1px solid ${border}` }} onClick={() => { if (inlineEditId !== person.id) setSelectedPerson(person); }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
                   <div style={{ width: 44, height: 44, borderRadius: "50%", flexShrink: 0, background: teamColor + "20", border: `2px solid ${teamColor}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, color: teamColor }}>
                     {person.name.charAt(0).toUpperCase()}
@@ -426,7 +626,17 @@ export function TeamView({ T }) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: text }}>{person.name}</span>
-                      <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 700, background: teamColor + "20", color: teamColor }}>{person.team}</span>
+                      <div style={{ display: "flex", gap: 4 }}>
+                        {teams.map(t => {
+                          const tColor = t === "Back" ? "#8B5CF6" : "#06B6D4";
+                          const cap = person.capacity_by_team?.[t] || 1.0;
+                          return (
+                            <span key={t} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 700, background: tColor + "20", color: tColor }}>
+                              {t} {cap < 1 ? `(${cap})` : ""}
+                            </span>
+                          );
+                        })}
+                      </div>
                       <span style={{ fontSize: 10, color: muted }}>{person.role}</span>
                       {person.birthday && <span style={{ fontSize: 10, color: "#EC4899" }}>🎂 {person.birthday}</span>}
                       {absentNow && (
@@ -452,14 +662,24 @@ export function TeamView({ T }) {
                   </div>
                   <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
                     <button onClick={(e) => { e.stopPropagation(); setEditAbsencePerson(person); setAbsenceForm({ type: "vacation", start_date: "", end_date: "", notes: "" }); setShowAbsenceModal(true); }} style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: muted, fontSize: 11, cursor: "pointer" }}>+ Ausencia</button>
-                    <button onClick={(e) => { e.stopPropagation(); setEditPerson(person); setPersonForm({ name: person.name, team: person.team, role: person.role, birthday: person.birthday || "" }); setShowPersonModal(true); }} style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: muted, fontSize: 11, cursor: "pointer" }}>✏️</button>
+                    <button onClick={(e) => { 
+                      e.stopPropagation(); 
+                      setInlineEditId(person.id); 
+                      setInlineForm({ 
+                        name: person.name, 
+                        teams: person.teams || [], 
+                        capacity_by_team: person.capacity_by_team || {},
+                        role: person.role, 
+                        birthday: person.birthday || "" 
+                      }); 
+                    }} style={{ padding: "5px 10px", borderRadius: 6, border: `1px solid ${border}`, background: "transparent", color: muted, fontSize: 11, cursor: "pointer" }}>✏️</button>
                     <button onClick={(e) => { e.stopPropagation(); deletePerson(person.id); }} style={{ padding: "5px 10px", borderRadius: 6, border: "none", background: "#FEE2E2", color: "#EF4444", fontSize: 11, cursor: "pointer" }}>🗑</button>
                   </div>
                 </div>
               </div>
             );
           })}
-      </div>
+        </div>
 
       {/* Columna Derecha: Panel Fijo */}
       <div style={{ 
@@ -486,10 +706,41 @@ export function TeamView({ T }) {
             <div style={{ fontSize: 15, fontWeight: 700, color: text, marginBottom: 20 }}>{editPerson ? "✏️ Editar persona" : "➕ Nueva persona"}</div>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <div><label style={{ fontSize: 11, color: muted, fontWeight: 600 }}>Nombre *</label><input value={personForm.name} onChange={(e) => setPersonForm(f => ({ ...f, name: e.target.value }))} style={inp} placeholder="Nombre completo" /></div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                <div><label style={{ fontSize: 11, color: muted, fontWeight: 600 }}>Equipo</label><select value={personForm.team} onChange={(e) => setPersonForm(f => ({ ...f, team: e.target.value }))} style={inp}>{TEAMS.map(t => <option key={t}>{t}</option>)}</select></div>
-                <div><label style={{ fontSize: 11, color: muted, fontWeight: 600 }}>Rol</label><select value={personForm.role} onChange={(e) => setPersonForm(f => ({ ...f, role: e.target.value }))} style={inp}>{ROLES.map(r => <option key={r}>{r}</option>)}</select></div>
+              
+              <div>
+                <label style={{ fontSize: 11, color: muted, fontWeight: 600 }}>Equipos y Capacidad</label>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginTop: 4 }}>
+                  {TEAMS.map(t => {
+                    const isChecked = personForm.teams?.includes(t);
+                    return (
+                      <div key={t} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                        <input type="checkbox" checked={isChecked} onChange={(e) => {
+                          const nextTeams = e.target.checked 
+                            ? [...(personForm.teams || []), t]
+                            : personForm.teams?.filter(x => x !== t);
+                          const nextCap = { ...personForm.capacity_by_team };
+                          if (e.target.checked && !nextCap[t]) nextCap[t] = 1.0;
+                          if (!e.target.checked) delete nextCap[t];
+                          setPersonForm(f => ({ ...f, teams: nextTeams, capacity_by_team: nextCap }));
+                        }} />
+                        <span style={{ fontSize: 12, color: text, flex: 1 }}>{t}</span>
+                        {isChecked && (
+                          <input type="number" step="0.1" min="0" max="1" 
+                            value={personForm.capacity_by_team?.[t] || 0}
+                            onChange={(e) => {
+                              const val = parseFloat(e.target.value);
+                              setPersonForm(f => ({ ...f, capacity_by_team: { ...f.capacity_by_team, [t]: val } }));
+                            }}
+                            style={{ ...inp, width: 60, textAlign: "center", padding: "4px" }} 
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
+
+              <div><label style={{ fontSize: 11, color: muted, fontWeight: 600 }}>Rol</label><select value={personForm.role} onChange={(e) => setPersonForm(f => ({ ...f, role: e.target.value }))} style={inp}>{roles.map(r => <option key={r} value={r}>{r}</option>)}</select></div>
               <div><label style={{ fontSize: 11, color: muted, fontWeight: 600 }}>Cumpleaños</label><input type="date" value={personForm.birthday} onChange={(e) => setPersonForm(f => ({ ...f, birthday: e.target.value }))} style={inp} /></div>
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 8 }}>
                 <button onClick={() => setShowPersonModal(false)} style={{ padding: "8px 16px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: muted, fontSize: 12, cursor: "pointer" }}>Cancelar</button>

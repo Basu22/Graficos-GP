@@ -79,14 +79,15 @@ export const STATUS_COLUMN = {
 
 // ── Calendario ────────────────────────────────────────────────────────────────
 export const EVENT_TYPES = {
-  sprint:   { label: "Sprint",             color: "#3B82F6", icon: "⚡" },
-  holiday:  { label: "Feriado Nacional",   color: "#F97316", icon: "🇦🇷" },
-  birthday: { label: "Cumpleaños",         color: "#EC4899", icon: "🎂" },
-  vacation: { label: "Vacaciones",         color: "#22C55E", icon: "🏖️" },
-  medical:  { label: "Licencia Médica",    color: "#EF4444", icon: "🏥" },
-  exam:     { label: "Licencia Examen",    color: "#8B5CF6", icon: "📝" },
-  study:    { label: "Licencia Estudio",   color: "#06B6D4", icon: "📚" },
-  custom:   { label: "Otro",              color: "#64748B", icon: "📌" },
+  sprint:        { label: "Sprint Jira",        color: "#3B82F6", icon: "⚡" },
+  manual_sprint: { label: "Sprint Manual",      color: "#3B82F6", icon: "🚀" },
+  holiday:       { label: "Feriado Nacional",   color: "#F97316", icon: "🇦🇷" },
+  birthday:      { label: "Cumpleaños",         color: "#EC4899", icon: "🎂" },
+  vacation:      { label: "Vacaciones",         color: "#22C55E", icon: "🏖️" },
+  medical:       { label: "Licencia Médica",    color: "#EF4444", icon: "🏥" },
+  exam:          { label: "Licencia Examen",    color: "#8B5CF6", icon: "📝" },
+  study:         { label: "Licencia Estudio",   color: "#06B6D4", icon: "📚" },
+  custom:        { label: "Otro",              color: "#64748B", icon: "📌" },
 };
 
 export const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];

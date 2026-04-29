@@ -31,12 +31,37 @@ async def _get_enriched_issues_for_person(jira_client, sprint_id, assignee_name,
             subtask_keys.append(st["key"])
             
     # 2. Batch fetch de subtareas
-    subtasks_data = await jira_client.get_issues_by_keys(subtask_keys, fields=["assignee", "resolutiondate"])
+    subtasks_data = await jira_client.get_issues_by_keys(
+        subtask_keys, 
+        fields=["summary", "status", "assignee", "resolutiondate", "worklog", "issuetype"]
+    )
     subtasks_map = {}
     for st in subtasks_data:
         assignee = (st["fields"].get("assignee") or {}).get("displayName", "")
         res_date = st["fields"].get("resolutiondate")
-        subtasks_map[st["key"]] = {"assignee": assignee, "resolutiondate": res_date}
+        
+        # Calcular horas desde worklog (timeSpentSeconds)
+        worklogs = st["fields"].get("worklog", {}).get("worklogs", [])
+        total_seconds = sum(w.get("timeSpentSeconds", 0) for w in worklogs)
+        hours = round(total_seconds / 3600, 2)
+
+        subtasks_map[st["key"]] = {
+            "key": st["key"],
+            "summary": st["fields"].get("summary", ""),
+            "status": st["fields"].get("status", {}).get("name", ""),
+            "status_cat": st["fields"].get("status", {}).get("statusCategory", {}).get("key", ""),
+            "assignee": assignee, 
+            "resolutiondate": res_date,
+            "hours": hours,
+            "worklogs": [
+                {
+                    "author": w.get("author", {}).get("displayName", ""),
+                    "seconds": w.get("timeSpentSeconds", 0),
+                    "comment": w.get("comment", ""),
+                    "created": w.get("created", "")
+                } for w in worklogs
+            ]
+        }
         
     # 3. Filtrar y enriquecer issues para la persona
     person_issues = []
@@ -100,6 +125,10 @@ async def _get_enriched_issues_for_person(jira_client, sprint_id, assignee_name,
             i["_person_sp"] = person_sp
             i["_sprint_name"] = sprint_name
             i["_sprint_id"] = sprint_id
+            i["_subtasks_detail"] = [
+                subtasks_map.get(st["key"]) for st in i["fields"].get("subtasks", [])
+                if subtasks_map.get(st["key"])
+            ]
             person_issues.append(i)
             
             # Contar bugs en progreso
@@ -131,6 +160,10 @@ async def get_person_stats(
     bugs_in_progress = 0
     try:
         sprints_active = await jira_client.get_sprints(board_id, state="active", team=team)
+        if not sprints_active:
+            # Fallback: si no hay sprint con el nombre del equipo, traemos el primer sprint activo que haya
+            sprints_active = await jira_client.get_sprints(board_id, state="active", team=None)
+
         if sprints_active:
             sp = sprints_active[0]
             active_sprint_name = sp.get("name", "")
@@ -141,18 +174,15 @@ async def get_person_stats(
         print(f"Error active sprint: {e}")
 
     # ── Historial de sprints ─────────────────────────────────────────────────
-    from app.api.v1.endpoints.metrics import _resolve_sprints
+    from app.services.sprint_resolver import resolve_sprints_simple
     
     closed_sprints = []
     history_issues = []
     try:
-        # Reutilizamos la lógica de filtrado del dashboard para asegurar consistencia
-        # Pedimos los sprints que coincidan con los parámetros
-        # Si no hay parámetros, asumimos last_n = 3 por defecto
         if not any([last_n, quarter, year]):
             last_n = 3
             
-        _, _, sprints_info = await _resolve_sprints(
+        _, _, sprints_info = await resolve_sprints_simple(
             jira_client, sprint_ids=None, last_n=last_n, team=team, quarter=quarter, year=year
         )
         # _resolve_sprints devuelve la lista ordenada (más viejos primero), así que la invertimos 
@@ -214,7 +244,7 @@ async def get_person_stats(
         predictability_pct = round((total_sp_delivered / total_sp_committed) * 100, 1)
 
     # ── Tickets activos detallados ────────────────────────────────────────────
-    def fmt_issue(i):
+    def fmt_issue_local(i, st_map):
         return {
             "key":       i["key"],
             "summary":   i["fields"]["summary"],
@@ -228,13 +258,19 @@ async def get_person_stats(
             "sprint":    i.get("_sprint_name", active_sprint_name),
             "epic":      (i["fields"].get("customfield_10002") or ""),
             "priority":  (i["fields"].get("priority") or {}).get("name", ""),
+            "subtasks_detail": i.get("_subtasks_detail", [])
         }
+
+    # Nota: Como subtasks_map se calcula dentro de _get_enriched_issues_for_person,
+    # necesitamos que esa función ya devuelva los tickets formateados o el mapa.
+    # Vamos a simplificar: _get_enriched_issues_for_person ya tiene el mapa, 
+    # hagamos que devuelva los tickets ya 'enriquecidos' con sus subtareas.
 
     return {
         "assignee_name": assignee_name,
         "active_sprint": {
             "name":       active_sprint_name,
-            "tickets":    [fmt_issue(i) for i in active_issues],
+            "tickets":    [fmt_issue_local(i, None) for i in active_issues], 
             "sp_total":   active_sp_total,
             "sp_done":    active_sp_done,
             "completion": round(active_sp_done / active_sp_total * 100, 1) if active_sp_total else 0,
@@ -248,7 +284,7 @@ async def get_person_stats(
         ) if velocity_by_sprint else 0,
         "avg_cycle_time": avg_cycle_time,
         "type_distribution": type_dist,
-        "history_tickets": [fmt_issue(i) for i in history_issues],
+        "history_tickets": [fmt_issue_local(i, None) for i in history_issues],
         "sprints_analyzed": [sp.get("name","") for sp in closed_sprints],
         "predictability_pct": predictability_pct,
         "total_sp_delivered": total_sp_delivered,
