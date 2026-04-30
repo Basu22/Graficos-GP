@@ -29,6 +29,7 @@ export function CalendarView({ T, team }) {
   const [form, setForm] = useState({ title: "", type: "vacation", person: "", start_date: "", end_date: "", notes: "", color: "", impact: 0.0 });
   const [availability, setAvailability] = useState({});
   const [people, setPeople] = useState([]);
+  const [eventTypes, setEventTypes] = useState(EVENT_TYPES);
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showDayDetail, setShowDayDetail] = useState(false);
