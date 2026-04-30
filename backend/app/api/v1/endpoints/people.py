@@ -108,13 +108,17 @@ async def get_availability(start: str, end: str, team: Optional[str] = None):
     while cur <= end_d:
         ds = cur.isoformat()
         
-        # Calcular impacto de eventos generales del calendario
+        # Calcular impacto de eventos generales del calendario y separar los personales
         day_event_impact = 0.0
+        person_events = []
         for e in events:
-            # Si el evento coincide con la fecha y el equipo (o es global)
+            # Si el evento coincide con la fecha
             if e.get("start_date") <= ds <= (e.get("end_date") or e.get("start_date")):
-                # Si el evento tiene equipo, debe coincidir. Si no, es para todos.
-                if not e.get("team") or (team and e.get("team").lower() == team.lower()):
+                if e.get("person"):
+                    # Es un evento asignado a un colaborador específico
+                    person_events.append(e)
+                elif not e.get("team") or (team and e.get("team").lower() == team.lower()):
+                    # Es un evento global o de equipo
                     day_event_impact += e.get("impact") or 0.0
 
         unavailable_count = 0.0
@@ -135,6 +139,8 @@ async def get_availability(start: str, end: str, team: Optional[str] = None):
             total_capacity += p_cap
             
             is_absent = False
+            
+            # 1. Revisar ausencias fijas (people.json)
             for ab in p.get("absences", []):
                 if ab["start_date"] <= ds <= ab["end_date"]:
                     unavailable_count += p_cap
@@ -142,6 +148,20 @@ async def get_availability(start: str, end: str, team: Optional[str] = None):
                     absent_names.append(p["name"])
                     is_absent = True
                     break
+            
+            # 2. Revisar eventos dinámicos asignados a la persona (calendar_events.json)
+            if not is_absent:
+                for pe in person_events:
+                    if pe.get("person") == p["name"]:
+                        impact = float(pe.get("impact") or 0.0)
+                        if impact > 0:
+                            unavailable_count += (p_cap * impact)
+                            # Lo agregamos con un flag para que el frontend no lo duplique visualmente en la grilla
+                            unavailable_details.append({"name": p["name"], "role": p["role"], "type": pe.get("type"), "is_dynamic": True})
+                            if impact >= 1.0:
+                                absent_names.append(p["name"])
+                                is_absent = True
+                                break
             
             if not is_absent:
                 present_names.append(p["name"])

@@ -51,12 +51,72 @@
     "id": "eec60f2e-fa6d-45fe-9caa-00e3a6bd495a",
     "title": "Vacaciones — Alejandro Lo Preiato",
     "start_date": "2026-04-01",
-    "end_date": "2026-04-01",
+    "end_date": "2026-04-08",
     "type": "vacation",
     "person": "Alejandro Lo Preiato",
     "team": "Back",
     "color": "#22C55E",
     "notes": "Test de UX - Comentario",
+    "impact": 0.0
+  },
+  {
+    "id": "6ec82f01-fb52-4c9a-a13f-706ad2ee2a04",
+    "title": "Sprint 60",
+    "start_date": "2026-04-30",
+    "end_date": "2026-05-13",
+    "type": "manual_sprint",
+    "person": "",
+    "team": null,
+    "color": "#3B82F6",
+    "notes": "",
+    "impact": 0.0
+  },
+  {
+    "id": "6dbe22da-e339-494e-b1f5-ccdd40913388",
+    "title": "Retorno al Sprint — Carlos Quinteros",
+    "start_date": "2026-05-01",
+    "end_date": "2026-05-15",
+    "type": "retorno_sprint",
+    "person": "Carlos Quinteros",
+    "team": "Back",
+    "color": "#a51d2d",
+    "notes": "",
+    "impact": 0.0
+  },
+  {
+    "id": "5dc440e4-75c7-4726-b906-d505c1d34cc4",
+    "title": "Retorno al Sprint — Carlos Quinteros",
+    "start_date": "2026-05-01",
+    "end_date": "2026-05-15",
+    "type": "retorno_sprint",
+    "person": "Carlos Quinteros",
+    "team": "Back",
+    "color": "#a51d2d",
+    "notes": "",
+    "impact": 0.0
+  },
+  {
+    "id": "ffbd9ce1-71fb-4ffe-bf9e-03a364070c4f",
+    "title": "Ingresa a Soporte — Maria Teresa Bravo",
+    "start_date": "2026-04-29",
+    "end_date": "2026-05-16",
+    "type": "rotacion_soporte",
+    "person": "Maria Teresa Bravo",
+    "team": "Back",
+    "color": "#a51d2d",
+    "notes": "",
+    "impact": 1.0
+  },
+  {
+    "id": "c1246942-fa43-4956-9bb4-c3b49370a838",
+    "title": "Retorno al Sprint — Axel Gimenez",
+    "start_date": "2026-04-29",
+    "end_date": "2026-05-16",
+    "type": "retorno_sprint",
+    "person": "Axel Gimenez",
+    "team": "Back",
+    "color": "#a51d2d",
+    "notes": "",
     "impact": 0.0
   }
 ]

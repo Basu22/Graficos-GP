@@ -26,7 +26,7 @@ export function CalendarView({ T, team }) {
   const [selectedDay, setSelectedDay] = useState(null);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [filterTypes, setFilterTypes] = useState(new Set(Object.keys(EVENT_TYPES)));
-  const [form, setForm] = useState({ title: "", type: "vacation", person: "", start_date: "", end_date: "", notes: "", color: "", impact: 0.0 });
+  const [form, setForm] = useState({ title: "", type: "vacation", person: "", personSwap: "", start_date: "", end_date: "", notes: "", color: "", impact: 0.0 });
   const [availability, setAvailability] = useState({});
   const [people, setPeople] = useState([]);
   const [eventTypes, setEventTypes] = useState(EVENT_TYPES);
@@ -110,6 +110,11 @@ export function CalendarView({ T, team }) {
       const data = await fetch(`${API}/config/event-types`).then(r => r.json());
       if (data && Object.keys(data).length > 0) {
         setEventTypes(data);
+        setFilterTypes(prev => {
+          const newSet = new Set(prev);
+          Object.keys(data).forEach(k => newSet.add(k));
+          return newSet;
+        });
       }
     } catch (e) {
       console.error("Error cargando categorías dinámicas:", e);
@@ -131,6 +136,7 @@ export function CalendarView({ T, team }) {
     if (avail && avail.unavailable && filterTypes.has("vacation")) { // We use vacation as a toggle for absences if needed, or always show.
       // We will always show absences, or maybe map them to a filter? Let's just always show them if there are any.
       avail.unavailable.forEach(u => {
+        if (u.is_dynamic) return;
         evs.push({
           id: `absence-${dateStr}-${u.name}`,
           type: "absence",
@@ -280,6 +286,29 @@ export function CalendarView({ T, team }) {
   async function handleSave() {
     if (!form.start_date) return;
     try {
+    if (form.type === "rotacion_soporte") {
+      if (form.start_date === form.end_date) {
+        alert("La rotación debe tener al menos 1 día de duración posterior al inicio.");
+        return;
+      }
+      if (!form.person || !form.personSwap) {
+        alert("Debes seleccionar tanto al colaborador que ingresa como al que sale de soporte.");
+        return;
+      }
+      
+      const payloadA = { ...form, impact: 1.0, title: `Ingresa a Soporte — ${form.person}`, team };
+      delete payloadA.personSwap;
+      
+      const payloadB = { ...form, person: form.personSwap, impact: 0.0, type: "retorno_sprint", title: `Retorno al Sprint — ${form.personSwap}`, team };
+      delete payloadB.personSwap;
+
+      if (selectedEvent?.id && !selectedEvent.id.startsWith("holiday-") && !selectedEvent.id.startsWith("sprint-")) {
+        await fetch(`${API}/calendar/events/${selectedEvent.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payloadA) });
+      } else {
+        await fetch(`${API}/calendar/events`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payloadA) });
+        await fetch(`${API}/calendar/events`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payloadB) });
+      }
+    } else {
       const typeInfo = eventTypes[form.type] || eventTypes.custom || { label: "Otro", icon: "📌" };
       // Auto-construir título: Categoria - Persona (excepto para sprints manuales donde el usuario pone el nombre)
       const autoTitle = form.type === "manual_sprint" 
@@ -290,6 +319,7 @@ export function CalendarView({ T, team }) {
       if (payload.type === "manual_sprint" && !payload.impact) {
         payload.impact = 0.0;
       }
+      delete payload.personSwap;
       
       // Si es sprint manual, lo hacemos global (sin equipo)
       const savePayload = payload.type === "manual_sprint" 
@@ -301,8 +331,9 @@ export function CalendarView({ T, team }) {
       } else {
         await fetch(`${API}/calendar/events`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(savePayload) });
       }
-      setShowModal(false); setSelectedEvent(null);
-      setForm({ title: "", type: "vacation", person: "", start_date: "", end_date: "", notes: "", color: "", impact: 0.0 });
+    }
+    setShowModal(false); setSelectedEvent(null);
+      setForm({ title: "", type: "vacation", person: "", personSwap: "", start_date: "", end_date: "", notes: "", color: "", impact: 0.0 });
       await loadAllCorrect();
     } catch (e) { console.error(e); }
   }
@@ -311,14 +342,32 @@ export function CalendarView({ T, team }) {
     if (!id || id.startsWith("holiday-")) return;
     // Si empieza con sprint- es de Jira, no se borra. Si no, es manual y se puede borrar.
     if (id.startsWith("sprint-")) return;
-    await fetch(`${API}/calendar/events/${id}`, { method: "DELETE" });
+
+    // Lógica de borrado en cascada para "Rotación Soporte" (Swap)
+    const eventToDelete = allEvents.find(e => e.id === id);
+    if (eventToDelete && (eventToDelete.type === "rotacion_soporte" || eventToDelete.type === "retorno_sprint")) {
+      const pairType = eventToDelete.type === "rotacion_soporte" ? "retorno_sprint" : "rotacion_soporte";
+      const pairEvent = allEvents.find(e => 
+        e.type === pairType && 
+        e.start_date === eventToDelete.start_date && 
+        e.end_date === eventToDelete.end_date
+      );
+      
+      await fetch(`${API}/calendar/events/${id}`, { method: "DELETE" });
+      if (pairEvent) {
+        await fetch(`${API}/calendar/events/${pairEvent.id}`, { method: "DELETE" });
+      }
+    } else {
+      await fetch(`${API}/calendar/events/${id}`, { method: "DELETE" });
+    }
+    
     setShowModal(false); setSelectedEvent(null);
     await loadAllCorrect();
   }
 
   function openNewEvent(dateStr) {
     setSelectedEvent(null);
-    setForm({ title: "", type: "vacation", person: "", start_date: dateStr, end_date: dateStr, notes: "", color: "", impact: 0.0 });
+    setForm({ title: "", type: "vacation", person: "", personSwap: "", start_date: dateStr, end_date: dateStr, notes: "", color: "", impact: 0.0 });
     setShowModal(true);
   }
 
@@ -332,7 +381,8 @@ export function CalendarView({ T, team }) {
       end_date: e.end_date || e.start_date, 
       notes: e.notes || "", 
       color: e.color || "",
-      impact: e.impact || 0.0
+      impact: e.impact || 0.0,
+      personSwap: ""
     });
     setShowModal(true);
   }
@@ -432,7 +482,7 @@ export function CalendarView({ T, team }) {
 
         {cell.cur && (!isMini || meta) && !isWeekend && (
           <div style={{ position: "absolute", top: 4, right: 6, display: "flex", gap: 3, alignItems: "center", pointerEvents: "none" }}>
-            {activeSprint && !isMini && !isSprintStart && !isSprintEnd && (
+            {activeSprint && !isMini && (
               <span style={{ fontSize: 9, fontWeight: 800, color: "#fff", background: "#3B82F6", padding: "2px 5px", borderRadius: 4, marginRight: 2 }}>
                 {(() => {
                   const match = activeSprint.title.match(/\d+/);
@@ -454,55 +504,82 @@ export function CalendarView({ T, team }) {
                 return <div key={type} style={{ width: isMini ? 3 : 4, height: isMini ? 3 : 4, borderRadius: "50%", background: info.color }} />;
               })
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 2, width: "100%" }}>
+              <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 4, width: "100%", justifyContent: "center" }}>
                 {(() => {
                   const holidayEv = dayEvs.find((e) => e.type === "holiday");
                   const visibleEvs = dayEvs.filter((e) => e.type !== "holiday" && e.type !== "sprint");
                   return (
                     <>
-                      {holidayEv && <div style={{ fontSize: 9, padding: "2px 5px", borderRadius: 3, background: "#F97316", color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis" }} title={holidayEv.title}>🇦🇷 {holidayEv.title}</div>}
-                      {visibleEvs.slice(0, holidayEv ? 2 : 4).map((ev, ei) => {
-                        const isAbsence = ev.type === "absence" || ["vacation", "medical", "exam", "study"].includes(ev.type);
-                        const info = eventTypes[ev.type] || eventTypes.custom || { label: "Otro", color: "#64748B", icon: "📌" };
-                        const pillColor = ev.type === "manual_sprint" ? "#3B82F6" : (ev.color || info.color);
-                        
-                        // Si es sprint manual, solo mostramos píldora en inicio y fin
-                        if (ev.type === "manual_sprint") {
-                          if (isWeekend) return null;
-                          if (ev.start_date !== dateStr && ev.end_date !== dateStr) return null;
-                        }
+                      {holidayEv && <div style={{ fontSize: 13, padding: "2px 5px", borderRadius: 3, background: "#F97316", color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", width: "100%" }} title={holidayEv.title}>🇦🇷 {holidayEv.title}</div>}
+                        {visibleEvs.slice(0, holidayEv ? 2 : 6).map((ev, ei) => {
+                          const info = eventTypes[ev.type] || ABSENCE_TYPES[ev.type] || { label: "Otro", color: "#64748B", icon: "📌" };
+                          const pillColor = ev.type === "manual_sprint" ? "#3B82F6" : (ev.color || info.color);
+                          
+                          const isEvStart = ev.start_date === dateStr;
+                          const isEvEnd = (ev.end_date || ev.start_date) === dateStr;
+                          const isSingleDay = ev.start_date === (ev.end_date || ev.start_date);
+                          const isManualStart = ev.type === "manual_sprint" && isEvStart;
+                          const isManualEnd = ev.type === "manual_sprint" && isEvEnd;
 
-                        const isStart = ev.type === "manual_sprint" && ev.start_date === dateStr;
-                        const isEnd = ev.type === "manual_sprint" && ev.end_date === dateStr;
+                          let displayText;
+                          if (ev.type === "manual_sprint") {
+                            if (!isManualStart && !isManualEnd) return null; // Suprimir píldoras de sprint en días medios
+                            displayText = isManualStart ? "▶ Apertura " + ev.title : isManualEnd ? "■ Cierre " + ev.title : ev.title;
+                          } else {
+                            if (isSingleDay) {
+                              displayText = info.icon;
+                            } else if (isEvStart) {
+                              if (ev.type === "rotacion_soporte") {
+                                const name = ev.title.split("—")[1] || ev.person || "";
+                                displayText = `Inicio Soporte — ${name.trim()}`;
+                              } else {
+                                displayText = `Inicio ${ev.title}`;
+                              }
+                            } else if (isEvEnd) {
+                              if (ev.type === "rotacion_soporte") {
+                                const name = ev.title.split("—")[1] || ev.person || "";
+                                displayText = `Fin Soporte — ${name.trim()}`;
+                              } else {
+                                displayText = `Fin ${ev.title}`;
+                              }
+                            } else {
+                              displayText = info.icon; // días intermedios: SÓLO ICONO
+                            }
+                          }
 
-                        return (
-                          <div key={ei} onClick={(e) => { e.stopPropagation(); openEditEvent(ev); }} title={ev.title}
-                            style={{
-                              fontSize: 9,
-                              padding: "1px 6px",
-                              borderRadius: 4,
-                              cursor: "pointer",
-                              background: ev.type === "manual_sprint" ? "#3B82F6" : pillColor + "20",
-                              color: ev.type === "manual_sprint" ? "#fff" : pillColor,
-                              fontWeight: 800,
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              marginBottom: 2,
-                              display: "flex",
-                              alignItems: "center",
-                              gap: 4,
-                              position: (isStart || isEnd) ? "absolute" : "relative",
-                              bottom: (isStart || isEnd) ? 6 : "auto",
-                              left: (isStart || isEnd) ? 6 : "auto",
-                              zIndex: (isStart || isEnd) ? 10 : 1,
-                              maxWidth: (isStart || isEnd) ? "85%" : "100%"
-                            }}>
-                            {isStart ? "▶ Apertura " : isEnd ? "■ Cierre " : info.icon + " "}{ev.title}
-                          </div>
-                        );
-                      })}
+                          const onlyIcon = displayText === info.icon;
 
+                          return (
+                            <div key={ei} onClick={(e) => { e.stopPropagation(); openEditEvent(ev); }} title={ev.title}
+                              style={{
+                                fontSize: 13,
+                                padding: onlyIcon ? "2px" : "4px 8px",
+                                borderRadius: onlyIcon ? "50%" : 6,
+                                cursor: "pointer",
+                                background: ev.type === "manual_sprint" ? "#3B82F6" : pillColor + "20",
+                                color: ev.type === "manual_sprint" ? "#fff" : pillColor,
+                                fontWeight: 800,
+                                whiteSpace: onlyIcon ? "nowrap" : "normal",
+                                wordBreak: "break-word",
+                                overflow: "hidden",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 4,
+                                position: (isManualStart || isManualEnd) ? "absolute" : "relative",
+                                bottom: (isManualStart || isManualEnd) ? 6 : "auto",
+                                left: (isManualStart || isManualEnd) ? 6 : "auto",
+                                zIndex: (isManualStart || isManualEnd) ? 10 : 1,
+                                maxWidth: (isManualStart || isManualEnd) ? "85%" : (onlyIcon ? "auto" : "100%"),
+                                width: (isManualStart || isManualEnd) ? "auto" : (onlyIcon ? 28 : "auto"),
+                                height: onlyIcon ? 28 : "auto",
+                                textAlign: "center",
+                                lineHeight: 1.1
+                              }}>
+                              {displayText}
+                            </div>
+                          );
+                        })}
                       {isSprintStart && !isMini && (
                         <button 
                           onClick={(e) => { e.stopPropagation(); openNewEvent(dateStr); }}
@@ -518,7 +595,7 @@ export function CalendarView({ T, team }) {
                           📋 Resumen Plan
                         </button>
                       )}
-                      {visibleEvs.length > (holidayEv ? 2 : 4) && <div style={{ fontSize: 9, color: mutedColor }}>+{visibleEvs.length - (holidayEv ? 2 : 4)}</div>}
+                      {visibleEvs.length > (holidayEv ? 2 : 6) && <div style={{ fontSize: 9, color: mutedColor }}>+{visibleEvs.length - (holidayEv ? 2 : 6)}</div>}
                     </>
                   );
                 })()}
@@ -754,7 +831,19 @@ export function CalendarView({ T, team }) {
                                 {info.icon}
                               </div>
                               <div style={{ flex: 1 }}>
-                                <div style={{ fontSize: 14, fontWeight: 800, color: textColor }}>{ev.title}</div>
+                                <div style={{ fontSize: 14, fontWeight: 800, color: textColor }}>
+                                  {(() => {
+                                    if (ev.type === "rotacion_soporte" || ev.type === "retorno_sprint") {
+                                      const isStart = ev.start_date === form.start_date;
+                                      const isEnd = (ev.end_date || ev.start_date) === form.start_date;
+                                      if (!isStart && !isEnd) {
+                                        const name = ev.title.split("—")[1] || ev.person || "";
+                                        return `En Soporte — ${name.trim()}`;
+                                      }
+                                    }
+                                    return ev.title;
+                                  })()}
+                                </div>
                                 <div style={{ fontSize: 11, color: mutedColor, fontWeight: 600 }}>{ev.person || info.label}</div>
                                  {ev.notes && (
                                    <div style={{ fontSize: 10, color: mutedColor, marginTop: 4, fontStyle: "italic", display: "flex", alignItems: "start", gap: 4 }}>
@@ -837,13 +926,32 @@ export function CalendarView({ T, team }) {
                           })}
                       </div>
                     </div>
-                    <div>
-                      <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700, marginBottom: 8, display: "block" }}>Colaborador</label>
-                      <select value={form.person} onChange={(e) => setForm({ ...form, person: e.target.value })} style={{ ...inputStyle, padding: "12px", fontSize: 14 }}>
-                        <option value="">(Seleccionar colaborador...)</option>
-                        {people.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
-                      </select>
-                    </div>
+                    {form.type === "rotacion_soporte" ? (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        <div>
+                          <label style={{ fontSize: 11, color: "#EF4444", fontWeight: 700, marginBottom: 8, display: "block" }}>Sale del Sprint (Ingresa a Soporte) 🔄</label>
+                          <select value={form.person} onChange={(e) => setForm({ ...form, person: e.target.value })} style={{ ...inputStyle, padding: "12px", fontSize: 14, border: "2px solid #EF4444" }}>
+                            <option value="">(Seleccionar entrante...)</option>
+                            {people.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label style={{ fontSize: 11, color: "#22C55E", fontWeight: 700, marginBottom: 8, display: "block" }}>Vuelve al Sprint (Sale de Soporte) ✅</label>
+                          <select value={form.personSwap} onChange={(e) => setForm({ ...form, personSwap: e.target.value })} style={{ ...inputStyle, padding: "12px", fontSize: 14, border: "2px solid #22C55E" }}>
+                            <option value="">(Seleccionar saliente...)</option>
+                            {people.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700, marginBottom: 8, display: "block" }}>Colaborador</label>
+                        <select value={form.person} onChange={(e) => setForm({ ...form, person: e.target.value })} style={{ ...inputStyle, padding: "12px", fontSize: 14 }}>
+                          <option value="">(Seleccionar colaborador...)</option>
+                          {people.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
+                        </select>
+                      </div>
+                    )}
                   </div>
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -859,13 +967,15 @@ export function CalendarView({ T, team }) {
 
                   {form.type !== "manual_sprint" && (
                     <>
-                      <div>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                          <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700 }}>Impacto en Capacidad</label>
-                          <span style={{ fontSize: 12, fontWeight: 900, color: "#3B82F6" }}>{Math.round(form.impact * 100)}%</span>
+                      {form.type !== "rotacion_soporte" && (
+                        <div>
+                          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                            <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700 }}>Impacto en Capacidad</label>
+                            <span style={{ fontSize: 12, fontWeight: 900, color: "#3B82F6" }}>{Math.round(form.impact * 100)}%</span>
+                          </div>
+                          <input type="range" min="0" max="1" step="0.5" value={form.impact} onChange={(e) => setForm((f) => ({ ...f, impact: parseFloat(e.target.value) }))} style={{ width: "100%", accentColor: "#3B82F6" }} />
                         </div>
-                        <input type="range" min="0" max="1" step="0.5" value={form.impact} onChange={(e) => setForm((f) => ({ ...f, impact: parseFloat(e.target.value) }))} style={{ width: "100%", accentColor: "#3B82F6" }} />
-                      </div>
+                      )}
                       <div>
                         <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700, marginBottom: 6, display: "block" }}>Comentarios (opcional)</label>
                         <textarea 
@@ -982,9 +1092,30 @@ export function CalendarView({ T, team }) {
                                   </>
                                 )}
                               </summary>
-                              <div style={{ padding: "0 18px 18px 70px", display: "flex", flexWrap: "wrap", gap: 8 }}>
-                                {d.present?.map(p => <span key={p} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, background: "#10B98115", color: "#059669", fontWeight: 800, border: "1px solid #10B98120" }}>✓ {p}</span>)}
-                                {d.absent?.map(p => <span key={p} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, background: "#EF444415", color: "#DC2626", fontWeight: 800, border: "1px solid #EF444420" }}>✗ {p}</span>)}
+                              <div style={{ padding: "10px 18px 18px 70px", display: "flex", flexDirection: "column", gap: 12 }}>
+                                {d.present?.length > 0 && (
+                                  <div>
+                                    <div style={{ fontSize: 10, fontWeight: 800, color: mutedColor, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>✅ Disponibles para el Sprint</div>
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                      {d.present.map(p => <span key={p} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, background: "#10B98115", color: "#059669", fontWeight: 800, border: "1px solid #10B98120" }}>✓ {p}</span>)}
+                                    </div>
+                                  </div>
+                                )}
+                                {d.unavailable?.length > 0 && (
+                                  <div>
+                                    <div style={{ fontSize: 10, fontWeight: 800, color: mutedColor, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>⛔ En Otra Actividad</div>
+                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                                      {d.unavailable.map(u => {
+                                        const typeInfo = eventTypes[u.type] || ABSENCE_TYPES[u.type] || { icon: "📌", color: "#EF4444" };
+                                        return (
+                                          <span key={u.name} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, background: `${typeInfo.color}15`, color: typeInfo.color, fontWeight: 800, border: `1px solid ${typeInfo.color}20` }}>
+                                            {typeInfo.icon} {u.name}
+                                          </span>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             </details>
                           );
