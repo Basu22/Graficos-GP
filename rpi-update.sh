@@ -35,7 +35,7 @@ sudo docker system prune -f --filter "until=1h"
 
 # 6. Reinicio del Proxy (Petición del Usuario)
 echo "🔄 Reiniciando Proxy Unificado para refrescar conexiones..."
-sudo docker restart proxy_unificado
+sudo docker restart proxy-unificado
 
 echo "✅ Actualización completada satisfactoriamente en graficosagiles.site"
 echo "🚀 Versión sincronizada 100% con tu local."

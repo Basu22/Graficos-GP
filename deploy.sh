@@ -34,15 +34,21 @@ fi
 # 2b. Rebuild remoto vía Infra Unificada
 echo "🏗️  Actualizando Raspberry (Vía Infra Unificada)..."
 sudo -u $REAL_USER ssh -t $RPI_HOST "
-    echo '--- Actualizando repositorio ---' && \
+    echo '--- Salvaguardando Base de Datos ---' && \
     cd $RPI_PATH && \
+    mkdir -p backend/app/data_backup && \
+    cp -r backend/app/data/*.json backend/app/data_backup/ 2>/dev/null || true && \
+    echo '--- Actualizando repositorio ---' && \
     git fetch origin && \
     git reset --hard origin/main && \
+    echo '--- Restaurando Base de Datos ---' && \
+    mkdir -p backend/app/data && \
+    cp -r backend/app/data_backup/*.json backend/app/data/ 2>/dev/null || true && \
     echo '--- Reconstruyendo Agility Dashboard ---' && \
     cd $INFRA_PATH && \
     docker compose up -d --build dash-backend dash-frontend && \
     echo '--- Reiniciando Proxy Unificado ---' && \
-    docker restart proxy_unificado
+    docker restart proxy-unificado
 "
 
 echo "✅ Proceso finalizado. Revisá https://graficosagiles.site"

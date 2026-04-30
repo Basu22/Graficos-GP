@@ -325,8 +325,9 @@ GitHub es el motor de sincronización. Debido a la sensibilidad de los datos de 
 
 ### 9.1 El Ciclo de Desarrollo
 1. **Local:** Programación y pruebas en la Lenovo.
-2. **Push:** Subida del código (lógica, estilos, componentes).
-3. **Pull en RPi:** Actualización del servidor de producción.
+2. **Push:** Subida del código a GitHub.
+3. **Deploy (PC):** El script `./deploy.sh` sincroniza secretos, pushea cambios y ordena a la RPi reconstruir los contenedores y **reiniciar el proxy unificado**.
+4. **Mantenimiento (RPi):** El script `./rpi-update.sh` permite realizar la misma tarea localmente en la Raspberry.
 
 ### 9.2 Manejo de Secretos y Google Auth
 Este proyecto requiere archivos de identidad que **JAMÁS deben estar en GitHub**:

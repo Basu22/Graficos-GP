@@ -24,3 +24,6 @@ __pycache__/
 # Google OAuth
 token.json
 credentials.json
+
+# Base de Datos y Configuración (¡NO TOCAR CON GIT!)
+backend/app/data/*.json
