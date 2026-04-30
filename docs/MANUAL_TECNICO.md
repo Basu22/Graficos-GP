@@ -69,7 +69,8 @@ Graficos-GP/
 ├── backend/
 │   └── app/
 │       ├── api/v1/endpoints/
-│       │   └── midia.py          # Endpoints de salud y comentarios
+│       │   ├── midia.py          # Endpoints de salud y comentarios
+│       │   └── config.py         # ⚙️ Configuración dinámica (Roles/Categorías)
 │       ├── core/
 │       │   └── config.py         # Settings (env vars, CORS)
 │       ├── data/
@@ -210,6 +211,15 @@ Los comentarios son independientes de la lógica de ventanas de escritura. La fu
 | `POST` | `/midia/health-report/analyze` | Ejecuta el análisis de salud sobre los mails (extracción, IA y actualización del store) |
 | `GET`  | `/midia/inbox-config` | Devuelve la configuración del Smart Inbox desde Google Sheets |
 | `POST` | `/midia/health-report/comment` | Guarda un comentario analítico (`analisis_diario`) en el store |
+
+### Router: `/api/v1/config/` (Configuración Dinámica)
+
+| Método | Ruta | Descripción |
+|---|---|---|
+| `GET`  | `/config/roles` | Lista de roles para el equipo |
+| `POST` | `/config/roles` | Actualización masiva de roles |
+| `GET`  | `/config/event-types` | Diccionario de categorías de calendario (iconos/colores) |
+| `POST` | `/config/event-types` | Actualización de categorías y metadatos visuales |
 
 #### Body del endpoint de comentarios (`POST /midia/health-report/comment`)
 
@@ -427,6 +437,9 @@ Este proyecto convive con 'Gastos Familia' en una **Infraestructura Unificada**.
 El script `deploy.sh` de la PC ya está configurado para actualizar solo lo necesario:
 `docker compose up -d --build dash-backend dash-frontend`
 
+> [!TIP]
+> Al finalizar, el sistema ejecuta automáticamente `sudo docker restart proxy-unificado` para asegurar que los cambios de red se propaguen sin necesidad de intervención manual.
+
 ### 14.2 Evitar el `down`
 El comando `docker compose down` apaga el Proxy y el Túnel, dejando fuera de línea a TODOS los proyectos. Evitar su uso en producción.
 
@@ -446,9 +459,10 @@ La estabilidad del dominio externo depende de que la IP local de la Raspberry (`
 
 El Agility Dashboard gestiona la planificación mediante un motor de eventos desacoplado que prioriza la autogestión manual sobre las integraciones externas.
 
-### 15.1 Persistencia de Eventos (`calendar_events.json`)
-Ubicación: `backend/app/data/calendar_events.json`.  
-Esquema de un evento:
+### 📁 Persistencia de Datos
+El sistema utiliza archivos JSON para garantizar velocidad y facilidad de backup sin necesidad de una base de datos pesada:
+*   `data/config.json`: Almacena roles y categorías dinámicas (`event_types`).
+*   `data/calendar_events.json`: Registro histórico de eventos y licencias.
 
 ```json
 {
