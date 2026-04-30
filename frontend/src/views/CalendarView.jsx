@@ -510,7 +510,7 @@ export function CalendarView({ T, team }) {
                   const visibleEvs = dayEvs.filter((e) => e.type !== "holiday" && e.type !== "sprint");
                   return (
                     <>
-                      {holidayEv && <div style={{ fontSize: 13, padding: "2px 5px", borderRadius: 3, background: "#F97316", color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", width: "100%" }} title={holidayEv.title}>🇦🇷 {holidayEv.title}</div>}
+                      {holidayEv && <div style={{ fontSize: 12, padding: "2px 5px", borderRadius: 3, background: "#F97316", color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", width: "100%" }} title={holidayEv.title}>🇦🇷 {holidayEv.title}</div>}
                         {visibleEvs.slice(0, holidayEv ? 2 : 6).map((ev, ei) => {
                           const info = eventTypes[ev.type] || ABSENCE_TYPES[ev.type] || { label: "Otro", color: "#64748B", icon: "📌" };
                           const pillColor = ev.type === "manual_sprint" ? "#3B82F6" : (ev.color || info.color);
@@ -552,7 +552,7 @@ export function CalendarView({ T, team }) {
                           return (
                             <div key={ei} onClick={(e) => { e.stopPropagation(); openEditEvent(ev); }} title={ev.title}
                               style={{
-                                fontSize: 13,
+                                fontSize: 12,
                                 padding: onlyIcon ? "2px" : "4px 8px",
                                 borderRadius: onlyIcon ? "50%" : 6,
                                 cursor: "pointer",
@@ -571,8 +571,8 @@ export function CalendarView({ T, team }) {
                                 left: (isManualStart || isManualEnd) ? 6 : "auto",
                                 zIndex: (isManualStart || isManualEnd) ? 10 : 1,
                                 maxWidth: (isManualStart || isManualEnd) ? "85%" : (onlyIcon ? "auto" : "100%"),
-                                width: (isManualStart || isManualEnd) ? "auto" : (onlyIcon ? 28 : "auto"),
-                                height: onlyIcon ? 28 : "auto",
+                                width: (isManualStart || isManualEnd) ? "auto" : (onlyIcon ? 27 : "auto"),
+                                height: onlyIcon ? 27 : "auto",
                                 textAlign: "center",
                                 lineHeight: 1.1
                               }}>
