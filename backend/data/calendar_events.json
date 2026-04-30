@@ -46,5 +46,17 @@
     "color": "#3B82F6",
     "notes": "",
     "impact": 0.0
+  },
+  {
+    "id": "eec60f2e-fa6d-45fe-9caa-00e3a6bd495a",
+    "title": "Vacaciones — Alejandro Lo Preiato",
+    "start_date": "2026-04-01",
+    "end_date": "2026-04-01",
+    "type": "vacation",
+    "person": "Alejandro Lo Preiato",
+    "team": "Back",
+    "color": "#22C55E",
+    "notes": "Test de UX - Comentario",
+    "impact": 0.0
   }
 ]

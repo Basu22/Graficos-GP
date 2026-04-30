@@ -202,11 +202,31 @@ En los modos **Mensual** y **Delta %**, un selector de meses desplegable permite
 
 ---
 
-## 5. Secciones de Desarrollo (Performance, Ejecutivo, Sprint, Cal, Team)
+## 5. Gestión de Sprints y Calendario (Consola 3.0)
 
-Estas secciones están orientadas al seguimiento del equipo de desarrollo y se nutren de datos extraídos de **Jira** y **Google Calendar** a través de la integración configurada.
+El Agility Dashboard ha evolucionado a un sistema de gestión **100% manual**, eliminando la dependencia de Jira para la planificación. Esto permite una flexibilidad total para adaptar los sprints a la realidad operativa del equipo.
 
-> La documentación detallada de estas secciones se amplía en cada iteración del proyecto.
+### 5.1 Consola de Gestión Diaria (Modal Unificado)
+Al hacer clic en cualquier día del calendario, se abre el centro de mando operativo:
+- **Eventos Cargados:** Lista interactiva de todo lo que ocurre en el día (Vacaciones, Licencias, Sprints). Permite editar (✏️) o borrar (🗑️) registros existentes de forma instantánea.
+- **Nueva Actividad:** Formulario integrado para añadir múltiples eventos al mismo día sin cerrar el modal.
+- **Impacto en Capacidad:** Los eventos permiten definir un porcentaje de impacto (ej: Vacaciones 100%, Media Jornada 50%) que alimenta el motor de capacidad.
+
+### 5.2 Planificación del Sprint (Sprint Console)
+En los días de **Apertura de Sprint**, el modal se expande para mostrar la **Consola de Planificación**:
+- **Días Hábiles Reales:** Calcula automáticamente los días laborables restando feriados y fines de semana.
+- **Regla de Ceremonias (0.5 + 0.5):** El sistema descuenta automáticamente medio día en la apertura y medio día en el cierre para compensar el tiempo de reuniones (Planning y Review/Retro).
+- **Desglose Diario:** Una vista tipo dashboard que muestra, día por día, cuántas personas del equipo están presentes y quiénes están ausentes, con barras de progreso de capacidad.
+
+### 5.3 Ceremonias Automáticas (Eventos Virtuales)
+Para justificar visualmente la reducción de capacidad, el sistema inyecta automáticamente dos eventos virtuales (no borrables):
+- 📊 **Ceremonia: Planificación:** En el día de inicio.
+- 🏁 **Ceremonia: Review + Retro:** En el día de cierre.
+
+### 5.4 Sprints Globales (Sincronización de Equipos)
+Los Sprints Manuales son **Globales**. Al cargar un sprint, este aparece automáticamente para todos los equipos (Back, Datos, etc.), asegurando que todos los departamentos trabajen bajo la misma cadencia organizacional.
+
+---
 
 ---
 
@@ -230,10 +250,7 @@ No. Los comentarios (`analisis_diario`) son un campo independiente de los datos 
 
 | Versión | Fecha | Cambio |
 |---|---|---|
-| 1.0 | 2026-03-29 | Creación inicial del manual |
-| 1.1 | 2026-04-23 | Sección completa del sistema de Comentarios Analíticos, variaciones % en tooltip |
-| 1.1.1 | 2026-04-23 | Corrección en Vista de Equipo: El usuario de Jira ahora se sincroniza correctamente al cambiar de persona. |
-| 1.2 | 2026-04-23 | Nueva funcionalidad: Análisis Global del Día (analisis_mail). Permite dejar un comentario general para todo el día. |
-| 1.3 | 2026-04-23 | Optimización de visualización: Selector de periodo dinámico (Zoom), gráfico más alto (500px), leyenda inferior y flujo de comentarios persistente con previsualización completa. |
-| 1.4 | 2026-04-23 | Implementación de `Reporte Ejecutivo Diario`: Tabla de datos reactiva sincronizada con zoom y filtros. Mejora en visibilidad de iconos de mail durante el zoom. |
-| 1.5 | 2026-04-23 | Refinamiento de reportes (Diario/Mensual): Transposición de tablas, semáforo de deltas (Verde, Amarillo, Rojo), formato de fechas corporativo y orden cronológico ascendente (izquierda a derecha). |
+| 1.6 | 2026-04-29 | **Gestión 100% Manual:** Se elimina dependencia de Jira para Sprints. Implementación de Sprints Manuales Globales. |
+| 1.7 | 2026-04-29 | **Consola de Día 3.0:** Nuevo modal unificado con listado de eventos interactivo (editar/borrar) y formulario de carga continua. |
+| 1.8 | 2026-04-29 | **Motor de Capacidad Preciso:** Cálculo de 0.5 días para inicio/fin de sprint. Inyección automática de ceremonias virtuales (Planning/Review). |
+| 1.8.1 | 2026-04-29 | **Rediseño Premium:** Nueva estética tipo Dashboard con gradientes, tarjetas de estadísticas y barras de progreso de alta fidelidad. |

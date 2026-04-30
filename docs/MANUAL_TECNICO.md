@@ -362,6 +362,8 @@ Las variables sensibles se gestionan en archivos `.env` (no versionados en git):
 | 1.6 | 2026-04-24 | Eliminación de restricción de ventana horaria para ejecución de Sync. Prioridad absoluta del tipo de mail sobre el tiempo de ingesta. Inclusión de prioridad `manual: 3` en `health_store.py`. |
 | 1.7 | 2026-04-24 | Desacoplamiento de Sincronización: Nuevos endpoints granulares (`/mails`, `/calendar`). Separación de flujo de refresco en frontend para evitar recargas innecesarias del calendario al sincronizar salud. |
 | 1.7.1 | 2026-04-24 | Hotfix: Corrección de `ReferenceError: rsvpLoading` en el modal de agenda de `MiDia.jsx`. Documentación de funcionalidad RSVP. |
+| 1.8 | 2026-04-29 | **Motor de Calendario 2.0:** Implementación de `manual_sprint` con visibilidad global (omisión de campo `team`). Lógica de inyección de ceremonias virtuales (`isVirtual`) y cálculo de capacidad de 0.5 días en hitos de sprint. |
+| 1.8.1 | 2026-04-29 | **UI Dinámica:** Soporte para Modal Unificado (Gestión Diaria) con renderizado condicional según presencia de sprint. |
 
 ---
 
@@ -437,3 +439,44 @@ La estabilidad del dominio externo depende de que la IP local de la Raspberry (`
 - **Acción:** Asegurar que el router tenga una **Reservación DHCP (Static IP)** para la dirección MAC de la Raspberry.
 - **Si la IP cambia:** Se debe actualizar la URL de origen en el panel de Cloudflare Zero Trust bajo la sección *Public Hostnames*.
 
+
+---
+
+## 15. Motor de Calendario y Sprints
+
+El Agility Dashboard gestiona la planificación mediante un motor de eventos desacoplado que prioriza la autogestión manual sobre las integraciones externas.
+
+### 15.1 Persistencia de Eventos (`calendar_events.json`)
+Ubicación: `backend/app/data/calendar_events.json`.  
+Esquema de un evento:
+
+```json
+{
+  "id": "uuid-v4",
+  "title": "Nombre del evento",
+  "type": "vacation | manual_sprint | holiday | custom",
+  "start_date": "YYYY-MM-DD",
+  "end_date": "YYYY-MM-DD",
+  "impact": 0.5,
+  "team": "back | datos | null",
+  "person": "Nombre del colaborador | null"
+}
+```
+
+> [!NOTE]
+> **Eventos Globales:** Si el campo `team` es `null` o está ausente (comportamiento por defecto de los `manual_sprint`), el evento se considera global y es visible para todos los equipos de la organización.
+
+### 15.2 Lógica de Capacidad (`getSprintSummary`)
+El cálculo de capacidad operativa se realiza en el frontend (`CalendarView.jsx`) para garantizar reactividad inmediata durante la planificación:
+
+1.  **Conteo Base:** Itera día a día en el rango del sprint.
+2.  **Exclusión:** Los fines de semana y feriados (vía `useHolidays`) cuentan como `0` días hábiles.
+3.  **Ponderación de Hitos (0.5):** Si el día laborable coincide con `start_date` o `end_date`, se suma solo `0.5` al contador de `businessDays`, contemplando el tiempo consumido por ceremonias de inicio y cierre.
+
+### 15.3 Inyección de Ceremonias Virtuales
+La función `eventsForDay(dateStr)` inyecta dinámicamente objetos de evento que no existen en la base de datos:
+- Detecta si hay un `manual_sprint` activo.
+- Si la fecha coincide con los hitos, añade un objeto con flag `isVirtual: true`.
+- Esto garantiza que la reducción de capacidad esté siempre "justificada" visualmente en el UI sin duplicar datos en el JSON.
+
+---

@@ -104,10 +104,22 @@ export function CalendarView({ T, team }) {
     }
   }
 
+  async function loadEventTypes() {
+    try {
+      const data = await fetch(`${API}/config/event-types`).then(r => r.json());
+      if (data && Object.keys(data).length > 0) {
+        setEventTypes(data);
+      }
+    } catch (e) {
+      console.error("Error cargando categorías dinámicas:", e);
+    }
+  }
+
   useEffect(() => { 
     loadAllCorrect();
     loadPeople();
-  }, [year, team]);
+    loadEventTypes();
+  }, [year, team, selectedQuarter]);
 
   function eventsForDay(dateStr) {
     if (!dateStr) return [];
@@ -265,9 +277,15 @@ export function CalendarView({ T, team }) {
   });
 
   async function handleSave() {
-    if (!form.title || !form.start_date) return;
+    if (!form.start_date) return;
     try {
-      const payload = { ...form };
+      const typeInfo = eventTypes[form.type] || eventTypes.custom || { label: "Otro", icon: "📌" };
+      // Auto-construir título: Categoria - Persona (excepto para sprints manuales donde el usuario pone el nombre)
+      const autoTitle = form.type === "manual_sprint" 
+        ? (form.title || "Sprint") 
+        : `${typeInfo.label}${form.person ? ` — ${form.person}` : ""}`;
+
+      const payload = { ...form, title: autoTitle };
       if (payload.type === "manual_sprint" && !payload.impact) {
         payload.impact = 0.0;
       }
@@ -444,7 +462,7 @@ export function CalendarView({ T, team }) {
                       {holidayEv && <div style={{ fontSize: 9, padding: "2px 5px", borderRadius: 3, background: "#F97316", color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis" }} title={holidayEv.title}>🇦🇷 {holidayEv.title}</div>}
                       {visibleEvs.slice(0, holidayEv ? 2 : 4).map((ev, ei) => {
                         const isAbsence = ev.type === "absence" || ["vacation", "medical", "exam", "study"].includes(ev.type);
-                        const info = EVENT_TYPES[ev.type] || EVENT_TYPES.custom;
+                        const info = eventTypes[ev.type] || eventTypes.custom || { label: "Otro", color: "#64748B", icon: "📌" };
                         const pillColor = ev.type === "manual_sprint" ? "#3B82F6" : (ev.color || info.color);
                         
                         // Si es sprint manual, solo mostramos píldora en inicio y fin
@@ -485,13 +503,19 @@ export function CalendarView({ T, team }) {
                       })}
 
                       {isSprintStart && !isMini && (
-                        <div style={{ marginTop: 2, padding: "4px 6px", borderRadius: 6, background: "rgba(34, 197, 94, 0.1)", border: "1px solid rgba(34, 197, 94, 0.2)", fontSize: 9 }}>
-                          <div style={{ fontWeight: 800, color: "#16A34A", marginBottom: 2 }}>📋 Resumen Plan</div>
-                          <div style={{ color: mutedColor, fontSize: 8 }}>
-                            Capacidad: <span style={{ fontWeight: 700, color: textColor }}>{availability[dateStr]?.available || 0}/{availability[dateStr]?.total || 0}</span><br/>
-                            SP Proyectados: <span style={{ fontWeight: 700, color: "#3B82F6" }}>--</span>
-                          </div>
-                        </div>
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); openNewEvent(dateStr); }}
+                          style={{
+                            position: "absolute", bottom: 4, right: 4,
+                            fontSize: 8, padding: "2px 6px", borderRadius: 6,
+                            border: "1px solid rgba(34, 197, 94, 0.3)",
+                            background: "rgba(34, 197, 94, 0.1)",
+                            color: "#16A34A", fontWeight: 800,
+                            cursor: "pointer", display: "flex", alignItems: "center", gap: 3,
+                            zIndex: 20
+                          }}>
+                          📋 Resumen Plan
+                        </button>
                       )}
                       {visibleEvs.length > (holidayEv ? 2 : 4) && <div style={{ fontSize: 9, color: mutedColor }}>+{visibleEvs.length - (holidayEv ? 2 : 4)}</div>}
                     </>
@@ -643,7 +667,7 @@ export function CalendarView({ T, team }) {
                 if (dayEvs.length === 0) return <div style={{ textAlign: "center", padding: 40, color: mutedColor, fontSize: 13 }}>No hay eventos para este día</div>;
                 return dayEvs.map((ev, i) => {
                   const isAbsence = ev.type === "absence";
-                  const info = isAbsence ? (ABSENCE_TYPES[ev.absenceType] || ABSENCE_TYPES.other) : (EVENT_TYPES[ev.type] || EVENT_TYPES.custom);
+                  const info = isAbsence ? (ABSENCE_TYPES[ev.absenceType] || ABSENCE_TYPES.other) : (eventTypes[ev.type] || eventTypes.custom || { label: "Otro", color: "#64748B", icon: "📌" });
                   const isSprint = ev.type === "sprint";
                   const pColor = isSprint ? sprintPillColor(ev, selectedDay) : (ev.color || info.color);
                   return (
@@ -715,7 +739,7 @@ export function CalendarView({ T, team }) {
                       <div style={{ fontSize: 11, color: mutedColor, fontWeight: 800, textTransform: "uppercase", letterSpacing: "1px" }}>Eventos en este día</div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         {dayEvs.map((ev) => {
-                          const info = EVENT_TYPES[ev.type] || EVENT_TYPES.custom;
+                          const info = eventTypes[ev.type] || eventTypes.custom || { label: "Otro", color: "#64748B", icon: "📌" };
                           const isSelected = selectedEvent?.id === ev.id;
                           return (
                             <div key={ev.id} style={{ 
@@ -731,6 +755,14 @@ export function CalendarView({ T, team }) {
                               <div style={{ flex: 1 }}>
                                 <div style={{ fontSize: 14, fontWeight: 800, color: textColor }}>{ev.title}</div>
                                 <div style={{ fontSize: 11, color: mutedColor, fontWeight: 600 }}>{ev.person || info.label}</div>
+                                 {ev.notes && (
+                                   <div style={{ fontSize: 10, color: mutedColor, marginTop: 4, fontStyle: "italic", display: "flex", alignItems: "start", gap: 4 }}>
+                                     <span>💬</span>
+                                     <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                       {ev.notes}
+                                     </span>
+                                   </div>
+                                 )}
                               </div>
                               <div style={{ display: "flex", gap: 4 }}>
                                 <button onClick={() => openEditEvent(ev)} style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "#3B82F615", color: "#3B82F6", cursor: "pointer", transition: "0.2s" }}>✏️</button>
@@ -771,27 +803,46 @@ export function CalendarView({ T, team }) {
                 </div>
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
-                  <div style={{ position: "relative" }}>
-                    <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700, marginBottom: 6, display: "block" }}>Título del Evento</label>
-                    <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} style={{ ...inputStyle, padding: "12px 14px", fontSize: 14 }} placeholder="Ej: Licencia Médica / Sprint Plan" />
-                  </div>
+                  {form.type === "manual_sprint" && (
+                    <div style={{ position: "relative" }}>
+                      <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700, marginBottom: 6, display: "block" }}>Título del Sprint</label>
+                      <input value={form.title} onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))} style={{ ...inputStyle, padding: "12px 14px", fontSize: 14 }} placeholder="Ej: Sprint 60" />
+                    </div>
+                  )}
                   
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                     <div>
-                      <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700, marginBottom: 6, display: "block" }}>Categoría</label>
-                      <select value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value, color: EVENT_TYPES[e.target.value]?.color || "" })} style={{ ...inputStyle, padding: "12px" }}>
-                        {Object.entries(EVENT_TYPES).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
+                      <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700, marginBottom: 8, display: "block" }}>Categoría</label>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }}>
+                        {Object.entries(eventTypes)
+                          .filter(([k]) => k !== "sprint" && k !== "holiday")
+                          .map(([k, v]) => {
+                            const isActive = form.type === k;
+                            return (
+                              <button 
+                                key={k} 
+                                onClick={() => setForm({ ...form, type: k, color: v.color })}
+                                style={{
+                                  padding: "10px 4px", borderRadius: 12, border: `2px solid ${isActive ? v.color : borderColor}`,
+                                  background: isActive ? v.color + "15" : cardBg,
+                                  color: isActive ? v.color : mutedColor, cursor: "pointer",
+                                  display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                                  fontWeight: isActive ? 800 : 500, fontSize: 10, transition: "0.2s"
+                                }}>
+                                <span style={{ fontSize: 20 }}>{v.icon}</span>
+                                <span style={{ textAlign: "center", lineHeight: 1 }}>{v.label}</span>
+                              </button>
+                            );
+                          })}
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700, marginBottom: 8, display: "block" }}>Colaborador</label>
+                      <select value={form.person} onChange={(e) => setForm({ ...form, person: e.target.value })} style={{ ...inputStyle, padding: "12px", fontSize: 14 }}>
+                        <option value="">(Seleccionar colaborador...)</option>
+                        {people.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
                       </select>
                     </div>
-                    {form.type !== "manual_sprint" && (
-                      <div>
-                        <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700, marginBottom: 6, display: "block" }}>Colaborador</label>
-                        <select value={form.person} onChange={(e) => setForm((f) => ({ ...f, person: e.target.value }))} style={{ ...inputStyle, padding: "12px" }}>
-                          <option value="">(Seleccionar)</option>
-                          {people.map((p) => <option key={p.id} value={p.name}>{p.name}</option>)}
-                        </select>
-                      </div>
-                    )}
                   </div>
 
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
@@ -806,13 +857,24 @@ export function CalendarView({ T, team }) {
                   </div>
 
                   {form.type !== "manual_sprint" && (
-                    <div>
-                      <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
-                        <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700 }}>Impacto en Capacidad</label>
-                        <span style={{ fontSize: 12, fontWeight: 900, color: "#3B82F6" }}>{Math.round(form.impact * 100)}%</span>
+                    <>
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                          <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700 }}>Impacto en Capacidad</label>
+                          <span style={{ fontSize: 12, fontWeight: 900, color: "#3B82F6" }}>{Math.round(form.impact * 100)}%</span>
+                        </div>
+                        <input type="range" min="0" max="1" step="0.5" value={form.impact} onChange={(e) => setForm((f) => ({ ...f, impact: parseFloat(e.target.value) }))} style={{ width: "100%", accentColor: "#3B82F6" }} />
                       </div>
-                      <input type="range" min="0" max="1" step="0.1" value={form.impact} onChange={(e) => setForm((f) => ({ ...f, impact: parseFloat(e.target.value) }))} style={{ width: "100%", accentColor: "#3B82F6" }} />
-                    </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700, marginBottom: 6, display: "block" }}>Comentarios (opcional)</label>
+                        <textarea 
+                          value={form.notes} 
+                          onChange={(e) => setForm(f => ({ ...f, notes: e.target.value }))} 
+                          style={{ ...inputStyle, height: 60, resize: "none", padding: "12px" }} 
+                          placeholder="Ej: Pendiente aprobación..."
+                        />
+                      </div>
+                    </>
                   )}
 
                   <button onClick={handleSave} style={{ 
