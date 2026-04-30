@@ -40,7 +40,9 @@ sudo -u $REAL_USER ssh -t $RPI_HOST "
     git reset --hard origin/main && \
     echo '--- Reconstruyendo Agility Dashboard ---' && \
     cd $INFRA_PATH && \
-    docker compose up -d --build dash-backend dash-frontend
+    docker compose up -d --build dash-backend dash-frontend && \
+    echo '--- Reiniciando Proxy Unificado ---' && \
+    docker restart proxy-unificado
 "
 
 echo "✅ Proceso finalizado. Revisá https://graficosagiles.site"
