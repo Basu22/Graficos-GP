@@ -126,6 +126,28 @@ Debajo del gráfico diario encontrarás una barra deslizable con dos manijas. Es
 - **Rango de Fechas:** Las fechas exactas seleccionadas aparecerán resaltadas en azul justo encima de la barra para tu referencia.
 - **Auto-Reset Inteligente:** Cada vez que cambias entre los botones de tiempo (30d, 90d, Todo), el selector se reiniciará automáticamente para mostrarte el periodo completo de forma limpia, evitando desajustes visuales.
 
+#### 📅 Planificación Manual (Calendario)
+El calendario permite gestionar la capacidad del equipo de forma visual y centralizada.
+
+*   **Creación de Eventos**: Haciendo clic en un día, se abre el "Consola de Gestión Diaria".
+*   **Categorización Inteligente**: Contamos con un grid de selección visual de categorías (Vacaciones, Licencias, etc.). Al seleccionar una, el sistema **genera automáticamente el título** del evento combinando la `Categoría + Nombre del Colaborador`, eliminando carga manual de datos.
+*   **Comentarios**: Ahora cada evento permite añadir notas u observaciones que se visualizan con un icono de mensaje `💬` en la línea de tiempo del día.
+*   **Resumen del Plan**: En los días de inicio de Sprint, aparecerá un botón minimalista `📋 Resumen Plan` en la esquina inferior derecha de la celda. Al hacer clic, se despliega el resumen de capacidad sin sobrecargar la vista del calendario.
+
+---
+
+### ⚙️ Configuración del Sistema
+Hemos rediseñado la configuración para que sea un centro de mando escalable mediante un **menú lateral izquierdo**.
+
+#### 🏷️ Gestión de Categorías (ABM)
+Ahora podés personalizar totalmente los tipos de eventos que aparecen en el calendario:
+1.  **Crear**: Definí un nombre, un ID único, elegí un icono (emoji) y un color.
+2.  **Editar**: Cambiá cualquier atributo de las categorías existentes en tiempo real.
+3.  **Borrardo**: Eliminá categorías que ya no utilices (excepto las críticas del sistema como Sprints).
+
+#### 🎭 Roles de Personas
+Gestión centralizada de los roles del equipo (Developer, Scrum Master, QA, etc.) para mantener la coherencia en las métricas de capacidad.
+
 #### Comentarios (💬 ON/OFF)
 Permite mostrar u ocultar los globos de comentarios analíticos sobre el gráfico. Útil para presentaciones limpias.
 
