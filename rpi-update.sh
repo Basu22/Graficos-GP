@@ -33,5 +33,9 @@ sudo docker compose -f docker-compose.prod.yml up -d --force-recreate
 echo "🧹 Limpieza de residuos de construcción..."
 sudo docker system prune -f --filter "until=1h"
 
+# 6. Reinicio del Proxy (Petición del Usuario)
+echo "🔄 Reiniciando Proxy Unificado para refrescar conexiones..."
+sudo docker restart proxy-unificado
+
 echo "✅ Actualización completada satisfactoriamente en graficosagiles.site"
 echo "🚀 Versión sincronizada 100% con tu local."
