@@ -22,7 +22,7 @@ export function AgendaView({ T }) {
     setLoading(true);
     try {
       const [cData, trData, ceData] = await Promise.all([
-        fetch(`${API}/agenda`).then(r => r.json()),
+        fetch(`${API}/agenda/`).then(r => r.json()),
         fetch(`${API}/config/tribus`).then(r => r.json()),
         fetch(`${API}/config/celulas`).then(r => r.json())
       ]);
