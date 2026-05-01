@@ -529,6 +529,34 @@ export function TeamView({ T }) {
 
       {/* Toolbar */}
       <div style={{ display: "flex", gap: 8, alignItems: "center", justifyContent: "flex-end" }}>
+        <button 
+          onClick={async () => {
+            if (filterTeam === "Todos" || filterTeam === "Ausentes") {
+              alert("Por favor, selecciona un equipo específico (ej: Back o Datos) en las tarjetas de la izquierda para importar sus miembros.");
+              return;
+            }
+            if (!confirm(`¿Importar miembros desde la Agenda para el equipo "${filterTeam}"?\nEsto buscará en la Agenda a quienes tengan la Tribu o Célula con la palabra "${filterTeam}".`)) return;
+            try {
+              const res = await fetch(`${API}/people/import-from-agenda`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ team: filterTeam })
+              });
+              const data = await res.json();
+              if (res.ok) {
+                alert(`¡Importación exitosa!\nNuevas personas: ${data.changes.added}\nPersonas actualizadas (se vinculó su Jira): ${data.changes.updated}`);
+                await loadPeople();
+              } else {
+                alert("Error: " + data.detail);
+              }
+            } catch (e) {
+              console.error(e);
+              alert("Error de conexión al importar.");
+            }
+          }}
+          style={{ padding: "7px 16px", borderRadius: 8, border: `1px solid ${border}`, background: "transparent", color: text, fontSize: 12, fontWeight: 600, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
+          🔄 Importar desde Agenda
+        </button>
         <button onClick={() => { setEditPerson(null); setPersonForm({ name: "", team: "Back", role: "Developer", birthday: "" }); setShowPersonModal(true); }}
           style={{ padding: "7px 16px", borderRadius: 8, border: "none", background: "#3B82F6", color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer" }}>
           + Persona

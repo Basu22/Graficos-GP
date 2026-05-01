@@ -28,6 +28,8 @@ def _load():
                 "Data Engineer", "Data Analyst", "Product Owner", 
                 "DevOps", "Analista Funcional", "Otro"
             ],
+            "tribus": ["Oferta Minorista"],
+            "celulas": ["Equipo Back", "Equipo Datos"],
             "event_types": DEFAULT_EVENT_TYPES
         }
         CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -37,10 +39,12 @@ def _load():
         data = json.loads(CONFIG_FILE.read_text())
         # Asegurar que existan los campos
         if "roles" not in data: data["roles"] = []
+        if "tribus" not in data: data["tribus"] = ["Oferta Minorista"]
+        if "celulas" not in data: data["celulas"] = ["Equipo Back", "Equipo Datos"]
         if "event_types" not in data: data["event_types"] = DEFAULT_EVENT_TYPES
         return data
     except:
-        return {"roles": [], "event_types": DEFAULT_EVENT_TYPES}
+        return {"roles": [], "tribus": [], "celulas": [], "event_types": DEFAULT_EVENT_TYPES}
 
 def _save(data):
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -48,6 +52,14 @@ def _save(data):
 
 class RolesUpdate(BaseModel):
     roles: List[str]
+
+class TribusUpdate(BaseModel):
+    tribus: List[str]
+
+from typing import Union, Dict, Any
+
+class CelulasUpdate(BaseModel):
+    celulas: List[Union[str, Dict[str, Any]]]
 
 class EventTypesUpdate(BaseModel):
     event_types: dict
@@ -62,6 +74,28 @@ async def update_roles(update: RolesUpdate):
     config["roles"] = update.roles
     _save(config)
     return config["roles"]
+
+@router.get("/tribus")
+async def get_tribus():
+    return _load().get("tribus", [])
+
+@router.post("/tribus")
+async def update_tribus(update: TribusUpdate):
+    config = _load()
+    config["tribus"] = update.tribus
+    _save(config)
+    return config["tribus"]
+
+@router.get("/celulas")
+async def get_celulas():
+    return _load().get("celulas", [])
+
+@router.post("/celulas")
+async def update_celulas(update: CelulasUpdate):
+    config = _load()
+    config["celulas"] = update.celulas
+    _save(config)
+    return config["celulas"]
 
 @router.get("/event-types")
 async def get_event_types():

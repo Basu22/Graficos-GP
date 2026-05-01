@@ -1,0 +1,1011 @@
+[
+  {
+    "id": "b07fe05f-dcf4-4a3a-b6e3-23641499783c",
+    "nombre": "Ada",
+    "apellido": "Alvarenga",
+    "jira_account_id": "aalvarenga",
+    "email": "ada.alvarenga@besysoft.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "255335bb-095b-443f-93a3-00cb1d72035d",
+    "nombre": "Agustin",
+    "apellido": "Amicone",
+    "jira_account_id": "aamicone",
+    "email": "aamicone@flink.com.ar",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Datos",
+      "Equipo Back"
+    ]
+  },
+  {
+    "id": "dc07c496-22a4-46d5-8053-4bbcb8fbc668",
+    "nombre": "Agustina",
+    "apellido": "Rinaldi",
+    "jira_account_id": "arinaldi",
+    "email": "arinaldi@algeiba.com",
+    "tribu": "",
+    "celulas": []
+  },
+  {
+    "id": "40f8b93a-0d9c-4169-bf68-56a9ce2a431b",
+    "nombre": "Alan",
+    "apellido": "Uriel Mayo",
+    "jira_account_id": "amayo",
+    "email": "amayo@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "a0e8995b-4c67-4e0e-93c8-9df8f71a398e",
+    "nombre": "Alejandro",
+    "apellido": "Humberto Lo Preiato",
+    "jira_account_id": "ahlopreiato",
+    "email": "alejandro.lo@practia.global",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Back"
+    ]
+  },
+  {
+    "id": "333f6f47-a14c-41a3-8519-b6ec4d2eea6f",
+    "nombre": "Alejandro",
+    "apellido": "Schwegler",
+    "jira_account_id": "aschwegler",
+    "email": "alejandro.schwegler@datalytics.com",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Datos"
+    ]
+  },
+  {
+    "id": "a04c418b-83c4-4a59-930d-2baff0513072",
+    "nombre": "Aquino,",
+    "apellido": "Facundo",
+    "jira_account_id": "02260",
+    "email": "faquino@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "30ea3f2a-649b-4beb-836b-4aa75e8dcb25",
+    "nombre": "Arias,",
+    "apellido": "Santiago",
+    "jira_account_id": "02075",
+    "email": "sarias@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "04acfac3-5c49-4872-b7a9-eec4954a13a5",
+    "nombre": "Axel",
+    "apellido": "Gimenez",
+    "jira_account_id": "agimenez",
+    "email": "axel.gimenez@besysoft.com",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Back"
+    ]
+  },
+  {
+    "id": "64838608-078e-430f-b7fc-2d6060847375",
+    "nombre": "Basilio",
+    "apellido": "Ossvald",
+    "jira_account_id": "bossvald",
+    "email": "bossvald@flink.com.ar",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Back",
+      "Equipo Datos"
+    ]
+  },
+  {
+    "id": "72099e80-6952-476f-bb5d-084b898e1b43",
+    "nombre": "bee_ti",
+    "apellido": "",
+    "jira_account_id": "bee_ti",
+    "email": "bee_ti@gbsj.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "a1c282e1-88f3-4fda-9a31-a2a7f7311662",
+    "nombre": "Besy",
+    "apellido": "Admin",
+    "jira_account_id": "besyadmin",
+    "email": "sopjiragp@besysoft.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "c7d94bfa-16b2-4b4b-bf31-6e31b2778f8b",
+    "nombre": "Besysoft",
+    "apellido": "Time Tracking",
+    "jira_account_id": "besytt",
+    "email": "infra@besysoft.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "ce6627b5-e6ce-4c0b-b98f-648d65aa4e4a",
+    "nombre": "Carlos",
+    "apellido": "Quinteros",
+    "jira_account_id": "cquinteros",
+    "email": "carlos.quinteros@besysoft.com",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Back"
+    ]
+  },
+  {
+    "id": "c928b6fe-47bc-48cf-a7a1-f6a9fdd6709f",
+    "nombre": "Carolina",
+    "apellido": "Meccico",
+    "jira_account_id": "cmeccico",
+    "email": "cmeccico@technisys.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "6d4bae5d-3a73-4321-b09f-1bf329c7cf6c",
+    "nombre": "Chaparro",
+    "apellido": "Luciana",
+    "jira_account_id": "chaparrol",
+    "email": "lchaparro@asjservicios.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "505a5379-634d-4854-8c21-43c3394bb066",
+    "nombre": "Damian",
+    "apellido": "Centurion",
+    "jira_account_id": "dcenturion",
+    "email": "dcenturion@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "15943245-af14-4200-b613-8480250cd895",
+    "nombre": "Del",
+    "apellido": "Vecchio, Marianela",
+    "jira_account_id": "02223",
+    "email": "mdelvecchio@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "1bc4db23-b147-43f5-b1ca-805c1f2fb6c4",
+    "nombre": "Dell'Aquila",
+    "apellido": "Leonardo Gabriel",
+    "jira_account_id": "dellaquil",
+    "email": "dellaquil@bancosantafe.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "a5d7e383-4066-45d2-b97b-54a91394b03d",
+    "nombre": "Di",
+    "apellido": "Loreto Andrea",
+    "jira_account_id": "02074",
+    "email": "diloreto@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "fd46f28f-c3f2-4197-82d8-36f8c4f15438",
+    "nombre": "Diego",
+    "apellido": "Caceres",
+    "jira_account_id": "dcaceres",
+    "email": "dcaceres@asjservicios.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "0fb84a6e-c2c1-4df2-a197-f08363e76281",
+    "nombre": "Diego",
+    "apellido": "Osvaldo Agudo",
+    "jira_account_id": "dagudo",
+    "email": "dagudo@asjservicios.com",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Back"
+    ]
+  },
+  {
+    "id": "072e6121-4043-462c-8e0d-a0a3c8d84ed5",
+    "nombre": "Dominguez",
+    "apellido": "Juan",
+    "jira_account_id": "dominguj",
+    "email": "",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "e9c2d38d-f281-4c25-a820-d67f9686ddd6",
+    "nombre": "Edgardo",
+    "apellido": "Jovanovich",
+    "jira_account_id": "erjovanovich",
+    "email": "",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Datos"
+    ]
+  },
+  {
+    "id": "5e108aa7-59a7-4cac-a3d8-777aff43ecbb",
+    "nombre": "Eduardo",
+    "apellido": "Alejandro Fuentes Escudero",
+    "jira_account_id": "efuentes",
+    "email": "edufuent@publicisgroupe.net",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "1f3d6fdf-9004-480a-91a8-1a213d67300c",
+    "nombre": "Elias",
+    "apellido": "Lazaro",
+    "jira_account_id": "elazaro",
+    "email": "elias.lazaro@besysoft.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "b10e5f11-e7ac-4a97-8706-50ffcbe84286",
+    "nombre": "Eloy",
+    "apellido": "Castro",
+    "jira_account_id": "castroe",
+    "email": "eloy.castro@easycall.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "227b2f6f-1aae-4121-ad7e-723406839242",
+    "nombre": "Ezequiel",
+    "apellido": "Luna Watkins",
+    "jira_account_id": "ewatkins",
+    "email": "ewatkins@proguidemc.com",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Back"
+    ]
+  },
+  {
+    "id": "e84c34e5-d549-401a-832d-248ad7c8ba73",
+    "nombre": "Fabiola",
+    "apellido": "Linares Villalobos",
+    "jira_account_id": "fvillalobos",
+    "email": "fabiola.c.linares.villalobos@pwc.com",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Back",
+      "Equipo Datos"
+    ]
+  },
+  {
+    "id": "3dbe2190-4e50-4a54-b41c-3ba3680fbde7",
+    "nombre": "Facundo",
+    "apellido": "Guerrero",
+    "jira_account_id": "fguerrero",
+    "email": "facundo.guerrero@besysoft.com",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Back"
+    ]
+  },
+  {
+    "id": "dcb2a443-d3a2-4538-bdc7-2b0f7fff3923",
+    "nombre": "Federico",
+    "apellido": "Díaz",
+    "jira_account_id": "Federico.diaz",
+    "email": "Federico.diaz@besysoft.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "e73bcbd2-a3ce-4b55-a666-ae1b644570c4",
+    "nombre": "Federico",
+    "apellido": "Wagner",
+    "jira_account_id": "fwagner",
+    "email": "",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "c507d521-274f-4df8-b0f0-b932c2c30593",
+    "nombre": "Fernandez",
+    "apellido": "Diego Martin",
+    "jira_account_id": "fernanded",
+    "email": "fernanded@bancosantafe.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "aba48466-4a27-490f-933f-548d8083046c",
+    "nombre": "Fernandez",
+    "apellido": "Melina",
+    "jira_account_id": "fernandee",
+    "email": "fernandee@bancosantafe.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "a121d260-0d21-4e4c-8c2f-2fb9554ce188",
+    "nombre": "Fernando",
+    "apellido": "Gaston Mesa",
+    "jira_account_id": "fmesa",
+    "email": "fmesa@asjservicios.com",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Back"
+    ]
+  },
+  {
+    "id": "f48d36b2-5cd0-4d46-b439-f61d57c6facd",
+    "nombre": "Fernando",
+    "apellido": "Lella",
+    "jira_account_id": "flella",
+    "email": "flella@gpsa.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "721661f5-54c0-4d4f-a784-7dc0688df3e8",
+    "nombre": "Francisco",
+    "apellido": "Abbattista ",
+    "jira_account_id": "fabbattista",
+    "email": "fabbattista@flink.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "88a1d6b1-3a18-4b7f-ac32-371f2bb7b98b",
+    "nombre": "Gabriel",
+    "apellido": "Alejandro Gonzalez Pandiani",
+    "jira_account_id": "ggonzalez",
+    "email": "ggonzalez@asjservicios.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "a05e36e1-6255-47f9-b1c3-cf74a94f450d",
+    "nombre": "Gabriel",
+    "apellido": "Navarro",
+    "jira_account_id": "gnavarro",
+    "email": "gabriel.navarro@besysoft.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "aeba0723-8d42-4375-bceb-7751e78879a2",
+    "nombre": "Giorgini,",
+    "apellido": "Victorio",
+    "jira_account_id": "vgiorgini",
+    "email": "victorio.giorgini@bancoentrerios.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "aa4667e1-e747-4ccb-9b74-9644026237ae",
+    "nombre": "Gomez",
+    "apellido": "de Fonseca, Carla Norelis",
+    "jira_account_id": "02207",
+    "email": "cgomez@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "db4c3949-b92d-4e20-9d24-e5c8a6e33640",
+    "nombre": "Gustavo",
+    "apellido": "Vera Maurera",
+    "jira_account_id": "gvera",
+    "email": "gustavo.vera@practia.global",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Back"
+    ]
+  },
+  {
+    "id": "600e7b21-aa12-4eb6-8b4c-0bfd7c7e5bd4",
+    "nombre": "Hernan",
+    "apellido": "Daniel Regazzoni",
+    "jira_account_id": "hregazzoni",
+    "email": "hregazzoni@pentass.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "09ec037d-74a2-4f40-b3f3-433de0075f38",
+    "nombre": "Hernando",
+    "apellido": "Daniela Rocio",
+    "jira_account_id": "hernandod",
+    "email": "hernandod@bancosantafe.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "09f48ac9-f5b0-4cb6-94b4-c5c7aceb6973",
+    "nombre": "Hugo",
+    "apellido": "Carelli",
+    "jira_account_id": "hcarelli",
+    "email": "hcarelli@flink.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "5fffa654-7711-4977-b252-4c4da5a70f1b",
+    "nombre": "Ignacio",
+    "apellido": "Adrian Chaves",
+    "jira_account_id": "ichaves",
+    "email": "ignacio.chaves@besysoft.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "29303861-6464-4d77-b1fb-3f24a54b83fe",
+    "nombre": "Ignacio",
+    "apellido": "Loyte",
+    "jira_account_id": "iloyte",
+    "email": "iloyte@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "542dfc9e-5bd7-415b-9444-a6db2bb4d936",
+    "nombre": "Jaca",
+    "apellido": "Alejandro Anibal",
+    "jira_account_id": "jacaa",
+    "email": "jacaa@bancosantafe.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "e8b5aee6-769f-48b4-bfd3-b093c4941858",
+    "nombre": "Jira",
+    "apellido": "Corp",
+    "jira_account_id": "jiraadmin",
+    "email": "Jiracorp@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "90e99f59-3369-46a1-9726-6a7755a054ec",
+    "nombre": "Jira",
+    "apellido": "Priorizador",
+    "jira_account_id": "jira.priorizador",
+    "email": "jira@gbsj.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "e8fc0383-e452-48ad-8783-73864c9bfa08",
+    "nombre": "jira-auto",
+    "apellido": "",
+    "jira_account_id": "jira-auto",
+    "email": "jira-auto@gpsa.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "b33c5471-cf85-47ce-aaf9-0f014fbad763",
+    "nombre": "Jose",
+    "apellido": "Flores",
+    "jira_account_id": "joflores",
+    "email": "jose.flores@besysoft.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "5a715492-d7b3-463a-b813-4e7ea48a5714",
+    "nombre": "Juan",
+    "apellido": "Manuel Gallarreta",
+    "jira_account_id": "jgallarreta",
+    "email": "jgallarreta@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "53e610de-27f8-427c-8775-542d5698e939",
+    "nombre": "Laureano",
+    "apellido": "Marenco",
+    "jira_account_id": "lmarenco",
+    "email": "lmarenco@asjservicios.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "77526136-11af-4a07-b105-0d63a81267a3",
+    "nombre": "Leon",
+    "apellido": "Lucas Martin",
+    "jira_account_id": "01969",
+    "email": "lleon@bancosantacruz.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "716fd013-55a5-4165-b9f9-785e456d6b33",
+    "nombre": "Leonel",
+    "apellido": "Briones",
+    "jira_account_id": "leonel.briones",
+    "email": "leonel.briones@besysoft.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "f0d84f79-3c8a-42e7-8de5-37803830d8e8",
+    "nombre": "Lucas",
+    "apellido": "Pedernera",
+    "jira_account_id": "lpedernera",
+    "email": "lpedernera@algeiba.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "87f32679-4a68-45ec-b803-d01b869cf4fc",
+    "nombre": "Lucas",
+    "apellido": "Perello",
+    "jira_account_id": "lperello",
+    "email": "lucas.perello@besysoft.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "03f6675c-3c88-4024-8edb-0eecce35aa92",
+    "nombre": "Luciana",
+    "apellido": "Ginsberg",
+    "jira_account_id": "lginsberg",
+    "email": "lginsberg@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "84a73abd-d00e-42c6-ab05-984322b04c5f",
+    "nombre": "Mallaviabarrena,",
+    "apellido": "Maria Cruz",
+    "jira_account_id": "02169",
+    "email": "mmallaviabarrena@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "583239cd-d512-42a8-87ef-35bc04c10c4b",
+    "nombre": "Marcos",
+    "apellido": "Royett",
+    "jira_account_id": "maroyett",
+    "email": "",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Datos"
+    ]
+  },
+  {
+    "id": "4847a0f2-0add-4fd4-802a-cee88b992263",
+    "nombre": "Marcos",
+    "apellido": "Sain",
+    "jira_account_id": "msain",
+    "email": "marcos.sain@besysoft.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "9e4806fd-e944-4322-aec7-4be8794f9622",
+    "nombre": "Maria",
+    "apellido": "Cecilia Diaz Ortigoza",
+    "jira_account_id": "mdiazortigoza",
+    "email": "mdiaz@asjservicios.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "4c2e4838-76ac-4bc6-9351-6a9120e74a40",
+    "nombre": "Maria",
+    "apellido": "Jose Pappalardo",
+    "jira_account_id": "mpappalardo",
+    "email": "mpappalardo@asjservicios.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "cacbdf18-5599-44f3-949f-fc98b341b97b",
+    "nombre": "Maria",
+    "apellido": "Laura Garcia de Weert",
+    "jira_account_id": "mgarciadeweert",
+    "email": "mgarciadeweert@asjservicios.com",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Back"
+    ]
+  },
+  {
+    "id": "a5b0590f-4fe4-46f0-b1ec-f15584fc9745",
+    "nombre": "Maria",
+    "apellido": "Teresa Bravo",
+    "jira_account_id": "mbravo",
+    "email": "mbravo@asjservicios.com",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Back"
+    ]
+  },
+  {
+    "id": "1d105a00-92e9-40a3-9597-1dcf83f2e216",
+    "nombre": "Mateo",
+    "apellido": " Buraschi Pire",
+    "jira_account_id": "mburaschi",
+    "email": "mburaschi@asjservicios.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "09b92802-5f3b-4ae0-82f8-2793ff978a00",
+    "nombre": "Matias",
+    "apellido": "Hernan Abossio Gonzalez",
+    "jira_account_id": "mabossio",
+    "email": "mabossio@asjservicios.com",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Back"
+    ]
+  },
+  {
+    "id": "fba2b372-3aad-46b4-8b37-b55d4e702ebe",
+    "nombre": "Matias",
+    "apellido": "Vivas",
+    "jira_account_id": "mvivas",
+    "email": "matias.vivas@besysoft.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "9b04b604-9751-4a5f-87bc-6e2d54bb380c",
+    "nombre": "Melina",
+    "apellido": "Fernandez",
+    "jira_account_id": "mefernandez",
+    "email": "fernandee@bancosantafe.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "1bdf256c-e023-4b22-92e5-ff4906c2462e",
+    "nombre": "Miani,",
+    "apellido": "Fabricio",
+    "jira_account_id": "fmiani",
+    "email": "fmiani@bancosantacruz.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "893774e6-4846-46eb-905a-6e330dbc029e",
+    "nombre": "Miller",
+    "apellido": "Villamizar",
+    "jira_account_id": "mvillamizar",
+    "email": "mvillamizar@algeiba.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "bb8b5065-8af8-4830-a1db-e791a50af1cc",
+    "nombre": "Monzon,",
+    "apellido": "Lucas",
+    "jira_account_id": "02136",
+    "email": "lmonzon@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "db5659f1-999e-4bc3-8946-6a246160c85b",
+    "nombre": "Natali",
+    "apellido": "Corina Belen",
+    "jira_account_id": "natalic",
+    "email": "natalic@bancosantafe.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "1ec46b8b-aea8-468f-a011-eea50be62651",
+    "nombre": "Natalia",
+    "apellido": "Fiorentino",
+    "jira_account_id": "nfiorentino",
+    "email": "natalia.fiorentino@besysoft.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "e73989fa-d45d-4506-a05e-4d25d7515193",
+    "nombre": "Nicolas",
+    "apellido": "France",
+    "jira_account_id": "nfrance",
+    "email": "nfrance@algeiba.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "46bac2da-dca5-4f59-a81c-4ec66703d7b0",
+    "nombre": "Nicolas",
+    "apellido": "Pirsztuk",
+    "jira_account_id": "npirsztuk",
+    "email": "nicolas.pirsztuk@runbss.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "ddde27e4-0930-4535-8f1b-e69205658481",
+    "nombre": "Nuñez,",
+    "apellido": "Maria Jose",
+    "jira_account_id": "01955",
+    "email": "mnunez@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "756470ea-a232-4a70-9eeb-48b1c409134b",
+    "nombre": "Omar,",
+    "apellido": "Denis Rafael",
+    "jira_account_id": "domar",
+    "email": "denis.omar@bancoentrerios.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "b08b2838-1ead-4a65-a420-d2eee0a1dac6",
+    "nombre": "Pujol",
+    "apellido": "Ayelen",
+    "jira_account_id": "pujola",
+    "email": "pujola@bancosantafe.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "9890684f-baaa-40f2-b718-b8e3a94144da",
+    "nombre": "Quiroga",
+    "apellido": "Cintia Belen",
+    "jira_account_id": "quirogac",
+    "email": "quirogac@bancosantafe.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "a8494ccd-09f1-4132-b017-489d40e46f07",
+    "nombre": "Rebagliati,",
+    "apellido": "German",
+    "jira_account_id": "grebagliati",
+    "email": "grebagliati@algeiba.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "fb2a503e-1b2e-424d-8fae-e900f3c1a28c",
+    "nombre": "Ricardo",
+    "apellido": "Emiliano Farias",
+    "jira_account_id": "rfarias",
+    "email": "rfarias@asjservicios.com",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Back"
+    ]
+  },
+  {
+    "id": "7e5cb13a-e37c-462d-b1d9-35d991f300df",
+    "nombre": "Rocio",
+    "apellido": "Veron",
+    "jira_account_id": "rveron",
+    "email": "rveron@algeiba.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "5bbd2469-b824-4c58-a28a-2669ea579262",
+    "nombre": "Roldan,",
+    "apellido": "Sabrina Daniela",
+    "jira_account_id": "02168",
+    "email": "sroldan@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "48c9e4f1-f092-41b8-b8cc-e363a641a349",
+    "nombre": "Romeu,",
+    "apellido": "Leonel",
+    "jira_account_id": "01964",
+    "email": "lromeu@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "1d6b3c01-478f-41f8-b4d7-543c55deedfa",
+    "nombre": "Rosello",
+    "apellido": "Andres",
+    "jira_account_id": "roselloa",
+    "email": "roselloa@bancosantafe.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "d5cbb96f-f4b0-4f15-aaac-db66c560d411",
+    "nombre": "Roude,",
+    "apellido": "Erika Carina",
+    "jira_account_id": "eroude",
+    "email": "erika.roude@bancoentrerios.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "c3fcebcf-65f2-428a-8522-a1c5d26e7d46",
+    "nombre": "Roxana",
+    "apellido": "Karina Lattanzi",
+    "jira_account_id": "rlattanzi",
+    "email": "rlattanzi@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "475db243-09bd-4c97-b47b-67ada455d58b",
+    "nombre": "Rucci",
+    "apellido": "Alejandro",
+    "jira_account_id": "ruccia",
+    "email": "ruccia@bancosantafe.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "1c70028c-c442-4adb-995e-1bca5631fffa",
+    "nombre": "Saccomanno,",
+    "apellido": "Noelia Carolina",
+    "jira_account_id": "02194",
+    "email": "nsaccomanno@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "fa237887-4363-4448-b3e6-2d20f76ec599",
+    "nombre": "Salas,",
+    "apellido": "Maria",
+    "jira_account_id": "02404",
+    "email": "msalas@bancosanjuan.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "97e21e45-b5d6-4ecf-9bf1-cfaa617bb2b7",
+    "nombre": "Salazar,",
+    "apellido": "Leovys",
+    "jira_account_id": "lsalazar",
+    "email": "leovys.salazar@sandinas.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "d11e2783-2c6b-4ffd-b4a8-834977ebe1c2",
+    "nombre": "Santiago",
+    "apellido": "Travi",
+    "jira_account_id": "stravi",
+    "email": "santiago.luis.travi@pwc.com",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Datos",
+      "Equipo Back"
+    ]
+  },
+  {
+    "id": "7bd77874-f737-4bc1-8bad-cab5bab1f752",
+    "nombre": "Sincronizador",
+    "apellido": "Jira",
+    "jira_account_id": "sincronizadorjira",
+    "email": "noreply@besysoft.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "73da642b-771d-4cc0-ad99-a496784074b3",
+    "nombre": "Sosa",
+    "apellido": "Rocio Noelia",
+    "jira_account_id": "sosar",
+    "email": "sosar@bancosantafe.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "d89bb3c1-f13d-4fbd-85bb-27ee415a2804",
+    "nombre": "Stephanie",
+    "apellido": "Santelli",
+    "jira_account_id": "ssantelli",
+    "email": "ssantelli@asjservicios.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "94b9ac70-ecdd-4b52-a243-9f865f2298d0",
+    "nombre": "Sueldo",
+    "apellido": "Simon",
+    "jira_account_id": "sueldos",
+    "email": "ssueldo@asjservicios.com",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "ddd47638-4246-45a8-9500-6c72547a52ce",
+    "nombre": "svgalileo",
+    "apellido": "",
+    "jira_account_id": "svgalileo",
+    "email": "",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "71f852c8-0039-40fa-b9fd-75f8486a0695",
+    "nombre": "Tabora",
+    "apellido": "Sebastian",
+    "jira_account_id": "taboras",
+    "email": "taboras@bancosantafe.com.ar",
+    "tribu": "",
+    "celula": ""
+  },
+  {
+    "id": "0ee9de40-62d0-4e6a-8e08-d14e37b0bf13",
+    "nombre": "Tomas",
+    "apellido": "Agostino",
+    "jira_account_id": "tagostino",
+    "email": "tomas.agostino@pwc.com",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Datos"
+    ]
+  },
+  {
+    "id": "690988cf-7576-4c44-b28d-cc6a41ff0496",
+    "nombre": "Victor",
+    "apellido": "Belisario",
+    "jira_account_id": "vbelisario",
+    "email": "victor.belisario@besysoft.com",
+    "tribu": "",
+    "celulas": []
+  },
+  {
+    "id": "58d59033-94b0-4f83-9f74-92077535ab85",
+    "nombre": "Wendy",
+    "apellido": "Becerra",
+    "jira_account_id": "wbecerra",
+    "email": "wendy.becerra@besysoft.com",
+    "tribu": "",
+    "celulas": []
+  },
+  {
+    "id": "0bc96506-8387-411f-82c3-68fbb2077d13",
+    "nombre": "Valentin",
+    "apellido": "Cordoba",
+    "jira_account_id": "vcordoba",
+    "email": "vcordoba@algeiba.com",
+    "tribu": "",
+    "celulas": []
+  },
+  {
+    "id": "d87db749-1f30-425c-8e69-1fa217d7af5c",
+    "nombre": "Urchueguia,",
+    "apellido": "Fabian Matias",
+    "jira_account_id": "furchueguia",
+    "email": "Fabian.Urchueguia@bancoentrerios.com.ar",
+    "tribu": "",
+    "celulas": []
+  },
+  {
+    "id": "76c78158-391e-4478-af74-cb0fc741cc45",
+    "nombre": "Zorrilla",
+    "apellido": "María Sol",
+    "jira_account_id": "zorrillam",
+    "email": "zorrillam@bancosantafe.com.ar",
+    "tribu": "",
+    "celulas": []
+  },
+  {
+    "id": "0bce11c5-5fff-4c49-8261-6d390f5fa0d2",
+    "nombre": "Thiago",
+    "apellido": "Pacheco",
+    "jira_account_id": "tpacheco",
+    "email": "thiago.pacheco@lovelytics.com",
+    "tribu": "Oferta Minorista",
+    "celulas": [
+      "Equipo Datos"
+    ]
+  }
+]

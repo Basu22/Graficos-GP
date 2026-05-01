@@ -6,14 +6,26 @@ export function ConfigView({ T }) {
   const { card, cardBorder: border, text, textMuted: muted, bg, input } = theme;
 
   const [roles, setRoles] = useState([]);
+  const [tribus, setTribus] = useState([]);
+  const [celulas, setCelulas] = useState([]);
   const [eventTypes, setEventTypes] = useState({});
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("categories"); // "categories" | "roles"
+  const [activeTab, setActiveTab] = useState("categories"); // "categories" | "roles" | "tribus" | "celulas"
   
   // States para Roles
   const [newRole, setNewRole] = useState("");
   const [editingIdx, setEditingIdx] = useState(null);
   const [editingValue, setEditingValue] = useState("");
+
+  // States para Tribus
+  const [newTribu, setNewTribu] = useState("");
+  const [editingTribuIdx, setEditingTribuIdx] = useState(null);
+  const [editingTribuValue, setEditingTribuValue] = useState("");
+
+  // States para Celulas
+  const [newCelula, setNewCelula] = useState({ name: "", tribu: "" });
+  const [editingCelulaIdx, setEditingCelulaIdx] = useState(null);
+  const [editingCelulaValue, setEditingCelulaValue] = useState("");
 
   // States para Categorías
   const [newType, setNewType] = useState({ key: "", label: "", icon: "📌", color: "#64748B" });
@@ -30,12 +42,16 @@ export function ConfigView({ T }) {
   async function loadData() {
     setLoading(true);
     try {
-      const [rData, tData] = await Promise.all([
+      const [rData, tData, trData, cData] = await Promise.all([
         fetch(`${API}/config/roles`).then(r => r.json()),
-        fetch(`${API}/config/event-types`).then(r => r.json())
+        fetch(`${API}/config/event-types`).then(r => r.json()),
+        fetch(`${API}/config/tribus`).then(r => r.json()),
+        fetch(`${API}/config/celulas`).then(r => r.json())
       ]);
       setRoles(Array.isArray(rData) ? rData : []);
       setEventTypes(tData || {});
+      setTribus(Array.isArray(trData) ? trData : []);
+      setCelulas(Array.isArray(cData) ? cData : []);
     } catch (e) { console.error(e); }
     setLoading(false);
   }
@@ -48,6 +64,28 @@ export function ConfigView({ T }) {
         body: JSON.stringify({ roles: updatedRoles })
       });
       setRoles(updatedRoles);
+    } catch (e) { console.error(e); }
+  }
+
+  async function saveTribus(updatedTribus) {
+    try {
+      await fetch(`${API}/config/tribus`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tribus: updatedTribus })
+      });
+      setTribus(updatedTribus);
+    } catch (e) { console.error(e); }
+  }
+
+  async function saveCelulas(updatedCelulas) {
+    try {
+      await fetch(`${API}/config/celulas`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ celulas: updatedCelulas })
+      });
+      setCelulas(updatedCelulas);
     } catch (e) { console.error(e); }
   }
 
@@ -78,6 +116,42 @@ export function ConfigView({ T }) {
     next[editingIdx] = editingValue.trim();
     saveRoles(next);
     setEditingIdx(null);
+  }
+
+  function addTribu() {
+    if (!newTribu.trim() || tribus.includes(newTribu.trim())) return;
+    const next = [...tribus, newTribu.trim()];
+    saveTribus(next);
+    setNewTribu("");
+  }
+  function deleteTribu(tribu) {
+    if (!confirm(`¿Eliminar la tribu "${tribu}"?`)) return;
+    saveTribus(tribus.filter(t => t !== tribu));
+  }
+  function commitEditTribu() {
+    if (!editingTribuValue.trim()) return;
+    const next = [...tribus];
+    next[editingTribuIdx] = editingTribuValue.trim();
+    saveTribus(next);
+    setEditingTribuIdx(null);
+  }
+
+  function addCelula() {
+    if (!newCelula.name?.trim() || !newCelula.tribu) {
+      alert("Debes escribir el nombre y seleccionar una Tribu.");
+      return;
+    }
+    const next = [...celulas, { name: newCelula.name.trim(), tribu: newCelula.tribu }];
+    saveCelulas(next);
+    setNewCelula({ name: "", tribu: "" });
+  }
+  function deleteCelula(celula) {
+    const name = typeof celula === 'string' ? celula : celula.name;
+    if (!confirm(`¿Eliminar la célula "${name}"?`)) return;
+    saveCelulas(celulas.filter(c => c !== celula));
+  }
+  function commitEditCelula() {
+    setEditingCelulaIdx(null); // Desactivamos la edición para evitar corromper los objetos
   }
 
   function addEventType() {
@@ -134,6 +208,12 @@ export function ConfigView({ T }) {
         </button>
         <button style={menuStyle(activeTab === "roles")} onClick={() => setActiveTab("roles")}>
           <span style={{ fontSize: 18 }}>🎭</span> Roles
+        </button>
+        <button style={menuStyle(activeTab === "tribus")} onClick={() => setActiveTab("tribus")}>
+          <span style={{ fontSize: 18 }}>⛺</span> Tribus
+        </button>
+        <button style={menuStyle(activeTab === "celulas")} onClick={() => setActiveTab("celulas")}>
+          <span style={{ fontSize: 18 }}>🦠</span> Células
         </button>
         
         <div style={{ marginTop: "auto", padding: 20, borderRadius: 16, background: bg, border: `1px dashed ${border}`, fontSize: 11, color: muted, fontStyle: "italic" }}>
@@ -239,6 +319,81 @@ export function ConfigView({ T }) {
             <div style={{ padding: 24, borderRadius: 16, background: bg, border: `2px dashed ${border}`, display: "flex", gap: 12 }}>
               <input value={newRole} onChange={(e) => setNewRole(e.target.value)} placeholder="Nuevo rol (ej: Cloud Architect)..." style={{ ...inp, flex: 1 }} onKeyDown={(e) => e.key === 'Enter' && addRole()} />
               <button onClick={addRole} style={{ padding: "0 28px", borderRadius: 10, border: "none", background: "#3B82F6", color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>+ Agregar</button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "tribus" && (
+          <div style={cardStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: "#10B98115", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>⛺</div>
+              <div>
+                <h3 style={{ fontSize: 20, fontWeight: 900, color: text, margin: 0 }}>Tribus</h3>
+                <p style={{ fontSize: 12, color: muted, margin: 0 }}>Agrupaciones mayores de la organización</p>
+              </div>
+            </div>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10, marginBottom: 32 }}>
+              {tribus.map((tribu, idx) => (
+                <div key={idx} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 12, background: bg, border: `1px solid ${border}` }}>
+                  {editingTribuIdx === idx ? (
+                    <>
+                      <input value={editingTribuValue} onChange={(e) => setEditingTribuValue(e.target.value)} style={{ ...inp, flex: 1, padding: "4px 8px" }} autoFocus onKeyDown={(e) => e.key === 'Enter' && commitEditTribu()} />
+                      <button onClick={commitEditTribu} style={{ background: "none", border: "none", cursor: "pointer" }}>✅</button>
+                      <button onClick={() => setEditingTribuIdx(null)} style={{ background: "none", border: "none", cursor: "pointer" }}>✕</button>
+                    </>
+                  ) : (
+                    <>
+                      <span style={{ flex: 1, fontSize: 14, fontWeight: 700, color: text }}>{tribu}</span>
+                      <button onClick={() => {setEditingTribuIdx(idx); setEditingTribuValue(tribu)}} style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.6 }}>✏️</button>
+                      <button onClick={() => deleteTribu(tribu)} style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.6 }}>🗑️</button>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ padding: 24, borderRadius: 16, background: bg, border: `2px dashed ${border}`, display: "flex", gap: 12 }}>
+              <input value={newTribu} onChange={(e) => setNewTribu(e.target.value)} placeholder="Nueva Tribu (ej: Oferta Minorista)..." style={{ ...inp, flex: 1 }} onKeyDown={(e) => e.key === 'Enter' && addTribu()} />
+              <button onClick={addTribu} style={{ padding: "0 28px", borderRadius: 10, border: "none", background: "#10B981", color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>+ Agregar</button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "celulas" && (
+          <div style={cardStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: "#F59E0B15", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🦠</div>
+              <div>
+                <h3 style={{ fontSize: 20, fontWeight: 900, color: text, margin: 0 }}>Células</h3>
+                <p style={{ fontSize: 12, color: muted, margin: 0 }}>Equipos específicos que pertenecen a una Tribu</p>
+              </div>
+            </div>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 10, marginBottom: 32 }}>
+              {celulas.map((celula, idx) => {
+                const cName = typeof celula === 'string' ? celula : celula.name;
+                const cTribu = typeof celula === 'string' ? "Sin Tribu" : celula.tribu;
+
+                return (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 12, background: bg, border: `1px solid ${border}` }}>
+                    <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: text }}>{cName}</span>
+                      <span style={{ fontSize: 10, color: muted, fontWeight: 600 }}>⛺ {cTribu}</span>
+                    </div>
+                    <button onClick={() => deleteCelula(celula)} style={{ background: "none", border: "none", cursor: "pointer", opacity: 0.6 }}>🗑️</button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ padding: 24, borderRadius: 16, background: bg, border: `2px dashed ${border}`, display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <select value={newCelula.tribu || ""} onChange={(e) => setNewCelula({...newCelula, tribu: e.target.value})} style={{ ...inp, width: 220 }}>
+                <option value="">Seleccionar Tribu...</option>
+                {tribus.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+              <input value={newCelula.name || ""} onChange={(e) => setNewCelula({...newCelula, name: e.target.value})} placeholder="Nueva Célula (ej: Equipo Datos)..." style={{ ...inp, flex: 1, minWidth: 200 }} onKeyDown={(e) => e.key === 'Enter' && addCelula()} />
+              <button onClick={addCelula} style={{ padding: "0 28px", borderRadius: 10, border: "none", background: "#F59E0B", color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>+ Agregar</button>
             </div>
           </div>
         )}

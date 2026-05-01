@@ -90,6 +90,63 @@ async def delete_absence(person_id: str, absence_id: str):
             return {"deleted": absence_id}
     raise HTTPException(404, "Person not found")
 
+@router.post("/import-from-agenda")
+async def import_from_agenda(payload: dict):
+    team_name = payload.get("team")
+    if not team_name or team_name == "Todos":
+        raise HTTPException(400, "Debe especificar un equipo concreto (ej: Back, Datos)")
+        
+    agenda = load_json("agenda.json")
+    people = _load()
+    
+    changes = {"added": 0, "updated": 0}
+    
+    for c in agenda:
+        celulas = c.get("celulas", []) or []
+        # Fallback migratorio por si quedaron datos en formato string viejo
+        if c.get("celula") and isinstance(c.get("celula"), str) and c.get("celula") not in celulas:
+            celulas.append(c["celula"])
+            
+        tribu = c.get("tribu", "") or ""
+        
+        # Hacemos match si la palabra (ej "Back") está en alguna de las células o en la Tribu
+        match_celula = any(team_name.lower() in str(cel).lower() for cel in celulas)
+        
+        if match_celula or team_name.lower() in tribu.lower():
+            full_name = f'{c.get("nombre", "")} {c.get("apellido", "")}'.strip()
+            
+            # Buscamos si ya existe por el nombre exacto o por la cuenta de Jira
+            existing = next((p for p in people if p.get("jira_name") == c.get("jira_account_id") or p.get("name") == full_name), None)
+            
+            if existing:
+                updated = False
+                if team_name not in existing.get("teams", []):
+                    existing.setdefault("teams", []).append(team_name)
+                    existing.setdefault("capacity_by_team", {})[team_name] = 1.0
+                    updated = True
+                
+                if not existing.get("jira_name") and c.get("jira_account_id"):
+                    existing["jira_name"] = c.get("jira_account_id")
+                    updated = True
+                    
+                if updated:
+                    changes["updated"] += 1
+            else:
+                new_person = {
+                    "id": str(uuid.uuid4()),
+                    "name": full_name,
+                    "teams": [team_name],
+                    "capacity_by_team": {team_name: 1.0},
+                    "role": "Developer",
+                    "absences": [],
+                    "jira_name": c.get("jira_account_id")
+                }
+                people.append(new_person)
+                changes["added"] += 1
+                
+    _save(people)
+    return {"status": "ok", "changes": changes}
+
 @router.get("/availability")
 async def get_availability(start: str, end: str, team: Optional[str] = None):
     """Disponibilidad día a día entre dos fechas."""
@@ -214,24 +271,24 @@ async def get_person_stats_endpoint(
 
 @router.get("/jira-users")
 async def get_jira_users(team: Optional[str] = None):
-    """Lista assignees únicos del sprint activo para mapear con personas."""
+    """Devuelve la lista de TODOS los usuarios desde Gestión de Equipo para vinculación manual."""
     try:
-        from app.core.jira_client import JiraClient
-        client = JiraClient()
-        board_id = await client.get_board_id()
-        sprints = await client.get_sprints(board_id, state="active", team=team)
-        if not sprints:
-            return []
-        issues = await client.get_issues_for_sprint(sprints[0]["id"])
-        users = {}
-        for i in issues:
-            a = i["fields"].get("assignee")
-            if a:
-                users[a["displayName"]] = {
-                    "displayName": a["displayName"],
-                    "accountId":   a.get("accountId",""),
-                    "avatar":      a.get("avatarUrls",{}).get("48x48",""),
-                }
-        return list(users.values())
+        people = _load()
+        
+        users = []
+        for p in people:
+            # Forzamos a usar el Nombre de Pila para que el cruce con Jira sea exacto
+            # e ignoramos alias viejos que puedan estar cacheados en jira_name
+            display_name = p.get("name")
+            if display_name:
+                users.append({
+                    "displayName": display_name,
+                    "accountId": display_name,
+                    "avatar": ""
+                })
+            
+        # Deduplicamos y ordenamos
+        unique_users = {u["displayName"]: u for u in users}
+        return sorted(list(unique_users.values()), key=lambda x: x["displayName"].lower())
     except Exception as e:
         raise HTTPException(500, str(e))

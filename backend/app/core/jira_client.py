@@ -200,6 +200,34 @@ class JiraClient:
         data = await self._get(url)
         return {t["id"]: t["name"] for t in data}
 
+    async def get_all_project_users(self, project_key: str) -> list:
+        """Obtiene todos los usuarios asignables sorteando el límite de 100 de Jira mediante búsquedas alfabéticas."""
+        url = f"{self.base_url}/rest/api/2/user/assignable/search"
+        all_users = []
+        
+        # Alfabeto para buscar: nos aseguramos de traer a todos sin tocar el límite de 100 por letra
+        import string
+        chars_to_search = list(string.ascii_lowercase) + ['.'] 
+        
+        for char in chars_to_search:
+            # En Jira Server es 'username', en Jira Cloud es 'query'. Usamos 'username' para máxima compatibilidad con el endpoint viejo
+            params = {"project": project_key, "maxResults": 100, "username": char}
+            try:
+                users_batch = await self._get(url, params)
+                if users_batch:
+                    all_users.extend(users_batch)
+            except Exception as e:
+                print(f"Error fetching users for project {project_key} with query {char}: {e}")
+                
+        # Deduplicamos
+        unique_users = {}
+        for u in all_users:
+            identifier = u.get("accountId") or u.get("name")
+            if identifier:
+                unique_users[identifier] = u
+                
+        return list(unique_users.values())
+
 
 async def get_jira_client():
     yield JiraClient()

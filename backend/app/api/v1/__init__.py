@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from app.api.v1.endpoints import sprints, metrics, active_sprint, calendar_events, people, midia, config
+from app.api.v1.endpoints import sprints, metrics, active_sprint, calendar_events, people, midia, config, agenda
 
 api_router = APIRouter()
 api_router.include_router(sprints.router)
@@ -9,3 +9,4 @@ api_router.include_router(calendar_events.router)
 api_router.include_router(people.router)
 api_router.include_router(midia.router)
 api_router.include_router(config.router)
+api_router.include_router(agenda.router)

@@ -1,21 +1,23 @@
 [
   {
-    "id": "2809d8e3-dba7-4303-862f-fa7a08160d9c",
-    "name": "Carlos Quinteros",
+    "id": "8b13211a-f47a-4b9f-900f-7f8187fdd3c8",
+    "name": "Agustin Amicone",
     "teams": [
-      "Back"
+      "Back",
+      "Datos"
     ],
     "capacity_by_team": {
-      "Back": 1
+      "Back": 1,
+      "Datos": 1
     },
-    "role": "Tech Lead",
-    "birthday": "",
+    "role": "Developer",
+    "birthday": null,
     "absences": [],
-    "jira_name": "Carlos Quinteros"
+    "jira_name": "Agustin Amicone"
   },
   {
-    "id": "78e7d32f-a40b-4020-bc88-43d4d17a2ab8",
-    "name": "Maria Teresa Bravo",
+    "id": "0d4cbfe2-6b27-42d1-b32f-4ef7ef89c4c5",
+    "name": "Alejandro Humberto Lo Preiato",
     "teams": [
       "Back"
     ],
@@ -23,26 +25,12 @@
       "Back": 1
     },
     "role": "Developer",
-    "birthday": "",
-    "absences": [],
-    "jira_name": "Maria Teresa Bravo"
-  },
-  {
-    "id": "d9b999fb-98d3-4d67-bece-799804f3fcd9",
-    "name": "Alejandro Lo Preiato",
-    "teams": [
-      "Back"
-    ],
-    "capacity_by_team": {
-      "Back": 1
-    },
-    "role": "QA",
-    "birthday": "",
+    "birthday": null,
     "absences": [],
     "jira_name": "Alejandro Humberto Lo Preiato"
   },
   {
-    "id": "9630811c-86ec-4d3b-87f4-10f3119523df",
+    "id": "6061404a-42a6-402b-a86f-af83aec7ec3d",
     "name": "Axel Gimenez",
     "teams": [
       "Back"
@@ -51,8 +39,266 @@
       "Back": 1
     },
     "role": "Developer",
-    "birthday": "",
+    "birthday": null,
     "absences": [],
-    "jira_name": null
+    "jira_name": "Axel Gimenez"
+  },
+  {
+    "id": "53c93d38-b439-4c3d-bffe-10f07b8586e0",
+    "name": "Basilio Ossvald",
+    "teams": [
+      "Back",
+      "Datos"
+    ],
+    "capacity_by_team": {
+      "Back": 1,
+      "Datos": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Basilio Ossvald"
+  },
+  {
+    "id": "34a15bed-c1cc-43a7-8a44-8cc5de4c373a",
+    "name": "Carlos Quinteros",
+    "teams": [
+      "Back"
+    ],
+    "capacity_by_team": {
+      "Back": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Carlos Quinteros"
+  },
+  {
+    "id": "b4964011-347d-42e2-877f-343727244e0f",
+    "name": "Diego Osvaldo Agudo",
+    "teams": [
+      "Back"
+    ],
+    "capacity_by_team": {
+      "Back": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Diego Osvaldo Agudo"
+  },
+  {
+    "id": "7799e15a-e802-488c-955d-bdd5ed166e46",
+    "name": "Ezequiel Luna Watkins",
+    "teams": [
+      "Back"
+    ],
+    "capacity_by_team": {
+      "Back": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Ezequiel Luna Watkins"
+  },
+  {
+    "id": "be920536-cd94-444a-81b4-d153789c37b8",
+    "name": "Fabiola Linares Villalobos",
+    "teams": [
+      "Back",
+      "Datos"
+    ],
+    "capacity_by_team": {
+      "Back": 1,
+      "Datos": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Fabiola Linares Villalobos"
+  },
+  {
+    "id": "6524b970-b602-4e6d-963a-4dc150564623",
+    "name": "Facundo Guerrero",
+    "teams": [
+      "Back"
+    ],
+    "capacity_by_team": {
+      "Back": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Facundo Guerrero"
+  },
+  {
+    "id": "533f2871-781f-4143-9bd8-9209a727a697",
+    "name": "Fernando Gaston Mesa",
+    "teams": [
+      "Back"
+    ],
+    "capacity_by_team": {
+      "Back": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Fernando Gaston Mesa"
+  },
+  {
+    "id": "75dc4d15-1053-46c3-bf07-99513830fd2f",
+    "name": "Gustavo Vera Maurera",
+    "teams": [
+      "Back"
+    ],
+    "capacity_by_team": {
+      "Back": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Gustavo Vera Maurera"
+  },
+  {
+    "id": "958ba120-a222-4930-923b-59d4312f70ac",
+    "name": "Maria Laura Garcia de Weert",
+    "teams": [
+      "Back"
+    ],
+    "capacity_by_team": {
+      "Back": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Maria Laura Garcia de Weert"
+  },
+  {
+    "id": "3806e333-4553-4a69-82d7-2513cd716e2d",
+    "name": "Maria Teresa Bravo",
+    "teams": [
+      "Back"
+    ],
+    "capacity_by_team": {
+      "Back": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Maria Teresa Bravo"
+  },
+  {
+    "id": "4149c8c9-6256-4c4c-8446-61679d2c39ab",
+    "name": "Matias Hernan Abossio Gonzalez",
+    "teams": [
+      "Back"
+    ],
+    "capacity_by_team": {
+      "Back": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Matias Hernan Abossio Gonzalez"
+  },
+  {
+    "id": "2113a7d8-3655-4dcf-bc9b-4b3929d590a4",
+    "name": "Ricardo Emiliano Farias",
+    "teams": [
+      "Back"
+    ],
+    "capacity_by_team": {
+      "Back": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Ricardo Emiliano Farias"
+  },
+  {
+    "id": "64d10f2f-79c0-4b7a-9b9c-145c15cc0fe3",
+    "name": "Santiago Travi",
+    "teams": [
+      "Back",
+      "Datos"
+    ],
+    "capacity_by_team": {
+      "Back": 1,
+      "Datos": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Santiago Travi"
+  },
+  {
+    "id": "6a271676-4772-4ed5-87e8-5681d643a5a7",
+    "name": "Alejandro Schwegler",
+    "teams": [
+      "Datos"
+    ],
+    "capacity_by_team": {
+      "Datos": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Alejandro Schwegler"
+  },
+  {
+    "id": "08cfb976-c781-4564-b92b-b125ffc2652a",
+    "name": "Edgardo Jovanovich",
+    "teams": [
+      "Datos"
+    ],
+    "capacity_by_team": {
+      "Datos": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Edgardo Jovanovich"
+  },
+  {
+    "id": "b7d20f01-4d61-42e1-b542-0be7cf700e86",
+    "name": "Marcos Royett",
+    "teams": [
+      "Datos"
+    ],
+    "capacity_by_team": {
+      "Datos": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Marcos Royett"
+  },
+  {
+    "id": "fbfbdf04-f582-47bf-aadd-c7e30302be5e",
+    "name": "Tomas Agostino",
+    "teams": [
+      "Datos"
+    ],
+    "capacity_by_team": {
+      "Datos": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Tomas Agostino"
+  },
+  {
+    "id": "31765d8f-7ba3-4689-bc2c-c18ee0b5d683",
+    "name": "Thiago Pacheco",
+    "teams": [
+      "Datos"
+    ],
+    "capacity_by_team": {
+      "Datos": 1
+    },
+    "role": "Developer",
+    "birthday": null,
+    "absences": [],
+    "jira_name": "Thiago Pacheco"
   }
 ]
