@@ -6,10 +6,7 @@ import { useMemo, useState, useEffect, useCallback } from "react";
 import { processSmartInbox, selectors, applySheetConfig } from "../utils/smartInbox";
 import { API } from "../constants";
 
-// En localhost usamos ruta relativa para que el proxy de Vite evite CORS
-const BACKEND = window.location.hostname === 'localhost'
-  ? '/api/v1'
-  : API;
+const BACKEND = API;
 
 
 export function useSmartInbox(emailsOrGroups = [], userInfo = {}) {

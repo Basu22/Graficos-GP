@@ -3,7 +3,7 @@
 // Si corremos en la Raspberry Pi (Nginx/producción), usamos rutas relativas para evitar problemas de IP y CORS.
 export const API = window.location.port === "5173" 
   ? import.meta.env.VITE_API_URL 
-  : "/api/v1";
+  : "/api";
 export const JIRA_BASE = import.meta.env.VITE_JIRA_BASE_URL;
 
 // ── Temas dark/light ──────────────────────────────────────────────────────────
