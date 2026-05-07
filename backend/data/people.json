@@ -10,8 +10,8 @@
       "Back": 1,
       "Datos": 1
     },
-    "role": "Developer",
-    "birthday": null,
+    "role": "Product Owner",
+    "birthday": "",
     "absences": [],
     "jira_name": "Agustin Amicone"
   },
@@ -24,8 +24,8 @@
     "capacity_by_team": {
       "Back": 1
     },
-    "role": "Developer",
-    "birthday": null,
+    "role": "QA",
+    "birthday": "",
     "absences": [],
     "jira_name": "Alejandro Humberto Lo Preiato"
   },
@@ -54,8 +54,8 @@
       "Back": 1,
       "Datos": 1
     },
-    "role": "Developer",
-    "birthday": null,
+    "role": "Scrum Master",
+    "birthday": "",
     "absences": [],
     "jira_name": "Basilio Ossvald"
   },
@@ -68,8 +68,8 @@
     "capacity_by_team": {
       "Back": 1
     },
-    "role": "Developer",
-    "birthday": null,
+    "role": "Tech Lead",
+    "birthday": "",
     "absences": [],
     "jira_name": "Carlos Quinteros"
   },
@@ -112,8 +112,8 @@
       "Back": 1,
       "Datos": 1
     },
-    "role": "Developer",
-    "birthday": null,
+    "role": "Functional Analyst",
+    "birthday": "",
     "absences": [],
     "jira_name": "Fabiola Linares Villalobos"
   },
@@ -226,8 +226,8 @@
       "Back": 1,
       "Datos": 1
     },
-    "role": "Developer",
-    "birthday": null,
+    "role": "Functional Analyst",
+    "birthday": "",
     "absences": [],
     "jira_name": "Santiago Travi"
   },
@@ -240,8 +240,8 @@
     "capacity_by_team": {
       "Datos": 1
     },
-    "role": "Developer",
-    "birthday": null,
+    "role": "Tech Lead",
+    "birthday": "",
     "absences": [],
     "jira_name": "Alejandro Schwegler"
   },
@@ -254,8 +254,8 @@
     "capacity_by_team": {
       "Datos": 1
     },
-    "role": "Developer",
-    "birthday": null,
+    "role": "Data Engineer",
+    "birthday": "",
     "absences": [],
     "jira_name": "Edgardo Jovanovich"
   },
@@ -268,8 +268,8 @@
     "capacity_by_team": {
       "Datos": 1
     },
-    "role": "Developer",
-    "birthday": null,
+    "role": "Data Engineer",
+    "birthday": "",
     "absences": [],
     "jira_name": "Marcos Royett"
   },
@@ -282,8 +282,8 @@
     "capacity_by_team": {
       "Datos": 1
     },
-    "role": "Developer",
-    "birthday": null,
+    "role": "Data Engineer",
+    "birthday": "",
     "absences": [],
     "jira_name": "Tomas Agostino"
   },
@@ -296,8 +296,8 @@
     "capacity_by_team": {
       "Datos": 1
     },
-    "role": "Developer",
-    "birthday": null,
+    "role": "Data Engineer",
+    "birthday": "",
     "absences": [],
     "jira_name": "Thiago Pacheco"
   }

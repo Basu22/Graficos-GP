@@ -266,15 +266,22 @@ proxy: {
 
 En **producción**, Nginx actúa como proxy inverso con la misma función.
 
-### 6.3 Detección de Entorno (`BACKEND` dinámico)
+### 6.3 Resolución Dinámica de URLs y Evasión de VPN (CORS / Proxy)
 
-Los componentes que hacen peticiones directas (como `OfferJourney.jsx`) detectan si están en local o en producción:
+Para evitar bloqueos por políticas de seguridad de VPN corporativas (que suelen cortar el tráfico hacia IPs estáticas locales como `192.168.x.x`) y prevenir la duplicación de prefijos (ej. `/api/v1/v1/`) por parte de los múltiples proxies Nginx de la infraestructura unificada, la base de las rutas de la API se calcula de forma 100% dinámica en tiempo de ejecución.
 
-```js
-const BACKEND = window.location.hostname === 'localhost'
-  ? '/api/v1'
-  : API; // API = URL de producción desde constants/index.js
+Tanto en `frontend/src/constants/index.js` como en la configuración de Axios (`api.js`), la constante maestro de ruteo es:
+
+```javascript
+export const API = window.location.port === "5173" 
+  ? `http://${window.location.hostname}:8000/api/v1` 
+  : "/api";
 ```
+
+**Comportamiento Arquitectónico por Entorno:**
+1. **Desarrollo (Vite Localhost):** Se detecta el puerto de desarrollo `5173` en el navegador. Se construye la URL `http://localhost:8000/api/v1` al vuelo, esquivando las reglas de red de la VPN y logrando conexión directa con el puerto de FastAPI en la misma máquina.
+2. **Desarrollo Extendido (LAN - Móvil):** Si se prueba la web desde un dispositivo móvil en la red local (`192.168.1.x:5173`), `window.location.hostname` interpola la IP correcta automáticamente, asegurando comunicación al backend sin hardcodear IPs fijas en archivos `.env`.
+3. **Producción (Raspberry Pi / Cloudflare):** Al ejecutarse compilado por Nginx, el puerto es el estándar web (`80` / `443` o ausente). El frontend solicita `/api/...`. Esto permite que el *Proxy Unificado* Nginx capture la ruta `/api/`, la reescriba a `/api/v1/` y se la entregue intacta al contenedor interno `dash_backend`, eliminando por completo las duplicaciones del tipo `/v1/v1/` que causaban los Errores 404.
 
 ### 6.4 Gotchas de Recharts (Escalas y Contexto)
 > [!IMPORTANT]
@@ -493,5 +500,77 @@ La función `eventsForDay(dateStr)` inyecta dinámicamente objetos de evento que
 - Detecta si hay un `manual_sprint` activo.
 - Si la fecha coincide con los hitos, añade un objeto con flag `isVirtual: true`.
 - Esto garantiza que la reducción de capacidad esté siempre "justificada" visualmente en el UI sin duplicar datos en el JSON.
+
+---
+
+## 16. Sistema de Rotación de Soporte Técnico
+
+> **Implementado:** Mayo 2026 | **Archivo central:** `frontend/src/views/CalendarView.jsx`
+
+### 16.1 Concepto
+
+La Rotación de Soporte es un mecanismo para registrar períodos en los que un colaborador es **asignado temporalmente a tareas de Soporte Técnico**, saliendo del flujo normal del Sprint de Scrum. No implica un cambio de rol permanente en `people.json` — es un estado transitorio basado en eventos del calendario.
+
+### 16.2 Flujo de Datos
+
+El registro de una rotación genera **dos eventos simultáneos** en `calendar_events.json`:
+
+| Campo | Evento A (Ingreso) | Evento B (Retorno) |
+|---|---|---|
+| `type` | `rotacion_soporte` | `retorno_sprint` |
+| `person` | Quien **entra** a soporte | Quien **sale** de soporte y vuelve |
+| `start_date` | Inicio del período | Mismo que evento A |
+| `end_date` | Fin del período | Mismo que evento A |
+| `title` | `Ingresa a Soporte — {nombre}` | `Retorno al Sprint — {nombre}` |
+| `impact` | `1.0` (baja completa) | `0.0` (sin impacto) |
+
+```json
+// Ejemplo: María Teresa Bravo entra a soporte del 14/04 al 14/05
+{ "type": "rotacion_soporte", "person": "Maria Teresa Bravo",
+  "start_date": "2026-04-14", "end_date": "2026-05-14",
+  "title": "Ingresa a Soporte — Maria Teresa Bravo", "impact": 1.0 }
+
+{ "type": "retorno_sprint", "person": "Colaborador que regresa",
+  "start_date": "2026-04-14", "end_date": "2026-05-14",
+  "title": "Retorno al Sprint — Colaborador que regresa", "impact": 0.0 }
+```
+
+### 16.3 Borrado en Cascada
+
+Al eliminar cualquiera de los dos eventos, el sistema detecta automáticamente su evento par (mismo `start_date`, mismo `end_date`, tipo complementario) y lo borra también. Lógica en `handleDelete()`.
+
+### 16.4 Sprint Console — Detección y Visualización
+
+La Sprint Console utiliza el siguiente algoritmo para mostrar el estado de soporte:
+
+```
+Para cada sprint visible:
+  1. Filtrar allEvents donde type === "rotacion_soporte"
+     Y start_date <= sprint.end_date
+     Y (end_date || start_date) >= sprint.start_date
+     → Detecta SOLAPAMIENTO con el sprint actual
+
+  2. Si hay coincidencias → mostrar sección roja "COLABORADORES EN SOPORTE TÉCNICO"
+     con: nombre del colaborador + fecha de regreso (end_date del evento)
+
+  3. Construir Set "nombresEnSoporte" con esos nombres
+
+  4. Excluir ese Set de:
+     a) La grilla de colaboradores (no aparecen en ninguna fila)
+     b) El mapa de disponibilidad diaria (dayPersonMap)
+     → El % de capacidad final NO los cuenta
+```
+
+### 16.5 Impacto en Capacidad
+
+Las personas en soporte **NO aparecen en la grilla** ni suman ni restan al % de capacidad. Esto es intencional: la baja fue contemplada en la planificación previa. El % refleja la capacidad real del equipo Scrum activo.
+
+### 16.6 Extensibilidad Futura
+
+El campo `person` en los eventos permite construir:
+- **Historial de rotaciones** por colaborador
+- **Dashboard de soporte** (quién rotó, cuánto tiempo, frecuencia)
+- **Alertas** si alguien lleva más de N sprints en soporte
+- **Estadísticas** sobre la carga de soporte vs. capacidad Scrum
 
 ---

@@ -33,6 +33,18 @@ export function CalendarView({ T, team }) {
 
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [showDayDetail, setShowDayDetail] = useState(false);
+  const [showEditPanel, setShowEditPanel] = useState(false);
+  const [expandedDay, setExpandedDay] = useState(null);
+  const [collapsedRoles, setCollapsedRoles] = useState(new Set());
+
+  const toggleRole = (role) => {
+    setCollapsedRoles(prev => {
+      const next = new Set(prev);
+      if (next.has(role)) next.delete(role);
+      else next.add(role);
+      return next;
+    });
+  };
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -192,57 +204,52 @@ export function CalendarView({ T, team }) {
 
   function getSprintSummary(startDate, endDate) {
     if (!startDate || !endDate) return null;
-    
-    // Validar formato básico YYYY-MM-DD
     if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) return null;
 
     const start = new Date(startDate + "T12:00:00");
     const end = new Date(endDate + "T12:00:00");
-
-    // Validar que sean fechas válidas y que el rango tenga sentido
-    if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
-    if (start > end) return null;
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) return null;
 
     const summary = {
-      totalDays: 0,
-      businessDays: 0,
-      weekends: 0,
-      holidays: 0,
+      totalDays: 0, businessDays: 0, weekends: 0, holidays: 0,
+      vacations: 0, medical: 0, exam: 0, study: 0, birthdays: 0,
       dailyDetail: []
     };
 
     let curr = new Date(start);
-    let safetyCounter = 0;
+    let safety = 0;
 
-    while (curr <= end && safetyCounter < 100) { // Límite de 100 días por seguridad
-      safetyCounter++;
+    while (curr <= end && safety < 100) {
+      safety++;
       const dStr = curr.toISOString().slice(0, 10);
       const dayNum = curr.getDay();
       const isWeek = dayNum === 0 || dayNum === 6;
       const dayEvs = eventsForDay(dStr);
       const isHol = dayEvs.some(e => e.type === "holiday");
-      
-      const avail = availability[dStr] || { available: 0, total: 0, present: [], absent: [] };
+      const avail = availability[dStr] || { available: 0, total: 0, present: [], absent: [], unavailable: [] };
 
       summary.totalDays++;
-      if (isWeek) {
-        summary.weekends++;
-      } else if (isHol) {
-        summary.holidays++;
-      } else {
-        // Lógica de medios días para Inicio y Fin de sprint
-        const isStartOrEnd = dStr === startDate || dStr === endDate;
-        summary.businessDays += isStartOrEnd ? 0.5 : 1.0;
-      }
+      if (isWeek) summary.weekends++;
+      else if (isHol) summary.holidays++;
+      else summary.businessDays += (dStr === startDate || dStr === endDate) ? 0.5 : 1.0;
 
-      summary.dailyDetail.push({
-        date: dStr,
-        isWeekend: isWeek,
-        isHoliday: isHol,
-        holidayName: dayEvs.find(e => e.type === "holiday")?.title,
-        ...avail
+      // Contar tipos de ausencias (por persona/día)
+      (avail.unavailable || []).forEach(u => {
+        if (u.type === "vacation") summary.vacations++;
+        else if (u.type === "medical") summary.medical++;
+        else if (u.type === "exam") summary.exam++;
+        else if (u.type === "study") summary.study++;
       });
 
+      // Contar cumpleaños
+      const curMonthDay = dStr.slice(5, 10); // "MM-DD"
+      people.forEach(p => {
+        if (p.birthday && p.birthday.slice(5, 10) === curMonthDay) {
+          summary.birthdays++;
+        }
+      });
+
+      summary.dailyDetail.push({ date: dStr, isWeekend: isWeek, isHoliday: isHol, holidayName: dayEvs.find(e => e.type === "holiday")?.title, ...avail });
       curr.setDate(curr.getDate() + 1);
     }
     return summary;
@@ -318,6 +325,10 @@ export function CalendarView({ T, team }) {
       const payload = { ...form, title: autoTitle };
       if (payload.type === "manual_sprint" && !payload.impact) {
         payload.impact = 0.0;
+      }
+      // Asegurar impacto 100% si no es sprint manual (mejora brief)
+      if (payload.type !== "manual_sprint" && payload.type !== "rotacion_soporte") {
+        payload.impact = payload.impact || 1.0;
       }
       delete payload.personSwap;
       
@@ -775,12 +786,8 @@ export function CalendarView({ T, team }) {
             background: cardBg, 
             borderRadius: 20, 
             padding: 0, 
-            width: "100%", 
-            maxWidth: (
-              form.type === "manual_sprint" || 
-              selectedEvent?.type === "manual_sprint" || 
-              eventsForDay(form.start_date).some(e => e.type === "manual_sprint" && e.start_date === form.start_date)
-            ) ? 1000 : 460, 
+            width: "fit-content", 
+            maxWidth: "96vw", 
             boxShadow: "0 25px 70px rgba(0,0,0,0.5)", 
             border: `1px solid ${borderColor}`, 
             overflow: "hidden", 
@@ -790,7 +797,8 @@ export function CalendarView({ T, team }) {
           }}>
             
             {/* SECCIÓN IZQUIERDA: GESTIÓN DE EVENTOS */}
-            <div style={{ flex: 1, padding: "32px", background: theme.bg === "#0F172A" ? "#1E293B50" : "#F8FAFC", borderRight: `1px solid ${borderColor}`, overflowY: "auto", display: "flex", flexDirection: "column", gap: 32 }}>
+            {(!eventsForDay(form.start_date).some(e => e.type === "manual_sprint" && e.start_date === form.start_date) || showEditPanel || isMobile) && (
+              <div style={{ flex: 1, padding: "32px", background: theme.bg === "#0F172A" ? "#1E293B50" : "#F8FAFC", borderRight: `1px solid ${borderColor}`, overflowY: "auto", display: "flex", flexDirection: "column", gap: 32 }}>
               
               {/* Header Día */}
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -911,7 +919,12 @@ export function CalendarView({ T, team }) {
                             return (
                               <button 
                                 key={k} 
-                                onClick={() => setForm({ ...form, type: k, color: v.color })}
+                                onClick={() => setForm({ 
+                                  ...form, 
+                                  type: k, 
+                                  color: v.color,
+                                  impact: k === "manual_sprint" ? 0.0 : 1.0
+                                })}
                                 style={{
                                   padding: "10px 4px", borderRadius: 12, border: `2px solid ${isActive ? v.color : borderColor}`,
                                   background: isActive ? v.color + "15" : cardBg,
@@ -954,16 +967,44 @@ export function CalendarView({ T, team }) {
                     )}
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-                    <div>
-                      <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700, marginBottom: 6, display: "block" }}>Fecha Inicio</label>
-                      <input type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} style={{ ...inputStyle, padding: "12px" }} />
+                  {form.type === "rotacion_soporte" ? (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                      <div>
+                        <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700, marginBottom: 6, display: "block" }}>Inicio de Rotación</label>
+                        <input type="date" value={form.start_date} disabled style={{ ...inputStyle, padding: "12px", opacity: 0.6 }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700, marginBottom: 6, display: "block" }}>Hasta el Sprint (apertura)</label>
+                        <select 
+                          value={form.end_date} 
+                          onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))}
+                          style={{ ...inputStyle, padding: "12px", fontSize: 14 }}
+                        >
+                          <option value="">— Seleccionar sprint —</option>
+                          {events
+                            .filter(e => e.type === "manual_sprint" && e.start_date > form.start_date)
+                            .sort((a, b) => a.start_date.localeCompare(b.start_date))
+                            .map(sprint => (
+                              <option key={sprint.id} value={sprint.start_date}>
+                                {sprint.title} ({new Date(sprint.start_date + "T12:00:00").toLocaleDateString('es-AR', { day: '2-digit', month: 'short' })})
+                              </option>
+                            ))
+                          }
+                        </select>
+                      </div>
                     </div>
-                    <div>
-                      <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700, marginBottom: 6, display: "block" }}>Fecha Fin</label>
-                      <input type="date" value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))} style={{ ...inputStyle, padding: "12px" }} />
+                  ) : (
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                      <div>
+                        <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700, marginBottom: 6, display: "block" }}>Fecha Inicio</label>
+                        <input type="date" value={form.start_date} onChange={(e) => setForm((f) => ({ ...f, start_date: e.target.value }))} style={{ ...inputStyle, padding: "12px" }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: mutedColor, fontWeight: 700, marginBottom: 6, display: "block" }}>Fecha Fin</label>
+                        <input type="date" value={form.end_date} onChange={(e) => setForm((f) => ({ ...f, end_date: e.target.value }))} style={{ ...inputStyle, padding: "12px" }} />
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {form.type !== "manual_sprint" && (
                     <>
@@ -1000,6 +1041,7 @@ export function CalendarView({ T, team }) {
                 </div>
               </div>
             </div>
+          )}
 
             {/* SECCIÓN DERECHA: SPRINT CONSOLE (PREMIUM) */}
             {(() => {
@@ -1014,7 +1056,7 @@ export function CalendarView({ T, team }) {
               const s = getSprintSummary(sStart, sEnd);
               
               return (
-                <div style={{ flex: 1.5, background: theme.bg === "#0F172A" ? "#0F172A" : "#FFFFFF", padding: "32px", overflowY: "auto" }}>
+                <div style={{ flex: 1.5, background: theme.bg === "#0F172A" ? "#0F172A" : "#FFFFFF", padding: "32px", overflowY: "auto", position: "relative" }}>
                   {!s ? (
                     <div style={{ color: mutedColor, textAlign: "center", marginTop: 40 }}>Definí fechas para ver el resumen</div>
                   ) : (
@@ -1029,98 +1071,291 @@ export function CalendarView({ T, team }) {
                         <div style={{ fontSize: 14, color: "#3B82F6", fontWeight: 800 }}>{sTitle}</div>
                       </div>
                       
-                      {/* Stats con Gradientes */}
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 16, marginBottom: 40 }}>
+                                   {/* HEADER DE LA CONSOLA: Título y Botón de Gestión */}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+                        <div>
+                          <div style={{ fontSize: 20, fontWeight: 900, color: textColor, lineHeight: 1.2 }}>
+                            {sTitle || "Sprint Console"}
+                          </div>
+                          <div style={{ fontSize: 12, color: mutedColor, fontWeight: 500, marginTop: 4 }}>
+                            {new Date(sStart + "T12:00:00").toLocaleDateString('es-AR', { day: '2-digit', month: 'long' })} - {new Date(sEnd + "T12:00:00").toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                          </div>
+                        </div>
+
+                        {!isMobile && (
+                          <button 
+                            onClick={() => setShowEditPanel(!showEditPanel)}
+                            style={{
+                              padding: "8px 16px", borderRadius: 10,
+                              background: showEditPanel ? (theme.bg === "#0F172A" ? "#1E293B" : "#F1F5F9") : "#3B82F6",
+                              color: showEditPanel ? textColor : "#fff",
+                              border: "none", fontWeight: 800, fontSize: 12, cursor: "pointer",
+                              display: "flex", alignItems: "center", gap: 8, transition: "0.2s"
+                            }}
+                          >
+                            <span>{showEditPanel ? "✕ Cerrar" : "✏️ Gestionar Día"}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* === PANEL DE ESTADÍSTICAS DEL SPRINT (MINI CARDS) === */}
+                      <div style={{ display: "flex", flexWrap: "nowrap", gap: 10, marginBottom: 20, overflowX: "auto", paddingBottom: 8 }}>
                         {[
-                          { label: "Laborables", val: s.businessDays, color: "#3B82F6", icon: "💼" },
-                          { label: "Feriados", val: s.holidays, color: "#F97316", icon: "🇦🇷" },
-                          { label: "Descanso", val: s.weekends, color: "#EF4444", icon: "⛱️" }
+                          { label: "Laborales", val: s.businessDays, icon: "💼" },
+                          { label: "Feriados", val: s.holidays, icon: "🇦🇷" },
+                          { label: "Findes", val: s.weekends, icon: "⛔" },
+                          { label: "Cumples", val: s.birthdays, icon: "🎂" },
+                          { label: "Vacaciones", val: s.vacations, icon: "🏖️" },
+                          { label: "Lic. Médica", val: s.medical, icon: "🏥" },
+                          { label: "Lic. Examen", val: s.exam, icon: "📝" },
+                          { label: "Lic. Estudio", val: s.study, icon: "📚" },
                         ].map((stat, i) => (
-                          <div key={i} style={{ 
-                            background: theme.bg === "#0F172A" ? "#ffffff05" : "#F8FAFC", 
-                            padding: "20px 12px", borderRadius: 20, textAlign: "center",
-                            border: `1px solid ${borderColor}`,
-                            boxShadow: "0 4px 12px rgba(0,0,0,0.03)"
+                          <div key={i} style={{
+                            padding: "8px 12px", borderRadius: 12, background: theme.bg === "#0F172A" ? "#1E293B" : "#F8FAFC",
+                            border: `1px solid ${borderColor}`, display: "flex", alignItems: "center", gap: 10,
+                            minWidth: 100, flexShrink: 0
                           }}>
-                            <div style={{ fontSize: 18, marginBottom: 8 }}>{stat.icon}</div>
-                            <div style={{ fontSize: 28, fontWeight: 950, color: stat.color, lineHeight: 1 }}>{stat.val}</div>
-                            <div style={{ fontSize: 10, color: mutedColor, fontWeight: 700, marginTop: 4, textTransform: "uppercase" }}>{stat.label}</div>
+                            <span style={{ fontSize: 18 }}>{stat.icon}</span>
+                            <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+                              <span style={{ fontSize: 14, fontWeight: 900, color: textColor, lineHeight: 1 }}>{stat.val}</span>
+                              <span style={{ fontSize: 9, fontWeight: 700, color: mutedColor, textTransform: "uppercase", letterSpacing: "0.5px" }}>{stat.label}</span>
+                            </div>
                           </div>
                         ))}
                       </div>
 
-                      {/* Desglose Diario Premium */}
-                      <div style={{ fontSize: 13, fontWeight: 900, color: textColor, marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{ width: 4, height: 14, background: "#10B981", borderRadius: 2 }} />
-                        Capacidad Proyectada
-                      </div>
-                      
-                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                        {s.dailyDetail.map((d, i) => {
-                          const isSpecial = d.isWeekend || d.isHoliday;
-                          return (
-                            <details key={i} style={{ 
-                              background: isSpecial ? (d.isHoliday ? "#F9731608" : "#EF444405") : cardBg, 
-                              borderRadius: 16, border: `1px solid ${isSpecial ? (d.isHoliday ? "#F9731630" : "#EF444420") : borderColor}`,
-                              overflow: "hidden"
-                            }}>
-                              <summary style={{ cursor: "pointer", padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
-                                <div style={{ 
-                                  width: 48, textAlign: "center", fontSize: 11, fontWeight: 900, 
-                                  color: d.isWeekend ? "#EF4444" : (d.isHoliday ? "#F97316" : textColor),
-                                  textTransform: "uppercase"
-                                }}>
-                                  {new Date(d.date + "T12:00:00").toLocaleDateString('es-AR', { weekday: 'short', day: '2-digit' })}
-                                </div>
-                                
-                                {d.isHoliday ? (
-                                  <div style={{ flex: 1, fontSize: 12, fontWeight: 800, color: "#F97316" }}>🇦🇷 {d.holidayName}</div>
-                                ) : d.isWeekend ? (
-                                  <div style={{ flex: 1, fontSize: 12, fontWeight: 700, color: mutedColor, opacity: 0.6 }}>Día de descanso</div>
-                                ) : (
-                                  <>
-                                    <div style={{ flex: 1, height: 8, background: theme.bg === "#0F172A" ? "#ffffff10" : "#E2E8F0", borderRadius: 4, overflow: "hidden" }}>
-                                      <div style={{ 
-                                        width: `${(d.available / d.total) * 100}%`, height: "100%", 
-                                        background: d.available === d.total ? "linear-gradient(90deg, #10B981, #34D399)" : "linear-gradient(90deg, #F59E0B, #FBBF24)",
-                                        boxShadow: "0 0 10px rgba(16,185,129,0.2)"
-                                      }} />
-                                    </div>
-                                    <div style={{ fontSize: 13, fontWeight: 900, color: textColor, minWidth: 40, textAlign: "right" }}>
-                                      {d.available}<span style={{ opacity: 0.4, fontWeight: 500 }}>/{d.total}</span>
-                                    </div>
-                                  </>
-                                )}
-                              </summary>
-                              <div style={{ padding: "10px 18px 18px 70px", display: "flex", flexDirection: "column", gap: 12 }}>
-                                {d.present?.length > 0 && (
-                                  <div>
-                                    <div style={{ fontSize: 10, fontWeight: 800, color: mutedColor, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>✅ Disponibles para el Sprint</div>
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                                      {d.present.map(p => <span key={p} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, background: "#10B98115", color: "#059669", fontWeight: 800, border: "1px solid #10B98120" }}>✓ {p}</span>)}
+                      {(() => {
+                        // === SECCIÓN EN SOPORTE ===
+                        // Busca eventos de tipo "rotacion_soporte" que se solapen con el sprint actual
+                        const eventosEnSoporte = allEvents.filter(e => {
+                          if (e.type !== "rotacion_soporte") return false;
+                          // Se solapa si el evento empieza antes del fin del sprint
+                          // y termina después del inicio del sprint
+                          return e.start_date <= sEnd && (e.end_date || e.start_date) >= sStart;
+                        });
+
+                        if (eventosEnSoporte.length === 0) return null;
+
+                        return (
+                          <div style={{ marginBottom: 24, padding: "14px 18px", borderRadius: 16, background: "#EF444410", border: "1.5px solid #EF444430" }}>
+                            <div style={{ fontSize: 10, fontWeight: 900, color: "#EF4444", textTransform: "uppercase", letterSpacing: "1.2px", marginBottom: 12, display: "flex", alignItems: "center", gap: 8 }}>
+                              <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#EF4444" }} />
+                              Colaboradores en Soporte Técnico
+                            </div>
+                            <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                              {eventosEnSoporte.map(ev => {
+                                // Calcular fecha de retorno: el evento "retorno_sprint" que tenga la misma persona/rango
+                                const retornoEv = allEvents.find(e =>
+                                  e.type === "retorno_sprint" &&
+                                  e.start_date === ev.start_date &&
+                                  e.end_date === ev.end_date
+                                );
+                                const retornoDate = ev.end_date || ev.start_date;
+                                const retornoLabel = retornoEv
+                                  ? (retornoEv.title || new Date(retornoDate + "T12:00:00").toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }))
+                                  : new Date(retornoDate + "T12:00:00").toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
+
+                                return (
+                                  <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 8, background: cardBg, padding: "8px 14px", borderRadius: 12, border: `1px solid ${borderColor}`, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
+                                    <div style={{ fontSize: 13, fontWeight: 800, color: textColor }}>{ev.person}</div>
+                                    <div style={{ width: 1, height: 14, background: borderColor }} />
+                                    <div style={{ fontSize: 11, fontWeight: 600, color: mutedColor }}>
+                                      Regresa: <span style={{ color: "#3B82F6", fontWeight: 800 }}>{retornoLabel}</span>
                                     </div>
                                   </div>
-                                )}
-                                {d.unavailable?.length > 0 && (
-                                  <div>
-                                    <div style={{ fontSize: 10, fontWeight: 800, color: mutedColor, marginBottom: 6, textTransform: "uppercase", letterSpacing: 0.5 }}>⛔ En Otra Actividad</div>
-                                    <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                                      {d.unavailable.map(u => {
-                                        const typeInfo = eventTypes[u.type] || ABSENCE_TYPES[u.type] || { icon: "📌", color: "#EF4444" };
-                                        return (
-                                          <span key={u.name} style={{ fontSize: 10, padding: "4px 10px", borderRadius: 20, background: `${typeInfo.color}15`, color: typeInfo.color, fontWeight: 800, border: `1px solid ${typeInfo.color}20` }}>
-                                            {typeInfo.icon} {u.name}
-                                          </span>
-                                        );
-                                      })}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </details>
-                          );
-                        })}
-                      </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {(() => {
+                        // Calcular quiénes están en soporte durante este sprint (por eventos, no por rol)
+                        const nombresEnSoporte = new Set(
+                          allEvents
+                            .filter(e =>
+                              e.type === "rotacion_soporte" &&
+                              e.start_date <= sEnd &&
+                              (e.end_date || e.start_date) >= sStart
+                            )
+                            .map(e => e.person)
+                            .filter(Boolean)
+                        );
+
+                        // Excluir de la grilla a quienes están en soporte técnico este sprint
+                        const personasActivas = people.filter(p => !nombresEnSoporte.has(p.name));
+                        const rolesPresentes = [...new Set(personasActivas.map(p => p.role || "Sin Rol"))].sort();
+                        const ROLE_COLORS = ["#8B5CF6", "#3B82F6", "#10B981", "#F59E0B", "#06B6D4", "#EC4899", "#84cc16"];
+                        const personsByGroup = {};
+                        rolesPresentes.forEach((role) => {
+                          personsByGroup[role] = personasActivas.filter(p => (p.role || "Sin Rol") === role);
+                        });
+
+                        const dayPersonMap = {};
+                        s.dailyDetail.forEach(d => {
+                          dayPersonMap[d.date] = {};
+                          if (d.isWeekend) {
+                            personasActivas.forEach(p => { dayPersonMap[d.date][p.name] = { status: "weekend" }; });
+                          } else if (d.isHoliday) {
+                            personasActivas.forEach(p => { dayPersonMap[d.date][p.name] = { status: "holiday", label: d.holidayName }; });
+                          } else {
+                            (d.present || []).forEach(name => {
+                              if (!nombresEnSoporte.has(name)) {
+                                dayPersonMap[d.date][name] = { status: "present" };
+                              }
+                            });
+                            (d.unavailable || []).forEach(u => {
+                              if (!nombresEnSoporte.has(u.name)) {
+                                const typeInfo = eventTypes[u.type] || ABSENCE_TYPES[u.type] || { icon: "📌", color: "#EF4444" };
+                                dayPersonMap[d.date][u.name] = { status: "absent", type: u.type, icon: typeInfo.icon, color: typeInfo.color };
+                              }
+                            });
+                          }
+                        });
+
+                        const COL_W = 52; 
+                        const ROW_NAME_W = 200; 
+
+                        return (
+                          <div style={{ overflowX: "auto", borderRadius: 16, border: `1px solid ${borderColor}` }}>
+                            <table style={{ borderCollapse: "collapse", minWidth: "100%", tableLayout: "fixed" }}>
+                              <thead>
+                                <tr>
+                                  <th style={{
+                                    width: ROW_NAME_W, minWidth: ROW_NAME_W,
+                                    padding: "10px 14px", textAlign: "left",
+                                    fontSize: 10, fontWeight: 800, color: mutedColor, textTransform: "uppercase",
+                                    background: theme.bg === "#0F172A" ? "#1E293B" : "#F8FAFC",
+                                    borderBottom: `1px solid ${borderColor}`,
+                                    position: "sticky", left: 0, zIndex: 2
+                                  }}>
+                                    Colaborador
+                                  </th>
+                                  {s.dailyDetail.map((d, i) => {
+                                    const isWeekend = d.isWeekend;
+                                    const isHoliday = d.isHoliday;
+                                    const dayDate = new Date(d.date + "T12:00:00");
+                                    return (
+                                      <th key={i} style={{
+                                        width: COL_W, minWidth: COL_W,
+                                        padding: "8px 2px",
+                                        textAlign: "center",
+                                        background: isHoliday ? "#F9731615" : isWeekend ? "#EF444410" : (theme.bg === "#0F172A" ? "#1E293B" : "#F8FAFC"),
+                                        borderBottom: `1px solid ${borderColor}`,
+                                        borderLeft: `1px solid ${borderColor}20`
+                                      }}>
+                                        <div style={{ fontSize: 9, fontWeight: 800, textTransform: "uppercase", color: isWeekend ? "#EF4444" : isHoliday ? "#F97316" : mutedColor }}>
+                                          {dayDate.toLocaleDateString('es-AR', { weekday: 'short' })}
+                                        </div>
+                                        <div style={{ fontSize: 14, fontWeight: 900, color: isWeekend ? "#EF4444" : isHoliday ? "#F97316" : textColor }}>
+                                          {dayDate.toLocaleDateString('es-AR', { day: '2-digit' })}
+                                        </div>
+                                      </th>
+                                    );
+                                  })}
+                                </tr>
+                              </thead>
+
+                              <tbody>
+                                {rolesPresentes.map((role, rIdx) => {
+                                  const groupPeople = personsByGroup[role];
+                                  const groupColor = ROLE_COLORS[rIdx % ROLE_COLORS.length];
+                                  const isCollapsed = collapsedRoles.has(role);
+
+                                  return [
+                                    <tr key={`role-${role}`} onClick={() => toggleRole(role)} style={{ cursor: "pointer" }}>
+                                      <td colSpan={s.dailyDetail.length + 1} style={{
+                                        padding: "10px 14px 6px", background: `${groupColor}12`,
+                                        borderTop: `2px solid ${groupColor}40`, borderBottom: `1px solid ${groupColor}20`,
+                                      }}>
+                                        <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 11, fontWeight: 900, color: groupColor, textTransform: "uppercase" }}>
+                                          <span style={{ fontSize: 14, transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)", transition: "0.2s" }}>▼</span>
+                                          {role} <span style={{ fontWeight: 500, color: mutedColor, fontSize: 10 }}>({groupPeople.length})</span>
+                                        </div>
+                                      </td>
+                                    </tr>,
+                                    !isCollapsed && groupPeople.map(person => (
+                                      <tr key={person.name}>
+                                        <td style={{
+                                          padding: "8px 14px", fontSize: 12, fontWeight: 700, color: textColor,
+                                          background: theme.bg === "#0F172A" ? "#0F172A" : "#FFFFFF",
+                                          borderBottom: `1px solid ${borderColor}20`,
+                                          position: "sticky", left: 0, zIndex: 1,
+                                          whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: ROW_NAME_W
+                                        }}>{person.name}</td>
+                                        {s.dailyDetail.map((d, di) => {
+                                          const state = dayPersonMap[d.date][person.name] || { status: "none" };
+                                          return (
+                                            <td key={di} style={{
+                                              padding: "6px 2px", textAlign: "center",
+                                              borderBottom: `1px solid ${borderColor}15`, borderLeft: `1px solid ${borderColor}15`,
+                                              background: d.isHoliday ? "#F9731605" : d.isWeekend ? "#EF444405" : "transparent"
+                                            }}>
+                                              {state.status === "present" && <span style={{ color: "#10B981", fontWeight: 900, fontSize: 14 }}>✓</span>}
+                                              {state.status === "absent" && (
+                                                <div title={state.type} style={{ fontSize: 16, cursor: "help" }}>{state.icon}</div>
+                                              )}
+                                              {state.status === "weekend" && <span style={{ color: "#EF4444", opacity: 0.3, fontSize: 10 }}>⛔</span>}
+                                              {state.status === "holiday" && <span style={{ color: "#F97316", opacity: 0.6, fontSize: 14 }}>🇦🇷</span>}
+                                            </td>
+                                          );
+                                        })}
+                                      </tr>
+                                    ))
+                                  ];
+                                })}
+
+                                <tr style={{ background: theme.bg === "#0F172A" ? "#1E293B" : "#F8FAFC" }}>
+                                  <td style={{
+                                    padding: "10px 14px", fontSize: 10, fontWeight: 900, color: mutedColor, textTransform: "uppercase",
+                                    background: theme.bg === "#0F172A" ? "#1E293B" : "#F8FAFC",
+                                    borderTop: `2px solid ${borderColor}`, position: "sticky", left: 0, zIndex: 1
+                                  }}>Capacidad</td>
+                                  {s.dailyDetail.map((d, di) => {
+                                    const isSpecial = d.isWeekend || d.isHoliday;
+                                    
+                                    // Ajustar total y disponible excluyendo a la gente de soporte
+                                    let adjTotal = d.total;
+                                    let adjAvailable = d.available;
+                                    
+                                    nombresEnSoporte.forEach(name => {
+                                      adjTotal -= 1;
+                                      // Si la persona estaba contabilizada como presente ese día, la restamos del available
+                                      if (d.present && d.present.includes(name)) {
+                                        adjAvailable -= 1;
+                                      } else if (d.unavailable) {
+                                        // Si tenía una ausencia parcial, restamos su parte disponible
+                                        const u = d.unavailable.find(x => x.name === name);
+                                        if (u && typeof u.impact === "number" && u.impact < 1) {
+                                          adjAvailable -= (1 - u.impact);
+                                        }
+                                      }
+                                    });
+
+                                    // Asegurar que no den negativos por desfasajes decimales
+                                    adjTotal = Math.max(0, adjTotal);
+                                    adjAvailable = Math.max(0, adjAvailable);
+
+                                    const capPct = adjTotal > 0 ? Math.round((adjAvailable / adjTotal) * 100) : 0;
+                                    const capColor = capPct === 100 ? "#10B981" : capPct >= 70 ? "#F59E0B" : "#EF4444";
+                                    
+                                    return (
+                                      <td key={di} style={{
+                                        padding: "6px 2px", textAlign: "center", borderTop: `2px solid ${borderColor}`,
+                                        borderLeft: `1px solid ${borderColor}20`,
+                                        background: isSpecial ? (d.isHoliday ? "#F9731608" : "#EF444408") : (theme.bg === "#0F172A" ? "#1E293B" : "#F8FAFC")
+                                      }}>
+                                        {!isSpecial && <div style={{ fontSize: 11, fontWeight: 900, color: capColor }}>{capPct}%</div>}
+                                      </td>
+                                    );
+                                  })}
+                                </tr>
+                              </tbody>
+                            </table>
+                          </div>
+                        );
+                      })()}
                     </>
                   )}
                 </div>

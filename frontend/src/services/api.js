@@ -1,7 +1,7 @@
 import axios from "axios";
 
 const BASE_URL = window.location.port === "5173" 
-  ? import.meta.env.VITE_API_URL 
+  ? `http://${window.location.hostname}:8000/api/v1` 
   : "/api";
 
 // Obligamos al navegador a adjuntar las cookies de Cloudflare SIEMPRE
