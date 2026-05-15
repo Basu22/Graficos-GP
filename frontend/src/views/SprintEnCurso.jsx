@@ -187,6 +187,14 @@ export function SprintEnCurso({ team, T }) {
   const theme = T || THEMES.light;
   const { data, loading, lastUpdated, refresh } = useFetch(`${API}/active-sprint/?team=${team}`, 5 * 60 * 1000);
 
+  // ── Panel Tareas Recurrentes (Hooks antes de los early returns) ─────────────
+  const [taskPanel, setTaskPanel] = useState(false);
+  const [epics, setEpics]         = useState([]);
+  const [loadingEpics, setLoadingEpics] = useState(false);
+  const [epicOverrides, setEpicOverrides] = useState({});
+  const [taskResults, setTaskResults]     = useState({});   // { [template_key]: TaskResult }
+  const [creatingTeam, setCreatingTeam]   = useState(null); // "back" | "datos" | "all" | null
+
   if (loading) return <Spinner />;
   if (!data || data.error) return (
     <div style={{ textAlign: "center", padding: 60, color: "#94a3b8", fontSize: 14 }}>
@@ -199,6 +207,89 @@ export function SprintEnCurso({ team, T }) {
   const daysLeft = sprint.end_date
     ? Math.ceil((new Date(sprint.end_date) - new Date()) / (1000 * 60 * 60 * 24))
     : null;
+
+  // Extraer nro de sprint del nombre (ej: "OfertaMin - Back - Sprint 61" → 61)
+  const sprintNumber = (() => {
+    const m = sprint.name?.match(/(\d+)\s*$/);
+    return m ? parseInt(m[1]) : null;
+  })();
+
+  const loadEpics = async () => {
+    if (epics.length > 0) return;
+    setLoadingEpics(true);
+    try {
+      // 1. Cargamos épicas en progreso
+      // 2. Escaneamos si alguna tarea ya existe
+      const [rEpics, rCheck] = await Promise.all([
+        fetch(`${API}/sprints/active-epics`),
+        fetch(`${API}/sprints/${sprintNumber}/check-recurrent-tasks`)
+      ]);
+      
+      const dataEpics = await rEpics.json();
+      const dataCheck = await rCheck.json();
+      
+      setEpics(dataEpics);
+      
+      // Si la API devolvió tareas que ya existen, inyectarlas en el estado visual (TaskResults)
+      const existingMap = {};
+      Object.entries(dataCheck).forEach(([tplKey, issue]) => {
+        existingMap[tplKey] = {
+          template_key: tplKey,
+          status: "already_exists",
+          key: issue.key,
+          url: `https://jira.gbsj.com.ar/browse/${issue.key}`
+        };
+      });
+      setTaskResults(prev => ({ ...prev, ...existingMap }));
+      
+    } catch (e) {
+      console.error("Error cargando épicas o chequeando tareas:", e);
+    }
+    setLoadingEpics(false);
+  };
+
+  const togglePanel = () => {
+    if (!taskPanel) loadEpics();
+    setTaskPanel(p => !p);
+  };
+
+  const createTasks = async (teamTarget) => {
+    if (!sprintNumber) return alert("No se pudo detectar el número de Sprint del nombre: " + sprint.name);
+    setCreatingTeam(teamTarget);
+    try {
+      const r = await fetch(`${API}/sprints/create-recurrent-tasks`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sprint_number: sprintNumber,
+          sprint_id: sprint.id,
+          team: teamTarget,
+          epic_overrides: Object.keys(epicOverrides).length ? epicOverrides : undefined,
+        }),
+      });
+      const results = await r.json();
+      const map = {};
+      results.forEach(r => { map[r.template_key] = r; });
+      setTaskResults(prev => ({ ...prev, ...map }));
+    } catch (e) {
+      console.error("Error creando tareas:", e);
+    }
+    setCreatingTeam(null);
+  };
+
+  const TEMPLATES = [
+    { key: "sesiones_back",  label: "Sesiones Ágiles Backend",  team: "back",  epic: "AGOM-1505" },
+    { key: "reuniones_back", label: "Reuniones Backend",         team: "back",  epic: "AGOM-1506" },
+    { key: "sesiones_datos", label: "Sesiones Ágiles Datos",     team: "datos", epic: "AGOM-1507" },
+    { key: "reuniones_datos",label: "Reuniones Datos",           team: "datos", epic: "AGOM-1508" },
+  ];
+
+  const STATUS_BADGE = {
+    created:        { bg: "#DCFCE7", color: "#16A34A", icon: "✅", text: "Creada" },
+    already_exists: { bg: "#FEF3C7", color: "#D97706", icon: "⚠️", text: "Ya existe" },
+    error:          { bg: "#FEE2E2", color: "#DC2626", icon: "❌", text: "Error" },
+  };
+
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -338,6 +429,134 @@ export function SprintEnCurso({ team, T }) {
             </ResponsiveContainer>
           )}
         </ChartCard>
+      </div>
+
+      {/* ── Panel Tareas Recurrentes de Sprint ────────────────────────────── */}
+      <div style={{ background: theme?.card || "#fff", borderRadius: 12, border: `1px solid ${theme?.cardBorder || "#e2e8f0"}`, boxShadow: "0 1px 4px rgba(0,0,0,0.08)", overflow: "hidden" }}>
+        {/* Header colapsable */}
+        <div
+          onClick={togglePanel}
+          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 20px", cursor: "pointer", userSelect: "none",
+            background: taskPanel ? (theme?.bg === "#0F172A" ? "#1e3a5f" : "#EFF6FF") : "transparent",
+            borderBottom: taskPanel ? `1px solid ${theme?.cardBorder || "#e2e8f0"}` : "none",
+            transition: "background 0.2s" }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 16 }}>⚡</span>
+            <span style={{ fontSize: 13, fontWeight: 800, color: theme?.text || "#1e293b", textTransform: "uppercase", letterSpacing: 0.8 }}>Tareas Recurrentes de Sprint</span>
+            {sprintNumber && <span style={{ background: "#3B82F6", color: "#fff", borderRadius: 20, padding: "1px 10px", fontSize: 11, fontWeight: 700 }}>Sprint {sprintNumber}</span>}
+          </div>
+          <span style={{ fontSize: 12, color: theme?.textMuted || "#64748b", transform: taskPanel ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.2s" }}>▼</span>
+        </div>
+
+        {/* Contenido del panel */}
+        {taskPanel && (
+          <div style={{ padding: "20px 24px", display: "flex", flexDirection: "column", gap: 20 }}>
+
+            {/* Tabla de templates con selector de épica */}
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: theme?.textMuted || "#64748b", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 12 }}>
+                Épicas — {loadingEpics ? "Cargando..." : `${epics.length} en progreso`}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                {TEMPLATES.map(tpl => {
+                  const result  = taskResults[tpl.key];
+                  const badge   = result ? STATUS_BADGE[result.status] : null;
+                  const curEpic = epicOverrides[tpl.key] || tpl.epic;
+                  const teamColor = tpl.team === "back" ? "#3B82F6" : "#8B5CF6";
+                  return (
+                    <div key={tpl.key} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 10, background: theme?.bg === "#0F172A" ? "#1e293b" : "#F8FAFC", border: `1px solid ${theme?.cardBorder || "#e2e8f0"}` }}>
+                      <div style={{ width: 8, height: 8, borderRadius: "50%", background: teamColor, flexShrink: 0 }} />
+                      <div style={{ flex: 1, fontSize: 12, fontWeight: 600, color: theme?.text || "#1e293b" }}>
+                        {tpl.label}
+                        <div style={{ fontSize: 10, color: theme?.textMuted || "#94a3b8", marginTop: 2, fontWeight: 400 }}>
+                          {tpl.key.startsWith("sesiones") ? "Sesiones Ágiles Equipo" : "Reuniones Equipo"} {tpl.team === "back" ? "Backend" : "Datos"} - Oferta Minorista Sprint {sprintNumber}
+                        </div>
+                      </div>
+
+                      {/* Selector de épica */}
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 200 }}>
+                        <label style={{ fontSize: 9, color: theme?.textMuted || "#94a3b8", fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5 }}>Épica</label>
+                        <select
+                          value={curEpic}
+                          onChange={e => setEpicOverrides(p => ({ ...p, [tpl.key]: e.target.value }))}
+                          style={{ fontSize: 11, padding: "4px 8px", borderRadius: 6, border: `1px solid ${theme?.cardBorder || "#e2e8f0"}`, background: theme?.card || "#fff", color: theme?.text || "#1e293b", cursor: "pointer", maxWidth: 300 }}
+                        >
+                          {epics.length === 0 && <option value={tpl.epic}>{tpl.epic}...</option>}
+                          
+                          {/* Muestra todas las épicas activas con su título real de Jira */}
+                          {epics.map(ep => (
+                            <option key={ep.key} value={ep.key}>
+                              {ep.key} — {ep.summary.length > 45 ? ep.summary.slice(0, 45) + '...' : ep.summary}
+                            </option>
+                          ))}
+                          
+                          {/* Si la épica configurada por defecto ya no está "En progreso" en Jira, la muestra igual como inactiva */}
+                          {epics.length > 0 && !epics.some(ep => ep.key === tpl.epic) && (
+                            <option value={tpl.epic}>{tpl.epic} (Inactiva / No encontrada)</option>
+                          )}
+                        </select>
+                        {curEpic !== tpl.epic && (
+                          <div style={{ fontSize: 9, color: "#F59E0B", fontWeight: 700 }}>⚠ Épica override activa</div>
+                        )}
+                      </div>
+
+                      {/* Badge de estado */}
+                      {badge ? (
+                        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: 80 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 8px", borderRadius: 10, background: badge.bg, color: badge.color }}>
+                            {badge.icon} {badge.text}
+                          </span>
+                          {result.key && (
+                            <a href={result.url} target="_blank" rel="noreferrer"
+                              style={{ fontSize: 10, color: "#3B82F6", fontWeight: 700, textDecoration: "none" }}
+                              onMouseEnter={e => e.target.style.textDecoration="underline"}
+                              onMouseLeave={e => e.target.style.textDecoration="none"}>
+                              {result.key} ↗
+                            </a>
+                          )}
+                          {result.error && <div style={{ fontSize: 9, color: "#EF4444", maxWidth: 120, wordBreak: "break-word" }}>{result.error}</div>}
+                        </div>
+                      ) : <div style={{ minWidth: 80 }} />}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Botones de acción */}
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", borderTop: `1px solid ${theme?.cardBorder || "#e2e8f0"}`, paddingTop: 16 }}>
+              {[
+                { target: "back",  label: "🔵 Crear tareas Backend",  color: "#3B82F6" },
+                { target: "datos", label: "🟣 Crear tareas Datos",    color: "#8B5CF6" },
+                { target: "all",   label: "⚡ Crear todas (2 equipos)", color: "#0F172A" },
+              ].map(btn => (
+                <button
+                  key={btn.target}
+                  onClick={() => createTasks(btn.target)}
+                  disabled={!!creatingTeam}
+                  style={{
+                    padding: "9px 18px", borderRadius: 10, border: "none",
+                    background: creatingTeam === btn.target ? "#94a3b8" : btn.color,
+                    color: "#fff", fontWeight: 700, fontSize: 12, cursor: creatingTeam ? "not-allowed" : "pointer",
+                    opacity: creatingTeam && creatingTeam !== btn.target ? 0.5 : 1,
+                    transition: "all 0.2s", display: "flex", alignItems: "center", gap: 6,
+                  }}
+                >
+                  {creatingTeam === btn.target ? "⏳ Creando..." : btn.label}
+                </button>
+              ))}
+              {Object.keys(taskResults).length > 0 && (
+                <button
+                  onClick={() => setTaskResults({})}
+                  style={{ padding: "9px 14px", borderRadius: 10, border: `1px solid ${theme?.cardBorder || "#e2e8f0"}`, background: "transparent", color: theme?.textMuted || "#64748b", fontSize: 12, cursor: "pointer" }}
+                >
+                  🗑 Limpiar resultados
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Kanban */}

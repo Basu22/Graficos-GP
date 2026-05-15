@@ -228,6 +228,38 @@ class JiraClient:
                 
         return list(unique_users.values())
 
+    async def create_issue(self, fields: dict) -> dict:
+        """Crea una issue en Jira. Recibe el dict 'fields' directo y retorna {key, id, url}."""
+        url = f"{self.base_url}/rest/api/2/issue"
+        client = get_http_client()
+        r = await client.post(url, headers=self.headers, json={"fields": fields})
+        r.raise_for_status()
+        data = r.json()
+        return {
+            "key": data["key"],
+            "id": data["id"],
+            "url": f"{self.base_url}/browse/{data['key']}",
+        }
+
+    async def search_issues_jql(self, jql: str, fields: list[str] = None) -> list:
+        """Búsqueda liviana por JQL, sin cache. Usada para verificar duplicados."""
+        url = f"{self.base_url}/rest/api/2/search"
+        client = get_http_client()
+        r = await client.get(url, headers=self.headers, params={
+            "jql": jql,
+            "maxResults": 5,
+            "fields": ",".join(fields or ["summary", "key"]),
+        })
+        r.raise_for_status()
+        return r.json().get("issues", [])
+
+    async def add_issue_to_sprint(self, sprint_id: int, issue_key: str):
+        """Asigna una tarea a un sprint usando la API Agile oficial."""
+        url = f"{self.base_url}/rest/agile/1.0/sprint/{sprint_id}/issue"
+        client = get_http_client()
+        r = await client.post(url, headers=self.headers, json={"issues": [issue_key]})
+        r.raise_for_status()
+
 
 async def get_jira_client():
     yield JiraClient()

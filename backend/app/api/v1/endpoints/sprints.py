@@ -1,6 +1,62 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
+from pydantic import BaseModel
+from typing import Optional
 from app.core.jira_client import JiraClient, get_jira_client
 from app.schemas.metrics import SprintInfo, SprintReportResponse, SprintIssue
+
+
+# Templates de tareas recurrentes — mapeados a épicas reales del proyecto AGOM
+# Epic Link field en Jira Server = customfield_10002
+RECURRENT_TEMPLATES = {
+    "back": [
+        {
+            "key":      "sesiones_back",
+            "label":    "Sesiones Ágiles Backend",
+            "summary":  "Sesiones Ágiles Equipo Backend - Oferta Minorista Sprint {n}",
+            "epic":     "AGOM-1505",
+            "labels":   ["OM", "oferta-online"],
+        },
+        {
+            "key":      "reuniones_back",
+            "label":    "Reuniones Backend",
+            "summary":  "Reuniones Equipo Backend Sprint {n}",
+            "epic":     "AGOM-1506",
+            "labels":   ["OM", "oferta-online"],
+        },
+    ],
+    "datos": [
+        {
+            "key":      "sesiones_datos",
+            "label":    "Sesiones Ágiles Datos",
+            "summary":  "Sesiones Ágiles Equipo Datos - Oferta Minorista Sprint {n}",
+            "epic":     "AGOM-1507",
+            "labels":   ["OM", "oferta-batch-y-mejoras"],
+        },
+        {
+            "key":      "reuniones_datos",
+            "label":    "Reuniones Datos",
+            "summary":  "Reuniones Equipo Datos Sprint {n}",
+            "epic":     "AGOM-1508",
+            "labels":   ["OM", "oferta-batch-y-mejoras"],
+        },
+    ],
+}
+
+
+class CreateRecurrentTasksRequest(BaseModel):
+    sprint_number: int
+    sprint_id: int
+    team: str                                          # "back" | "datos" | "all"
+    epic_overrides: Optional[dict[str, str]] = None   # {"sesiones_back": "AGOM-XXXX", ...}
+
+
+class TaskResult(BaseModel):
+    template_key: str
+    label: str
+    status: str          # "created" | "already_exists" | "error"
+    key: Optional[str] = None
+    url: Optional[str] = None
+    error: Optional[str] = None
 
 
 router = APIRouter(prefix="/sprints", tags=["sprints"])
@@ -11,6 +67,140 @@ async def list_teams(client: JiraClient = Depends(get_jira_client)):
     """Devuelve los equipos detectados automáticamente desde los nombres de sprint."""
     board_id = await client.get_board_id()
     return await client.get_teams(board_id)
+
+
+@router.get("/active-epics")
+async def get_active_epics(client: JiraClient = Depends(get_jira_client)):
+    """
+    Devuelve las Épicas del proyecto AGOM que están EN PROGRESO (statusCategory = indeterminate).
+    Se usa en el panel de creación de tareas recurrentes para permitir elegir una épica distinta.
+    """
+    issues = await client.search_issues_jql(
+        jql='project = AGOM AND issuetype = Epic AND statusCategory = "In Progress" ORDER BY updated DESC',
+        fields=["summary", "status", "assignee"],
+    )
+    return [
+        {
+            "key":      i["key"],
+            "summary":  i["fields"].get("summary", ""),
+            "status":   i["fields"].get("status", {}).get("name", ""),
+            "assignee": (i["fields"].get("assignee") or {}).get("displayName", "Sin asignar"),
+            "url":      f"{client.base_url}/browse/{i['key']}",
+        }
+        for i in issues
+    ]
+
+
+@router.get("/{sprint_number}/check-recurrent-tasks")
+async def check_recurrent_tasks(sprint_number: int, client: JiraClient = Depends(get_jira_client)):
+    """Busca si las tareas recurrentes para este sprint ya fueron creadas."""
+    import asyncio
+    
+    async def check_template(tpl):
+        # Extraemos la base limpia (ej: "Reuniones Equipo Backend" o "Sesiones Ágiles Equipo Datos")
+        # sacando " - Oferta Minorista" si lo tiene y cortando en "Sprint"
+        clean_title = tpl["summary"].replace(" - Oferta Minorista", "")
+        base_name = clean_title.split(" Sprint ")[0].strip()
+        
+        # JQL flexible: Busca la base exacta + el número del sprint
+        jql = f'project = AGOM AND summary ~ "\\"{base_name}\\"" AND summary ~ "\\"{sprint_number}\\"" AND issuetype = Tarea'
+        dupes = await client.search_issues_jql(jql=jql, fields=["summary", "key"])
+        if dupes:
+            return tpl["key"], dupes[0]
+        return tpl["key"], None
+
+    tasks = []
+    for team in RECURRENT_TEMPLATES.values():
+        for tpl in team:
+            tasks.append(check_template(tpl))
+            
+    resolved = await asyncio.gather(*tasks)
+    # Devolvemos solo las que existen
+    return {k: v for k, v in resolved if v is not None}
+
+
+
+
+@router.post("/create-recurrent-tasks", response_model=list[TaskResult])
+async def create_recurrent_tasks(
+    body: CreateRecurrentTasksRequest,
+    client: JiraClient = Depends(get_jira_client),
+):
+    """
+    Crea las tareas recurrentes de apertura de sprint para uno o ambos equipos.
+    - Verifica duplicados por JQL antes de crear (evita doble-clic).
+    - Acepta épica override por template si el usuario cambió la selección.
+    team: "back" | "datos" | "all"
+    epic_overrides: {"sesiones_back": "AGOM-XXXX", ...} (opcional)
+    """
+    teams_to_run = []
+    if body.team == "all":
+        teams_to_run = ["back", "datos"]
+    elif body.team in RECURRENT_TEMPLATES:
+        teams_to_run = [body.team]
+    else:
+        raise HTTPException(status_code=400, detail=f"team inválido: '{body.team}'. Usar 'back', 'datos' o 'all'.")
+
+    results: list[TaskResult] = []
+
+    for team_key in teams_to_run:
+        for tpl in RECURRENT_TEMPLATES[team_key]:
+            title = tpl["summary"].format(n=body.sprint_number)
+            epic  = (body.epic_overrides or {}).get(tpl["key"]) or tpl["epic"]
+
+            # ── Verificar duplicados ──────────────────────────────────────────
+            # JQL flexible que cruza variaciones de "OM" vs "Oferta Minorista"
+            clean_title = tpl["summary"].replace(" - Oferta Minorista", "")
+            base_name = clean_title.split(" Sprint ")[0].strip()
+            
+            jql_check = f'project = AGOM AND summary ~ "\\"{base_name}\\"" AND summary ~ "\\"{body.sprint_number}\\"" AND issuetype = Tarea'
+            dupes = await client.search_issues_jql(
+                jql=jql_check,
+                fields=["summary", "key"],
+            )
+            if dupes:
+                existing = dupes[0]
+                results.append(TaskResult(
+                    template_key=tpl["key"],
+                    label=tpl["label"],
+                    status="already_exists",
+                    key=existing["key"],
+                    url=f"{client.base_url}/browse/{existing['key']}",
+                ))
+                continue
+
+            # ── Crear la issue ────────────────────────────────────────────────
+            try:
+                created = await client.create_issue({
+                    "project":          {"key": "AGOM"},
+                    "summary":          title,
+                    "issuetype":        {"id": "10700"},   # Tarea
+                    "customfield_10002": epic,             # Epic Link (Jira Server)
+                    "customfield_13700": [{"id": "16304"}],# Producto: Oferta Minorista
+                    "labels":           tpl["labels"],
+                    "priority":         {"id": "3"},       # Media
+                })
+                
+                # ── Asignar al sprint en curso ──────────────────────────────────
+                if body.sprint_id:
+                    await client.add_issue_to_sprint(body.sprint_id, created["key"])
+                    
+                results.append(TaskResult(
+                    template_key=tpl["key"],
+                    label=tpl["label"],
+                    status="created",
+                    key=created["key"],
+                    url=created["url"],
+                ))
+            except Exception as e:
+                results.append(TaskResult(
+                    template_key=tpl["key"],
+                    label=tpl["label"],
+                    status="error",
+                    error=str(e),
+                ))
+
+    return results
 
 
 @router.get("/", response_model=list[SprintInfo])
