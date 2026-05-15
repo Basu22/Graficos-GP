@@ -503,74 +503,55 @@ La función `eventsForDay(dateStr)` inyecta dinámicamente objetos de evento que
 
 ---
 
-## 16. Sistema de Rotación de Soporte Técnico
+## 16. Sistema de Rotación de Soporte Técnico (Enroques)
 
-> **Implementado:** Mayo 2026 | **Archivo central:** `frontend/src/views/CalendarView.jsx`
+> **Implementado:** Mayo 2026 | **Archivo central:** `frontend/src/views/CalendarView.jsx` y `backend/app/api/v1/endpoints/calendar_events.py`
 
-### 16.1 Concepto
-
-La Rotación de Soporte es un mecanismo para registrar períodos en los que un colaborador es **asignado temporalmente a tareas de Soporte Técnico**, saliendo del flujo normal del Sprint de Scrum. No implica un cambio de rol permanente en `people.json` — es un estado transitorio basado en eventos del calendario.
-
-### 16.2 Flujo de Datos
-
-El registro de una rotación genera **dos eventos simultáneos** en `calendar_events.json`:
-
-| Campo | Evento A (Ingreso) | Evento B (Retorno) |
-|---|---|---|
-| `type` | `rotacion_soporte` | `retorno_sprint` |
-| `person` | Quien **entra** a soporte | Quien **sale** de soporte y vuelve |
-| `start_date` | Inicio del período | Mismo que evento A |
-| `end_date` | Fin del período | Mismo que evento A |
-| `title` | `Ingresa a Soporte — {nombre}` | `Retorno al Sprint — {nombre}` |
-| `impact` | `1.0` (baja completa) | `0.0` (sin impacto) |
+### 16.1 Arquitectura de Evento Único (`personSwap`)
+Anteriormente, el sistema creaba dos eventos separados para simular un enroque. Actualmente, la arquitectura se basa en un **evento único unificado**. 
+El evento `rotacion_soporte` contiene la información de ambas partes involucradas:
+- `person`: El colaborador que **ingresa** a soporte técnico.
+- `personSwap`: El colaborador que **sale** de soporte técnico y retorna al Sprint.
 
 ```json
-// Ejemplo: María Teresa Bravo entra a soporte del 14/04 al 14/05
-{ "type": "rotacion_soporte", "person": "Maria Teresa Bravo",
-  "start_date": "2026-04-14", "end_date": "2026-05-14",
-  "title": "Ingresa a Soporte — Maria Teresa Bravo", "impact": 1.0 }
-
-{ "type": "retorno_sprint", "person": "Colaborador que regresa",
-  "start_date": "2026-04-14", "end_date": "2026-05-14",
-  "title": "Retorno al Sprint — Colaborador que regresa", "impact": 0.0 }
+{ 
+  "id": "uuid-v4",
+  "type": "rotacion_soporte", 
+  "person": "Matías", 
+  "personSwap": "Axel",
+  "start_date": "2026-05-14", 
+  "end_date": "2026-05-30",
+  "title": "Soporte: Axel -> Matías", 
+  "impact": 1.0 
+}
 ```
 
-### 16.3 Borrado en Cascada
+> **IMPORTANTE:** Para que FastAPI preserve este campo durante la persistencia, `personSwap` debe estar explícitamente tipado en el modelo Pydantic `EventIn` dentro de `calendar_events.py`.
 
-Al eliminar cualquiera de los dos eventos, el sistema detecta automáticamente su evento par (mismo `start_date`, mismo `end_date`, tipo complementario) y lo borra también. Lógica en `handleDelete()`.
+### 16.2 Cálculo de Disponibilidad y Exclusiones (Solapamiento Estricto)
+Para calcular qué personas están en soporte durante un Sprint (y por ende deben ser excluidas de la grilla de capacidad), el algoritmo realiza un **solapamiento estricto** en `CalendarView.jsx`:
 
-### 16.4 Sprint Console — Detección y Visualización
-
-La Sprint Console utiliza el siguiente algoritmo para mostrar el estado de soporte:
-
+```javascript
+const eventosEnSoporte = allEvents.filter(e => {
+  if (e.type !== "rotacion_soporte") return false;
+  
+  // EXCLUSIÓN CLAVE: El último día de soporte es un DÍA LIBRE
+  if (e.start_date < e.end_date && (e.end_date || e.start_date) === sStart) {
+    return false;
+  }
+  
+  return e.start_date <= sEnd && (e.end_date || e.start_date) >= sStart;
+});
 ```
-Para cada sprint visible:
-  1. Filtrar allEvents donde type === "rotacion_soporte"
-     Y start_date <= sprint.end_date
-     Y (end_date || start_date) >= sprint.start_date
-     → Detecta SOLAPAMIENTO con el sprint actual
+Esta lógica garantiza que si un soporte termina exactamente el mismo día que inicia un Sprint, el colaborador no figura en la caja de "Soporte Técnico" y se lo computa al 100% para el Sprint.
 
-  2. Si hay coincidencias → mostrar sección roja "COLABORADORES EN SOPORTE TÉCNICO"
-     con: nombre del colaborador + fecha de regreso (end_date del evento)
-
-  3. Construir Set "nombresEnSoporte" con esos nombres
-
-  4. Excluir ese Set de:
-     a) La grilla de colaboradores (no aparecen en ninguna fila)
-     b) El mapa de disponibilidad diaria (dayPersonMap)
-     → El % de capacidad final NO los cuenta
-```
-
-### 16.5 Impacto en Capacidad
-
-Las personas en soporte **NO aparecen en la grilla** ni suman ni restan al % de capacidad. Esto es intencional: la baja fue contemplada en la planificación previa. El % refleja la capacidad real del equipo Scrum activo.
-
-### 16.6 Extensibilidad Futura
-
-El campo `person` en los eventos permite construir:
-- **Historial de rotaciones** por colaborador
-- **Dashboard de soporte** (quién rotó, cuánto tiempo, frecuencia)
-- **Alertas** si alguien lleva más de N sprints en soporte
-- **Estadísticas** sobre la carga de soporte vs. capacidad Scrum
+### 16.3 Limpieza de Interfaz (Ocultamiento Dinámico)
+Para evitar ensuciar el calendario con pastillas de "Fin de Soporte" cuando la rotación ya fue planificada:
+1. El UI evalúa si es el último día del evento (`isEvEnd`).
+2. Verifica si existe otro evento `rotacion_soporte` que inicie ese mismo día donde `personSwap` coincida con la persona saliente (`hasReplacement`).
+3. **Si `hasReplacement` es `true`:** 
+   - El botón de "Próxima rotación" se deshabilita/oculta.
+   - La pastilla "Fin Soporte" se omite de la grilla principal (`eventsForDay`).
+   - El UI simplemente encadena visualmente la transición en el modal del día.
 
 ---

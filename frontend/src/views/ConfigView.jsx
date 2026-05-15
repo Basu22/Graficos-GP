@@ -9,8 +9,9 @@ export function ConfigView({ T }) {
   const [tribus, setTribus] = useState([]);
   const [celulas, setCelulas] = useState([]);
   const [eventTypes, setEventTypes] = useState({});
+  const [tools, setTools] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("categories"); // "categories" | "roles" | "tribus" | "celulas"
+  const [activeTab, setActiveTab] = useState("categories"); // "categories" | "roles" | "tribus" | "celulas" | "tools"
   
   // States para Roles
   const [newRole, setNewRole] = useState("");
@@ -31,6 +32,11 @@ export function ConfigView({ T }) {
   const [newType, setNewType] = useState({ key: "", label: "", icon: "📌", color: "#64748B" });
   const [editingTypeKey, setEditingTypeKey] = useState(null);
   const [editingTypeValue, setEditingTypeValue] = useState(null);
+
+  // States para Herramientas (Tools)
+  const [newTool, setNewTool] = useState({ name: "", url: "" });
+  const [editingToolIdx, setEditingToolIdx] = useState(null);
+  const [editingToolValue, setEditingToolValue] = useState({ name: "", url: "" });
  
   const cardStyle = { background: card, borderRadius: 16, padding: "32px", border: `1px solid ${border}`, boxShadow: "0 4px 20px rgba(0,0,0,0.05)" };
   const inp = { padding: "10px 14px", borderRadius: 10, border: `1px solid ${border}`, background: input || bg, color: text, fontSize: 13, outline: "none", transition: "0.2s" };
@@ -42,16 +48,18 @@ export function ConfigView({ T }) {
   async function loadData() {
     setLoading(true);
     try {
-      const [rData, tData, trData, cData] = await Promise.all([
+      const [rData, tData, trData, cData, tlData] = await Promise.all([
         fetch(`${API}/config/roles`).then(r => r.json()),
         fetch(`${API}/config/event-types`).then(r => r.json()),
         fetch(`${API}/config/tribus`).then(r => r.json()),
-        fetch(`${API}/config/celulas`).then(r => r.json())
+        fetch(`${API}/config/celulas`).then(r => r.json()),
+        fetch(`${API}/config/tools`).then(r => r.json())
       ]);
       setRoles(Array.isArray(rData) ? rData : []);
       setEventTypes(tData || {});
       setTribus(Array.isArray(trData) ? trData : []);
       setCelulas(Array.isArray(cData) ? cData : []);
+      setTools(Array.isArray(tlData) ? tlData : []);
     } catch (e) { console.error(e); }
     setLoading(false);
   }
@@ -97,6 +105,17 @@ export function ConfigView({ T }) {
         body: JSON.stringify({ event_types: updatedTypes })
       });
       setEventTypes(updatedTypes);
+    } catch (e) { console.error(e); }
+  }
+
+  async function saveTools(updatedTools) {
+    try {
+      await fetch(`${API}/config/tools`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tools: updatedTools })
+      });
+      setTools(updatedTools);
     } catch (e) { console.error(e); }
   }
  
@@ -185,6 +204,32 @@ export function ConfigView({ T }) {
     setEditingTypeKey(null);
   }
 
+  function addTool() {
+    if (!newTool.name.trim() || !newTool.url.trim()) return;
+    const next = [...tools, { name: newTool.name.trim(), url: newTool.url.trim() }];
+    saveTools(next);
+    setNewTool({ name: "", url: "" });
+  }
+
+  function deleteTool(idx) {
+    if (!confirm(`¿Eliminar la herramienta "${tools[idx].name}"?`)) return;
+    const next = tools.filter((_, i) => i !== idx);
+    saveTools(next);
+  }
+
+  function startEditTool(idx) {
+    setEditingToolIdx(idx);
+    setEditingToolValue({ ...tools[idx] });
+  }
+
+  function commitEditTool() {
+    if (!editingToolValue.name.trim() || !editingToolValue.url.trim()) return;
+    const next = [...tools];
+    next[editingToolIdx] = editingToolValue;
+    saveTools(next);
+    setEditingToolIdx(null);
+  }
+
   const menuStyle = (active) => ({
     display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderRadius: 12,
     background: active ? "#3B82F615" : "transparent",
@@ -214,6 +259,9 @@ export function ConfigView({ T }) {
         </button>
         <button style={menuStyle(activeTab === "celulas")} onClick={() => setActiveTab("celulas")}>
           <span style={{ fontSize: 18 }}>🦠</span> Células
+        </button>
+        <button style={menuStyle(activeTab === "tools")} onClick={() => setActiveTab("tools")}>
+          <span style={{ fontSize: 18 }}>🔗</span> Herramientas
         </button>
         
         <div style={{ marginTop: "auto", padding: 20, borderRadius: 16, background: bg, border: `1px dashed ${border}`, fontSize: 11, color: muted, fontStyle: "italic" }}>
@@ -376,7 +424,7 @@ export function ConfigView({ T }) {
                 const cTribu = typeof celula === 'string' ? "Sin Tribu" : celula.tribu;
 
                 return (
-                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 12, background: bg, border: `1px solid ${border}` }}>
+                   <div key={idx} style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 12, background: bg, border: `1px solid ${border}` }}>
                     <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
                       <span style={{ fontSize: 14, fontWeight: 700, color: text }}>{cName}</span>
                       <span style={{ fontSize: 10, color: muted, fontWeight: 600 }}>⛺ {cTribu}</span>
@@ -394,6 +442,56 @@ export function ConfigView({ T }) {
               </select>
               <input value={newCelula.name || ""} onChange={(e) => setNewCelula({...newCelula, name: e.target.value})} placeholder="Nueva Célula (ej: Equipo Datos)..." style={{ ...inp, flex: 1, minWidth: 200 }} onKeyDown={(e) => e.key === 'Enter' && addCelula()} />
               <button onClick={addCelula} style={{ padding: "0 28px", borderRadius: 10, border: "none", background: "#F59E0B", color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>+ Agregar</button>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "tools" && (
+          <div style={cardStyle}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 24 }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: "#3B82F615", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>🔗</div>
+              <div>
+                <h3 style={{ fontSize: 20, fontWeight: 900, color: text, margin: 0 }}>Herramientas del Centro de Comando</h3>
+                <p style={{ fontSize: 12, color: muted, margin: 0 }}>Gestioná los enlaces rápidos de la vista Mi Día</p>
+              </div>
+            </div>
+            
+            <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 12, marginBottom: 32 }}>
+              {tools.map((tool, idx) => (
+                <div key={idx} style={{ padding: "16px", borderRadius: 16, background: bg, border: `1px solid ${border}`, display: "flex", alignItems: "center", gap: 14 }}>
+                  {editingToolIdx === idx ? (
+                    <div style={{ display: "flex", gap: 12, width: "100%", alignItems: "center" }}>
+                      <input value={editingToolValue.name} onChange={e => setEditingToolValue({...editingToolValue, name: e.target.value})} style={{ ...inp, width: 150 }} placeholder="Nombre" />
+                      <input value={editingToolValue.url} onChange={e => setEditingToolValue({...editingToolValue, url: e.target.value})} style={{ ...inp, flex: 1 }} placeholder="https://..." />
+                      <button onClick={commitEditTool} style={{ background: "#3B82F6", color: "#fff", border: "none", padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Guardar</button>
+                      <button onClick={() => setEditingToolIdx(null)} style={{ background: "transparent", color: muted, border: `1px solid ${border}`, padding: "8px 16px", borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Cancelar</button>
+                    </div>
+                  ) : (
+                    <>
+                      <div style={{ width: 40, height: 40, borderRadius: 10, background: "#3B82F610", color: "#3B82F6", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800 }}>
+                        {tool.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 15, fontWeight: 800, color: text }}>{tool.name}</div>
+                        <div style={{ fontSize: 11, color: muted, opacity: 0.7, wordBreak: "break-all" }}>{tool.url}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button onClick={() => startEditTool(idx)} style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "none", cursor: "pointer", fontSize: 16 }}>✏️</button>
+                        <button onClick={() => deleteTool(idx)} style={{ width: 34, height: 34, borderRadius: 8, border: "none", background: "none", cursor: "pointer", fontSize: 16 }}>🗑️</button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div style={{ padding: 24, borderRadius: 16, background: bg, border: `2px dashed ${border}` }}>
+              <div style={{ fontSize: 14, fontWeight: 900, color: text, marginBottom: 16 }}>➕ Añadir Nueva Herramienta</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
+                <input value={newTool.name} onChange={e => setNewTool({...newTool, name: e.target.value})} placeholder="Nombre (ej: Jira)" style={{ ...inp, width: 180 }} />
+                <input value={newTool.url} onChange={e => setNewTool({...newTool, url: e.target.value})} placeholder="https://..." style={{ ...inp, flex: 1, minWidth: 250 }} />
+                <button onClick={addTool} style={{ padding: "0 28px", borderRadius: 10, border: "none", background: "#3B82F6", color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>Agregar Herramienta</button>
+              </div>
             </div>
           </div>
         )}

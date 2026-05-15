@@ -42,9 +42,10 @@ def _load():
         if "tribus" not in data: data["tribus"] = ["Oferta Minorista"]
         if "celulas" not in data: data["celulas"] = ["Equipo Back", "Equipo Datos"]
         if "event_types" not in data: data["event_types"] = DEFAULT_EVENT_TYPES
+        if "tools" not in data: data["tools"] = []
         return data
     except:
-        return {"roles": [], "tribus": [], "celulas": [], "event_types": DEFAULT_EVENT_TYPES}
+        return {"roles": [], "tribus": [], "celulas": [], "event_types": DEFAULT_EVENT_TYPES, "tools": []}
 
 def _save(data):
     CONFIG_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -63,6 +64,9 @@ class CelulasUpdate(BaseModel):
 
 class EventTypesUpdate(BaseModel):
     event_types: dict
+
+class ToolsUpdate(BaseModel):
+    tools: List[dict]
 
 @router.get("/roles")
 async def get_roles():
@@ -107,3 +111,14 @@ async def update_event_types(update: EventTypesUpdate):
     config["event_types"] = update.event_types
     _save(config)
     return config["event_types"]
+
+@router.get("/tools")
+async def get_tools():
+    return _load().get("tools", [])
+
+@router.post("/tools")
+async def update_tools(update: ToolsUpdate):
+    config = _load()
+    config["tools"] = update.tools
+    _save(config)
+    return config["tools"]

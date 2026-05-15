@@ -54,7 +54,7 @@ export function CalendarView({ T, team }) {
 
   const allEvents = (() => {
     const raw = [
-      ...events.filter((e) => filterTypes.has(e.type)),
+      ...events.filter((e) => filterTypes.has(e.type) || e.type === "rotacion_soporte"),
       ...holidays.filter(() => filterTypes.has("holiday")),
       ...sprintEvents.filter((e) => filterTypes.has("sprint")),
     ];
@@ -141,7 +141,19 @@ export function CalendarView({ T, team }) {
 
   function eventsForDay(dateStr) {
     if (!dateStr) return [];
-    const evs = allEvents.filter((e) => dateInRange(dateStr, e.start_date, e.end_date || e.start_date));
+    const evs = allEvents.filter((e) => {
+      if (!dateInRange(dateStr, e.start_date, e.end_date || e.start_date)) return false;
+      
+      // Ocultar pastilla de "Fin de Soporte" si hay relevo ese mismo día
+      if (e.type === "rotacion_soporte") {
+        const isEvEnd = (e.end_date || e.start_date) === dateStr;
+        if (isEvEnd && e.start_date !== dateStr) {
+          const hasReplacement = allEvents.some(other => other.type === "rotacion_soporte" && other.start_date === dateStr && other.personSwap === e.person);
+          if (hasReplacement) return false;
+        }
+      }
+      return true;
+    });
 
     // Inyectar ausencias de personas
     const avail = availability[dateStr];
@@ -293,92 +305,64 @@ export function CalendarView({ T, team }) {
   async function handleSave() {
     if (!form.start_date) return;
     try {
-    if (form.type === "rotacion_soporte") {
-      if (form.start_date === form.end_date) {
-        alert("La rotación debe tener al menos 1 día de duración posterior al inicio.");
-        return;
-      }
-      if (!form.person || !form.personSwap) {
-        alert("Debes seleccionar tanto al colaborador que ingresa como al que sale de soporte.");
-        return;
-      }
-      
-      const payloadA = { ...form, impact: 1.0, title: `Ingresa a Soporte — ${form.person}`, team };
-      delete payloadA.personSwap;
-      
-      const payloadB = { ...form, person: form.personSwap, impact: 0.0, type: "retorno_sprint", title: `Retorno al Sprint — ${form.personSwap}`, team };
-      delete payloadB.personSwap;
+      if (form.type === "rotacion_soporte") {
+        if (form.start_date === form.end_date) {
+          alert("La rotación debe tener al menos 1 día de duración posterior al inicio.");
+          return;
+        }
+        if (!form.person || !form.personSwap) {
+          alert("Debes seleccionar tanto al colaborador que ingresa como al que sale de soporte.");
+          return;
+        }
+        
+        const payload = { ...form, impact: 1.0, title: `Soporte: ${form.personSwap} -> ${form.person}`, team };
 
-      if (selectedEvent?.id && !selectedEvent.id.startsWith("holiday-") && !selectedEvent.id.startsWith("sprint-")) {
-        await fetch(`${API}/calendar/events/${selectedEvent.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payloadA) });
+        if (selectedEvent?.id && !selectedEvent.id.startsWith("holiday-") && !selectedEvent.id.startsWith("sprint-")) {
+          await fetch(`${API}/calendar/events/${selectedEvent.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        } else {
+          await fetch(`${API}/calendar/events`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+        }
       } else {
-        await fetch(`${API}/calendar/events`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payloadA) });
-        await fetch(`${API}/calendar/events`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payloadB) });
-      }
-    } else {
-      const typeInfo = eventTypes[form.type] || eventTypes.custom || { label: "Otro", icon: "📌" };
-      // Auto-construir título: Categoria - Persona (excepto para sprints manuales donde el usuario pone el nombre)
-      const autoTitle = form.type === "manual_sprint" 
-        ? (form.title || "Sprint") 
-        : `${typeInfo.label}${form.person ? ` — ${form.person}` : ""}`;
+        const typeInfo = eventTypes[form.type] || eventTypes.custom || { label: "Otro", icon: "📌" };
+        const autoTitle = form.type === "manual_sprint" 
+          ? (form.title || "Sprint") 
+          : `${typeInfo.label}${form.person ? ` — ${form.person}` : ""}`;
 
-      const payload = { ...form, title: autoTitle };
-      if (payload.type === "manual_sprint" && !payload.impact) {
-        payload.impact = 0.0;
-      }
-      // Asegurar impacto 100% si no es sprint manual (mejora brief)
-      if (payload.type !== "manual_sprint" && payload.type !== "rotacion_soporte") {
-        payload.impact = payload.impact || 1.0;
-      }
-      delete payload.personSwap;
-      
-      // Si es sprint manual, lo hacemos global (sin equipo)
-      const savePayload = payload.type === "manual_sprint" 
-        ? payload 
-        : { ...payload, team };
+        const payload = { ...form, title: autoTitle };
+        if (payload.type === "manual_sprint" && !payload.impact) {
+          payload.impact = 0.0;
+        }
+        if (payload.type !== "manual_sprint" && payload.type !== "rotacion_soporte") {
+          payload.impact = payload.impact || 1.0;
+        }
+        delete payload.personSwap;
+        
+        const savePayload = payload.type === "manual_sprint" 
+          ? payload 
+          : { ...payload, team };
 
-      if (selectedEvent?.id && !selectedEvent.id.startsWith("holiday-") && !selectedEvent.id.startsWith("sprint-")) {
-        await fetch(`${API}/calendar/events/${selectedEvent.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(savePayload) });
-      } else {
-        await fetch(`${API}/calendar/events`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(savePayload) });
+        if (selectedEvent?.id && !selectedEvent.id.startsWith("holiday-") && !selectedEvent.id.startsWith("sprint-")) {
+          await fetch(`${API}/calendar/events/${selectedEvent.id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(savePayload) });
+        } else {
+          await fetch(`${API}/calendar/events`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(savePayload) });
+        }
       }
-    }
-    setShowModal(false); setSelectedEvent(null);
+      setShowModal(false); setSelectedEvent(null);
       setForm({ title: "", type: "vacation", person: "", personSwap: "", start_date: "", end_date: "", notes: "", color: "", impact: 0.0 });
       await loadAllCorrect();
     } catch (e) { console.error(e); }
   }
 
   async function handleDelete(id) {
-    if (!id || id.startsWith("holiday-")) return;
-    // Si empieza con sprint- es de Jira, no se borra. Si no, es manual y se puede borrar.
-    if (id.startsWith("sprint-")) return;
-
-    // Lógica de borrado en cascada para "Rotación Soporte" (Swap)
-    const eventToDelete = allEvents.find(e => e.id === id);
-    if (eventToDelete && (eventToDelete.type === "rotacion_soporte" || eventToDelete.type === "retorno_sprint")) {
-      const pairType = eventToDelete.type === "rotacion_soporte" ? "retorno_sprint" : "rotacion_soporte";
-      const pairEvent = allEvents.find(e => 
-        e.type === pairType && 
-        e.start_date === eventToDelete.start_date && 
-        e.end_date === eventToDelete.end_date
-      );
-      
-      await fetch(`${API}/calendar/events/${id}`, { method: "DELETE" });
-      if (pairEvent) {
-        await fetch(`${API}/calendar/events/${pairEvent.id}`, { method: "DELETE" });
-      }
-    } else {
-      await fetch(`${API}/calendar/events/${id}`, { method: "DELETE" });
-    }
-    
+    if (!id || id.startsWith("holiday-") || id.startsWith("sprint-")) return;
+    await fetch(`${API}/calendar/events/${id}`, { method: "DELETE" });
     setShowModal(false); setSelectedEvent(null);
     await loadAllCorrect();
   }
 
-  function openNewEvent(dateStr) {
+  function openNewEvent(dateStr, prefill = {}) {
     setSelectedEvent(null);
-    setForm({ title: "", type: "vacation", person: "", personSwap: "", start_date: dateStr, end_date: dateStr, notes: "", color: "", impact: 0.0 });
+    setForm({ title: "", type: "vacation", person: "", personSwap: "", start_date: dateStr, end_date: dateStr, notes: "", color: "", impact: 0.0, isReload: false, ...prefill });
     setShowModal(true);
   }
 
@@ -393,7 +377,8 @@ export function CalendarView({ T, team }) {
       notes: e.notes || "", 
       color: e.color || "",
       impact: e.impact || 0.0,
-      personSwap: ""
+      personSwap: e.personSwap || "",
+      isReload: false
     });
     setShowModal(true);
   }
@@ -518,19 +503,34 @@ export function CalendarView({ T, team }) {
               <div style={{ display: "flex", flexDirection: "row", flexWrap: "wrap", gap: 4, width: "100%", justifyContent: "center" }}>
                 {(() => {
                   const holidayEv = dayEvs.find((e) => e.type === "holiday");
-                  const visibleEvs = dayEvs.filter((e) => e.type !== "holiday" && e.type !== "sprint");
+                  const visibleEvs = dayEvs.filter((e) => {
+                    if (e.type === "holiday" || e.type === "sprint") return false;
+                    const isEvEnd = (e.end_date || e.start_date) === dateStr;
+                    if (e.type === "rotacion_soporte" && isEvEnd && e.start_date !== dateStr) {
+                      const hasReplacement = allEvents.some(other => other.type === "rotacion_soporte" && other.start_date === dateStr && other.personSwap === e.person);
+                      if (hasReplacement) return false;
+                    }
+                    return true;
+                  });
                   return (
                     <>
                       {holidayEv && <div style={{ fontSize: 12, padding: "2px 5px", borderRadius: 3, background: "#F97316", color: "#fff", fontWeight: 700, overflow: "hidden", textOverflow: "ellipsis", width: "100%" }} title={holidayEv.title}>🇦🇷 {holidayEv.title}</div>}
                         {visibleEvs.slice(0, holidayEv ? 2 : 6).map((ev, ei) => {
                           const info = eventTypes[ev.type] || ABSENCE_TYPES[ev.type] || { label: "Otro", color: "#64748B", icon: "📌" };
-                          const pillColor = ev.type === "manual_sprint" ? "#3B82F6" : (ev.color || info.color);
                           
                           const isEvStart = ev.start_date === dateStr;
                           const isEvEnd = (ev.end_date || ev.start_date) === dateStr;
                           const isSingleDay = ev.start_date === (ev.end_date || ev.start_date);
                           const isManualStart = ev.type === "manual_sprint" && isEvStart;
                           const isManualEnd = ev.type === "manual_sprint" && isEvEnd;
+
+                          let customBg = ev.type === "manual_sprint" ? "#3B82F6" : (ev.color || info.color) + "20";
+                          let customColor = ev.type === "manual_sprint" ? "#fff" : (ev.color || info.color);
+                          
+                          if (ev.type === "rotacion_soporte" && isEvStart && !isSingleDay) {
+                             customBg = theme.bg === "#0F172A" ? "#1E293B" : "#E2E8F0";
+                             customColor = theme.bg === "#0F172A" ? "#F8FAFC" : "#1E293B";
+                          }
 
                           let displayText;
                           if (ev.type === "manual_sprint") {
@@ -541,15 +541,21 @@ export function CalendarView({ T, team }) {
                               displayText = info.icon;
                             } else if (isEvStart) {
                               if (ev.type === "rotacion_soporte") {
-                                const name = ev.title.split("—")[1] || ev.person || "";
-                                displayText = `Inicio Soporte — ${name.trim()}`;
+                                const p1 = ev.person === "A Confirmar" || ev.person === "Nadie/Soporte Vacante" ? "❓" : ev.person;
+                                const p2 = ev.personSwap;
+                                displayText = (
+                                  <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                    <span style={{ color: "#EF4444" }}>{p1}</span>
+                                    <span>🔄</span>
+                                    <span style={{ color: "#22C55E" }}>{p2}</span>
+                                  </span>
+                                );
                               } else {
                                 displayText = `Inicio ${ev.title}`;
                               }
                             } else if (isEvEnd) {
                               if (ev.type === "rotacion_soporte") {
-                                const name = ev.title.split("—")[1] || ev.person || "";
-                                displayText = `Fin Soporte — ${name.trim()}`;
+                                displayText = `Fin Soporte — ${ev.person}`;
                               } else {
                                 displayText = `Fin ${ev.title}`;
                               }
@@ -559,16 +565,25 @@ export function CalendarView({ T, team }) {
                           }
 
                           const onlyIcon = displayText === info.icon;
+                          const isLongSupportEvent = ev.type === "rotacion_soporte" && ev.start_date < (ev.end_date || ev.start_date);
+                          const canEditInGrid = isLongSupportEvent ? isEvStart : true;
 
                           return (
-                            <div key={ei} onClick={(e) => { e.stopPropagation(); openEditEvent(ev); }} title={ev.title}
+                            <div key={ei} 
+                              onClick={(e) => { 
+                                e.stopPropagation(); 
+                                if (canEditInGrid) {
+                                  openEditEvent(ev); 
+                                }
+                              }} 
+                              title={ev.title + (!canEditInGrid ? " (Editar desde el día de inicio)" : "")}
                               style={{
                                 fontSize: 12,
                                 padding: onlyIcon ? "2px" : "4px 8px",
                                 borderRadius: onlyIcon ? "50%" : 6,
                                 cursor: "pointer",
-                                background: ev.type === "manual_sprint" ? "#3B82F6" : pillColor + "20",
-                                color: ev.type === "manual_sprint" ? "#fff" : pillColor,
+                                background: customBg,
+                                color: customColor,
                                 fontWeight: 800,
                                 whiteSpace: onlyIcon ? "nowrap" : "normal",
                                 wordBreak: "break-word",
@@ -818,7 +833,15 @@ export function CalendarView({ T, team }) {
 
               {/* Lista de Eventos con Estilo Timeline */}
               {(() => {
-                const dayEvs = eventsForDay(form.start_date).filter(e => e.type !== "sprint");
+                const dayEvs = eventsForDay(form.start_date).filter(e => {
+                  if (e.type === "sprint") return false;
+                  const isEvEnd = (e.end_date || e.start_date) === form.start_date;
+                  if (e.type === "rotacion_soporte" && isEvEnd && e.start_date !== form.start_date) {
+                    const hasReplacement = allEvents.some(other => other.type === "rotacion_soporte" && other.start_date === form.start_date && other.personSwap === e.person);
+                    if (hasReplacement) return false;
+                  }
+                  return true;
+                });
                 if (dayEvs.length > 0) {
                   return (
                     <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -841,18 +864,24 @@ export function CalendarView({ T, team }) {
                               <div style={{ flex: 1 }}>
                                 <div style={{ fontSize: 14, fontWeight: 800, color: textColor }}>
                                   {(() => {
-                                    if (ev.type === "rotacion_soporte" || ev.type === "retorno_sprint") {
+                                    if (ev.type === "rotacion_soporte") {
                                       const isStart = ev.start_date === form.start_date;
-                                      const isEnd = (ev.end_date || ev.start_date) === form.start_date;
-                                      if (!isStart && !isEnd) {
-                                        const name = ev.title.split("—")[1] || ev.person || "";
-                                        return `En Soporte — ${name.trim()}`;
+                                      if (isStart) {
+                                        return (
+                                          <span style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                            <span style={{ color: "#EF4444" }}>{ev.person}</span>
+                                            <span>🔄</span>
+                                            <span style={{ color: "#22C55E" }}>{ev.personSwap}</span>
+                                          </span>
+                                        );
+                                      } else {
+                                        return `En Soporte — ${ev.person}`;
                                       }
                                     }
                                     return ev.title;
                                   })()}
                                 </div>
-                                <div style={{ fontSize: 11, color: mutedColor, fontWeight: 600 }}>{ev.person || info.label}</div>
+                                <div style={{ fontSize: 11, color: mutedColor, fontWeight: 600 }}>{ev.type === "rotacion_soporte" ? "Rotación Soporte" : (ev.person || info.label)}</div>
                                  {ev.notes && (
                                    <div style={{ fontSize: 10, color: mutedColor, marginTop: 4, fontStyle: "italic", display: "flex", alignItems: "start", gap: 4 }}>
                                      <span>💬</span>
@@ -862,12 +891,39 @@ export function CalendarView({ T, team }) {
                                    </div>
                                  )}
                               </div>
-                              <div style={{ display: "flex", gap: 4 }}>
-                                <button onClick={() => openEditEvent(ev)} style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "#3B82F615", color: "#3B82F6", cursor: "pointer", transition: "0.2s" }}>✏️</button>
-                                {!ev.id?.startsWith("holiday-") && (
-                                  <button onClick={() => handleDelete(ev.id)} style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "#EF444415", color: "#EF4444", cursor: "pointer", transition: "0.2s" }}>🗑</button>
-                                )}
-                              </div>
+                              {(() => {
+                                const isLongSupportEvent = ev.type === "rotacion_soporte" && ev.start_date < (ev.end_date || ev.start_date);
+                                const isStartDay = ev.start_date === form.start_date;
+                                const isEndDay = (ev.end_date || ev.start_date) === form.start_date;
+                                const canEdit = isLongSupportEvent ? isStartDay : true;
+                                
+                                if (isLongSupportEvent && isEndDay) {
+                                  const hasReplacement = allEvents.some(other => other.type === "rotacion_soporte" && other.start_date === form.start_date && other.personSwap === ev.person);
+                                  if (!hasReplacement) {
+                                    return (
+                                      <button onClick={() => openNewEvent(form.start_date, { type: "rotacion_soporte", personSwap: ev.person, isReload: true })}
+                                        style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #3B82F650", background: "#3B82F615", color: "#3B82F6", fontWeight: 800, cursor: "pointer", fontSize: 11, display: "flex", gap: 6, alignItems: "center" }}>
+                                        <span>🔄</span> Próxima Rotación
+                                      </button>
+                                    );
+                                  }
+                                }
+
+                                if (!canEdit) return (
+                                  <div style={{ fontSize: 10, color: mutedColor, fontStyle: "italic", textAlign: "right" }}>
+                                    Editar desde<br/>día de inicio
+                                  </div>
+                                );
+
+                                return (
+                                  <div style={{ display: "flex", gap: 4 }}>
+                                    <button onClick={() => openEditEvent(ev)} style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "#3B82F615", color: "#3B82F6", cursor: "pointer", transition: "0.2s" }} title="Editar">✏️</button>
+                                    {!ev.id?.startsWith("holiday-") && (
+                                      <button onClick={() => handleDelete(ev.id)} style={{ width: 32, height: 32, borderRadius: 8, border: "none", background: "#EF444415", color: "#EF4444", cursor: "pointer", transition: "0.2s" }} title="Eliminar">🗑</button>
+                                    )}
+                                  </div>
+                                );
+                              })()}
                             </div>
                           );
                         })}
@@ -945,12 +1001,14 @@ export function CalendarView({ T, team }) {
                           <label style={{ fontSize: 11, color: "#EF4444", fontWeight: 700, marginBottom: 8, display: "block" }}>Sale del Sprint (Ingresa a Soporte) 🔄</label>
                           <select value={form.person} onChange={(e) => setForm({ ...form, person: e.target.value })} style={{ ...inputStyle, padding: "12px", fontSize: 14, border: "2px solid #EF4444" }}>
                             <option value="">(Seleccionar entrante...)</option>
+                            <option value="A Confirmar" style={{ fontStyle: "italic" }}>A Confirmar</option>
+                            <option value="Nadie/Soporte Vacante" style={{ fontStyle: "italic" }}>Nadie / Soporte Vacante</option>
                             {people.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
                           </select>
                         </div>
                         <div>
                           <label style={{ fontSize: 11, color: "#22C55E", fontWeight: 700, marginBottom: 8, display: "block" }}>Vuelve al Sprint (Sale de Soporte) ✅</label>
-                          <select value={form.personSwap} onChange={(e) => setForm({ ...form, personSwap: e.target.value })} style={{ ...inputStyle, padding: "12px", fontSize: 14, border: "2px solid #22C55E" }}>
+                          <select value={form.personSwap} onChange={(e) => setForm({ ...form, personSwap: e.target.value })} disabled={form.isReload} style={{ ...inputStyle, padding: "12px", fontSize: 14, border: "2px solid #22C55E", opacity: form.isReload ? 0.6 : 1 }}>
                             <option value="">(Seleccionar saliente...)</option>
                             {people.map((p) => <option key={p.name} value={p.name}>{p.name}</option>)}
                           </select>
@@ -1129,8 +1187,10 @@ export function CalendarView({ T, team }) {
                         // Busca eventos de tipo "rotacion_soporte" que se solapen con el sprint actual
                         const eventosEnSoporte = allEvents.filter(e => {
                           if (e.type !== "rotacion_soporte") return false;
-                          // Se solapa si el evento empieza antes del fin del sprint
-                          // y termina después del inicio del sprint
+                          if (e.person === "A Confirmar" || e.person === "Nadie/Soporte Vacante") return false;
+                          if (e.start_date < e.end_date && (e.end_date || e.start_date) === sStart) {
+                            return false;
+                          }
                           return e.start_date <= sEnd && (e.end_date || e.start_date) >= sStart;
                         });
 
@@ -1144,23 +1204,15 @@ export function CalendarView({ T, team }) {
                             </div>
                             <div style={{ display: "flex", flexWrap: "wrap", gap: 12 }}>
                               {eventosEnSoporte.map(ev => {
-                                // Calcular fecha de retorno: el evento "retorno_sprint" que tenga la misma persona/rango
-                                const retornoEv = allEvents.find(e =>
-                                  e.type === "retorno_sprint" &&
-                                  e.start_date === ev.start_date &&
-                                  e.end_date === ev.end_date
-                                );
                                 const retornoDate = ev.end_date || ev.start_date;
-                                const retornoLabel = retornoEv
-                                  ? (retornoEv.title || new Date(retornoDate + "T12:00:00").toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }))
-                                  : new Date(retornoDate + "T12:00:00").toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
+                                const retornoLabel = new Date(retornoDate + "T12:00:00").toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
 
                                 return (
                                   <div key={ev.id} style={{ display: "flex", alignItems: "center", gap: 8, background: cardBg, padding: "8px 14px", borderRadius: 12, border: `1px solid ${borderColor}`, boxShadow: "0 2px 8px rgba(0,0,0,0.05)" }}>
                                     <div style={{ fontSize: 13, fontWeight: 800, color: textColor }}>{ev.person}</div>
                                     <div style={{ width: 1, height: 14, background: borderColor }} />
                                     <div style={{ fontSize: 11, fontWeight: 600, color: mutedColor }}>
-                                      Regresa: <span style={{ color: "#3B82F6", fontWeight: 800 }}>{retornoLabel}</span>
+                                      Fin previsto: <span style={{ color: "#3B82F6", fontWeight: 800 }}>{retornoLabel}</span>
                                     </div>
                                   </div>
                                 );
@@ -1174,17 +1226,22 @@ export function CalendarView({ T, team }) {
                         // Calcular quiénes están en soporte durante este sprint (por eventos, no por rol)
                         const nombresEnSoporte = new Set(
                           allEvents
-                            .filter(e =>
-                              e.type === "rotacion_soporte" &&
-                              e.start_date <= sEnd &&
-                              (e.end_date || e.start_date) >= sStart
-                            )
-                            .map(e => e.person)
+                            .filter(e => {
+                              if (e.type !== "rotacion_soporte") return false;
+                              if (e.person === "A Confirmar" || e.person === "Nadie/Soporte Vacante") return false;
+                              // Si es un evento de varios días y termina exactamente el primer día del sprint (sStart),
+                              // la persona hace el enroque y ESTÁ disponible para este sprint.
+                              if (e.start_date < e.end_date && (e.end_date || e.start_date) === sStart) {
+                                return false;
+                              }
+                              return e.start_date <= sEnd && (e.end_date || e.start_date) >= sStart;
+                            })
+                            .map(e => e.person ? e.person.trim() : null)
                             .filter(Boolean)
                         );
 
                         // Excluir de la grilla a quienes están en soporte técnico este sprint
-                        const personasActivas = people.filter(p => !nombresEnSoporte.has(p.name));
+                        const personasActivas = people.filter(p => !nombresEnSoporte.has(p.name ? p.name.trim() : ""));
                         const rolesPresentes = [...new Set(personasActivas.map(p => p.role || "Sin Rol"))].sort();
                         const ROLE_COLORS = ["#8B5CF6", "#3B82F6", "#10B981", "#F59E0B", "#06B6D4", "#EC4899", "#84cc16"];
                         const personsByGroup = {};

@@ -25,6 +25,7 @@ class EventIn(BaseModel):
     end_date: Optional[str] = None  # YYYY-MM-DD
     type: str                # birthday | vacation | medical | exam | study | custom | sprint_start | sprint_end | holiday
     person: Optional[str] = None
+    personSwap: Optional[str] = None
     team: Optional[str] = None
     color: Optional[str] = None
     notes: Optional[str] = None
@@ -64,6 +65,11 @@ async def create_event(event: EventIn):
     events = _load_events()
     import uuid
     new_event = event.dict()
+    if getattr(event, "personSwap", None) is not None:
+        new_event["personSwap"] = event.personSwap
+    elif "personSwap" in event.dict():
+        new_event["personSwap"] = event.dict().get("personSwap")
+    
     new_event["id"] = str(uuid.uuid4())
     events.append(new_event)
     _save_events(events)
@@ -76,11 +82,15 @@ async def update_event(event_id: str, event: EventIn):
     for i, e in enumerate(events):
         if e["id"] == event_id:
             updated = event.dict()
+            if getattr(event, "personSwap", None) is not None:
+                updated["personSwap"] = event.personSwap
+            
             updated["id"] = event_id
             events[i] = updated
             _save_events(events)
             return updated
     raise HTTPException(status_code=404, detail="Event not found")
+
 
 
 @router.delete("/events/{event_id}")

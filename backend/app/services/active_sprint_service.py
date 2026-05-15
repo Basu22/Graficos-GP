@@ -341,6 +341,7 @@ async def get_active_sprint_data(client: JiraClient, board_id: int, team: str) -
             "label": get_sprint_label(sprint),
             "start_date": sprint.get("startDate"),
             "end_date": sprint.get("endDate"),
+            "goal": sprint.get("goal"),
         },
         "kpis": {
             "total_points": total_sp,

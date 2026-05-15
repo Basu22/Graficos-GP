@@ -170,7 +170,13 @@ async def get_availability(start: str, end: str, team: Optional[str] = None):
         person_events = []
         for e in events:
             # Si el evento coincide con la fecha
-            if e.get("start_date") <= ds <= (e.get("end_date") or e.get("start_date")):
+            start_d = e.get("start_date")
+            end_d_ev = e.get("end_date") or start_d
+            if start_d <= ds <= end_d_ev:
+                # Excepción: El último día de una rotación de soporte de varios días NO cuenta como ausencia
+                if e.get("type") == "rotacion_soporte" and start_d < end_d_ev and ds == end_d_ev:
+                    continue
+                    
                 if e.get("person"):
                     # Es un evento asignado a un colaborador específico
                     person_events.append(e)

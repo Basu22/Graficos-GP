@@ -63,6 +63,7 @@ export default function MiDia({
   T, 
   allMails = [], 
   events = [], 
+  tools = [],
   loadingGlobal = false, 
   smartInbox = null, 
   healthReport = null, 
@@ -508,13 +509,25 @@ export default function MiDia({
           </a>
           
           <div style={{ display: "flex", gap: 14 }}>
-            {["Gmail", "Calendar", "Drive"].map(app => (
-              <div key={app} style={{ fontSize: 10, fontWeight: 700, color: PALETTE.textMuted, cursor: "pointer", transition: "color 0.2s" }}
+            {tools.map(app => (
+              <a 
+                key={app.name} 
+                href={app.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ 
+                  fontSize: 10, 
+                  fontWeight: 700, 
+                  color: PALETTE.textMuted, 
+                  cursor: "pointer", 
+                  transition: "color 0.2s",
+                  textDecoration: "none"
+                }}
                 onMouseEnter={e => e.currentTarget.style.color = PALETTE.primary}
                 onMouseLeave={e => e.currentTarget.style.color = PALETTE.textMuted}
               >
-                {app}
-              </div>
+                {app.name}
+              </a>
             ))}
           </div>
         </div>

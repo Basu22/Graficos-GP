@@ -48,18 +48,6 @@
     "impact": 0.0
   },
   {
-    "id": "eec60f2e-fa6d-45fe-9caa-00e3a6bd495a",
-    "title": "Vacaciones — Alejandro Lo Preiato",
-    "start_date": "2026-04-01",
-    "end_date": "2026-04-08",
-    "type": "vacation",
-    "person": "Alejandro Lo Preiato",
-    "team": "Back",
-    "color": "#22C55E",
-    "notes": "Test de UX - Comentario",
-    "impact": 0.0
-  },
-  {
     "id": "6ec82f01-fb52-4c9a-a13f-706ad2ee2a04",
     "title": "Sprint 60",
     "start_date": "2026-04-30",
@@ -72,75 +60,65 @@
     "impact": 0.0
   },
   {
-    "id": "6dbe22da-e339-494e-b1f5-ccdd40913388",
-    "title": "Retorno al Sprint — Carlos Quinteros",
-    "start_date": "2026-05-01",
-    "end_date": "2026-05-15",
+    "id": "841ee81a-5313-472f-b90b-59b5787b4389",
+    "title": "Retorno al Sprint — Ricardo Emiliano Farias",
+    "start_date": "2026-04-01",
+    "end_date": "2026-04-30",
     "type": "retorno_sprint",
-    "person": "Carlos Quinteros",
+    "person": "Ricardo Emiliano Farias",
     "team": "Back",
     "color": "#a51d2d",
     "notes": "",
     "impact": 0.0
   },
   {
-    "id": "5dc440e4-75c7-4726-b906-d505c1d34cc4",
-    "title": "Retorno al Sprint — Carlos Quinteros",
-    "start_date": "2026-05-01",
-    "end_date": "2026-05-15",
-    "type": "retorno_sprint",
-    "person": "Carlos Quinteros",
+    "id": "f0e5ba52-47c6-45c2-9d9d-c2199908573c",
+    "title": "Soporte: Axel Gimenez -> Matias Test",
+    "start_date": "2026-05-30",
+    "end_date": "2026-05-31",
+    "type": "rotacion_soporte",
+    "person": "Matias Test",
+    "team": "Back",
+    "color": null,
+    "notes": null,
+    "impact": 1.0
+  },
+  {
+    "id": "b69da937-e7df-49d1-a985-b5dc8c6a5e3f",
+    "title": "UAT FINAL: Axel -> Matias",
+    "start_date": "2026-06-30",
+    "end_date": "2026-07-15",
+    "type": "rotacion_soporte",
+    "person": "Matias UAT",
+    "team": "Back",
+    "color": null,
+    "notes": null,
+    "impact": 1.0
+  },
+  {
+    "id": "65ef633b-7533-423b-9fb1-3d4029f1ac57",
+    "title": "Soporte: Matias Hernan Abossio Gonzalez -> Axel Gimenez",
+    "start_date": "2026-04-01",
+    "end_date": "2026-04-30",
+    "type": "rotacion_soporte",
+    "person": "Axel Gimenez",
+    "personSwap": "Matias Hernan Abossio Gonzalez",
     "team": "Back",
     "color": "#a51d2d",
     "notes": "",
-    "impact": 0.0
+    "impact": 1.0
   },
   {
-    "id": "ffbd9ce1-71fb-4ffe-bf9e-03a364070c4f",
-    "title": "Ingresa a Soporte — Maria Teresa Bravo",
-    "start_date": "2026-04-29",
+    "id": "de11584d-16d6-4360-8182-29251dc965fa",
+    "title": "Soporte: Axel Gimenez -> Fernando Gaston Mesa",
+    "start_date": "2026-04-30",
     "end_date": "2026-05-14",
     "type": "rotacion_soporte",
-    "person": "Maria Teresa Bravo",
-    "team": "Back",
-    "color": "#a51d2d",
-    "notes": "",
-    "impact": 1.0
-  },
-  {
-    "id": "c1246942-fa43-4956-9bb4-c3b49370a838",
-    "title": "Retorno al Sprint — Axel Gimenez",
-    "start_date": "2026-04-29",
-    "end_date": "2026-05-16",
-    "type": "retorno_sprint",
-    "person": "Axel Gimenez",
-    "team": "Back",
-    "color": "#a51d2d",
-    "notes": "",
-    "impact": 0.0
-  },
-  {
-    "id": "2d3418b8-6b86-4b7f-bac7-a297c38a9de0",
-    "title": "Ingresa a Soporte — Axel Gimenez",
-    "start_date": "2026-04-01",
-    "end_date": "2026-04-30",
-    "type": "rotacion_soporte",
-    "person": "Axel Gimenez",
-    "team": "Back",
-    "color": "#a51d2d",
-    "notes": "",
-    "impact": 1.0
-  },
-  {
-    "id": "108c25b5-ff83-4064-8230-4f418656c7bb",
-    "title": "Retorno al Sprint — Fernando Gaston Mesa",
-    "start_date": "2026-04-01",
-    "end_date": "2026-04-30",
-    "type": "retorno_sprint",
     "person": "Fernando Gaston Mesa",
+    "personSwap": "Axel Gimenez",
     "team": "Back",
-    "color": "#a51d2d",
+    "color": "",
     "notes": "",
-    "impact": 0.0
+    "impact": 1.0
   }
 ]

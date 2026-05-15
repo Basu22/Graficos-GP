@@ -203,10 +203,32 @@ export function SprintEnCurso({ team, T }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
       {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: 16, marginBottom: 8 }}>
         <div>
-          <div style={{ fontSize: 11, color: theme.textFaint, textTransform: "uppercase", letterSpacing: 0.5 }}>Sprint Activo</div>
-          <div style={{ fontSize: 16, fontWeight: 700, color: "#1e293b" }}>{sprint.name}</div>
+          <div style={{ fontSize: 10, color: theme.textFaint, textTransform: "uppercase", letterSpacing: 1.2, fontWeight: 700, marginBottom: 4 }}>Sprint Activo</div>
+          <div style={{ fontSize: 20, fontWeight: 900, color: theme.bg === "#0F172A" ? "#FFFFFF" : "#0F172A", marginBottom: 8, letterSpacing: -0.5 }}>{sprint.name}</div>
+          
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 24, alignItems: "flex-start" }}>
+            {/* Fechas del Sprint */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+              <span style={{ filter: "grayscale(1) brightness(2)" }}>📅</span>
+              <span style={{ fontWeight: 800, color: theme.bg === "#0F172A" ? "#FFFFFF" : "#475569" }}>
+                {sprint.start_date ? new Date(sprint.start_date).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }) : "—"} 
+                {" al "}
+                {sprint.end_date ? new Date(sprint.end_date).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' }) : "—"}
+              </span>
+            </div>
+            
+            {/* Objetivo del Sprint */}
+            {sprint.goal && (
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, maxWidth: 800 }}>
+                <span style={{ marginTop: -1 }}>🎯</span>
+                <span style={{ fontWeight: 600, color: theme.bg === "#0F172A" ? "#E2E8F0" : "#64748B", fontStyle: "italic", lineHeight: 1.4 }}>
+                  {sprint.goal}
+                </span>
+              </div>
+            )}
+          </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           {daysLeft !== null && (

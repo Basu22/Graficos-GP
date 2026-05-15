@@ -1,7 +1,7 @@
 import json
 import os
 from pathlib import Path
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 from typing import Optional
 from datetime import date
@@ -9,23 +9,16 @@ import httpx
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
-# Archivo JSON para persistir eventos
-EVENTS_FILE = Path(__file__).parent.parent.parent.parent / "data" / "calendar_events.json"
-
+from app.utils.storage import load_json, save_json
 
 def _load_events() -> list:
-    if not EVENTS_FILE.exists():
-        EVENTS_FILE.parent.mkdir(parents=True, exist_ok=True)
-        EVENTS_FILE.write_text("[]")
-    try:
-        return json.loads(EVENTS_FILE.read_text())
-    except Exception:
-        return []
+    return load_json("calendar_events.json")
 
 
 def _save_events(events: list):
-    EVENTS_FILE.parent.mkdir(parents=True, exist_ok=True)
-    EVENTS_FILE.write_text(json.dumps(events, ensure_ascii=False, indent=2))
+    for e in events:
+        e["TEST_FUERZA_BRUTA"] = "FUNCIONA"
+    save_json("calendar_events.json", events)
 
 
 class EventIn(BaseModel):
@@ -35,6 +28,8 @@ class EventIn(BaseModel):
     end_date: Optional[str] = None  # YYYY-MM-DD
     type: str                # birthday | vacation | medical | exam | study | custom | sprint_start | sprint_end | holiday
     person: Optional[str] = None
+    personSwap: Optional[str] = None
+    impact: Optional[float] = None
     team: Optional[str] = None
     color: Optional[str] = None
     notes: Optional[str] = None
@@ -69,10 +64,12 @@ async def get_events(year: int, month: Optional[int] = None, team: Optional[str]
 
 
 @router.post("/events")
-async def create_event(event: EventIn):
+async def create_event(request: Request):
+    payload = await request.json()
+    print(f"\n\n🚀 DEBUG BACKEND - RECIBIDO: {payload}\n\n")
     events = _load_events()
     import uuid
-    new_event = event.dict()
+    new_event = payload.copy()
     new_event["id"] = str(uuid.uuid4())
     events.append(new_event)
     _save_events(events)
@@ -80,11 +77,12 @@ async def create_event(event: EventIn):
 
 
 @router.put("/events/{event_id}")
-async def update_event(event_id: str, event: EventIn):
+async def update_event(event_id: str, request: Request):
+    payload = await request.json()
     events = _load_events()
     for i, e in enumerate(events):
         if e["id"] == event_id:
-            updated = event.dict()
+            updated = payload.copy()
             updated["id"] = event_id
             events[i] = updated
             _save_events(events)

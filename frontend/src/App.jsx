@@ -31,6 +31,7 @@ export default function App() {
     } catch { return []; }
   });
   const [events, setEvents] = useState([]);
+  const [tools, setTools] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const { smartInbox, healthReport, loadingHealth, refreshHealthReport } = useSmartInbox(
@@ -90,9 +91,19 @@ export default function App() {
     }
   };
 
+  const fetchTools = async () => {
+    try {
+      const res = await fetch(`${API}/config/tools`);
+      const data = await res.json();
+      setTools(data || []);
+    } catch (e) {
+      console.error("Error fetching tools:", e);
+    }
+  };
+
   const fetchData = async () => {
     setLoading(true);
-    await Promise.all([fetchInbox(), fetchCalendar()]);
+    await Promise.all([fetchInbox(), fetchCalendar(), fetchTools()]);
     setLoading(false);
   };
 
@@ -255,6 +266,7 @@ export default function App() {
             T={T} 
             allMails={allMails} 
             events={events} 
+            tools={tools}
             loadingGlobal={loading}
             smartInbox={smartInbox}
             healthReport={healthReport}

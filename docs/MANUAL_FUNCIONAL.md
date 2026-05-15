@@ -248,6 +248,11 @@ Para justificar visualmente la reducción de capacidad, el sistema inyecta autom
 ### 5.4 Sprints Globales (Sincronización de Equipos)
 Los Sprints Manuales son **Globales**. Al cargar un sprint, este aparece automáticamente para todos los equipos (Back, Datos, etc.), asegurando que todos los departamentos trabajen bajo la misma cadencia organizacional.
 
+### 5.5 Rotaciones de Soporte (Enroques)
+El sistema cuenta con un flujo diseñado específicamente para gestionar los turnos de soporte técnico (conocidos como "Enroques"). 
+- **Lógica de Relevo (UI):** Cuando una persona termina su turno de soporte en un día determinado, un botón especial de **"🔄 Próxima rotación"** se habilita en el modal de ese día para facilitar la carga de su reemplazo. Una vez que se registra al nuevo encargado, el calendario unifica visualmente el cambio mostrando un encadenamiento (ej: `🔴 Matías 🔄 🟢 Axel`) y oculta automáticamente la pastilla original de "Fin de Soporte" para mantener la vista limpia y evitar redundancias.
+- **Regla de Disponibilidad (Sprint):** La regla de negocio central establece que **el último día del soporte técnico es un día laboral normal y libre para el colaborador saliente**. Por lo tanto, si un Sprint inicia o abarca ese día de cierre de rotación, la persona saliente es computada como **disponible para tareas de desarrollo** durante ese mismo día y es excluida automáticamente de la caja roja de "Colaboradores en Soporte Técnico".
+
 ---
 
 ---
